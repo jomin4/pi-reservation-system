@@ -12,6 +12,7 @@
 | [0004](0004-redis-stream-only-fanout.md) | SSE 팬아웃을 Redis Stream 단독으로 한다 | 2026-09-09 | 채택 |
 | [0005](0005-single-host-onpremise.md) | 온프레미스를 단일 호스트로 전환한다 | 2026-09-10 | 채택 |
 | [0006](0006-backup-to-cloudflare-r2.md) | 백업을 Cloudflare R2 오프사이트 한 벌로 한다 | 2026-09-10 | 채택 |
+| [0007](0007-design-first-api-contract.md) | **API 계약을 손으로 쓴 `openapi.yaml`로 관리한다** | 2026-09-10 | 채택 |
 
 > **0001~0003은 소급 작성이다.** 결정 이후에 기록했으므로 **그때의 사고가 지금 시점에서 각색되었을 수 있다.** 그 한계를 표시해 둔다.
 
@@ -60,6 +61,7 @@
 | 완전 분리 + 매퍼 (도메인 ↔ JPA) | `CLAUDE.md` · ADR-0001에 포함 |
 | `TransactionRunner` 포트 | `data.md` §4 |
 | RFC 9457 + `code` 확장 | `api.md` §4 |
+| ~~`openapi.yaml`~~ | **ADR-0007로 승격** |
 | `202 Accepted` + `PAYMENT_PENDING` | `api.md` §4 |
 | `COMPLETED`를 저장하지 않고 파생 | `data.md` §5.5 |
 | SSE 스트림 비인증 | `api.md` §6.1 |

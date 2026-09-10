@@ -102,11 +102,13 @@ git worktree remove ../pi-back   # 작업 끝나면
 
 | 순서 | PR | 내용 |
 |---|---|---|
-| **1** | **`docs/api-*`** | `api.md` + `openapi.yaml` — **먼저 `develop`에 머지** |
+| **1** | **`docs/api-*`** | `api.md` + **`docs/api/openapi.yaml`** — **먼저 `develop`에 머지** |
 | 2 | `feat/back-*` | 구현 |
 | 2 | `feat/front-*` · `feat/mobile-*` | 생성 타입으로 구현 |
 
-> **`openapi.yaml`이 단일 진실이면 계약 위반이 컴파일 에러가 된다.** `front`·`mobile`이 각자 타입을 생성하므로(`tech.md`) **옛 계약으로 짠 코드는 타입이 안 맞아 빌드가 깨진다** — 사람이 대조할 일이 없다.
+> **`openapi.yaml`이 단일 진실이면 계약 위반이 컴파일 에러가 된다.** `front`·`mobile`이 각자 타입을 생성하므로 **옛 계약으로 짠 코드는 타입이 안 맞아 빌드가 깨진다** — 사람이 대조할 일이 없다.
+>
+> **양방향이 잠긴다** (ADR-0007) — 백엔드도 `generateOpenApiDocs` 산출 스펙이 계약과 다르면 CI가 막는다(`deploy.md` §6.1). **Flyway의 `validate-on-migrate`와 같은 역할이다.**
 
 PR 템플릿의 **"API 계약 변경" 칸**이 이 규칙의 집행 지점이다. "있음"에 체크하면 **선행 PR 번호를 적어야** 한다.
 

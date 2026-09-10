@@ -154,6 +154,18 @@ runs-on: [self-hosted, pi-host]
 | 빌드 · 테스트 | `./gradlew build` |
 | **금지사항 검사** | **`scripts/check-forbidden.sh`** (`workflow.md` §8) |
 | 마이그레이션 검증 | Testcontainers PostgreSQL에 Flyway 적용 |
+| ⚠️ **계약 ↔ 구현 대조** | **SpringDoc 산출 스펙 vs `docs/api/openapi.yaml`** — 아래 |
+
+**계약 대조** — ADR-0007의 집행 장치다.
+
+```bash
+./gradlew generateOpenApiDocs        # 앱을 띄워 구현 스펙을 뽑는다
+diff docs/api/openapi.yaml build/generated-openapi.yaml || exit 1
+```
+
+> **Flyway의 `validate-on-migrate`와 같은 역할이다.** 스키마 이력과 파일 목록을 대조해 어긋나면 기동을 거부하듯, **계약과 구현을 대조해 어긋나면 CI가 막는다.**
+>
+> 구현을 바꿨으면 **계약을 먼저 고치는 PR**(`workflow.md` §3)이 있어야 이 검사가 통과한다.
 
 ### 6.2 CD — ⚠️ 러너가 둘로 갈린다
 

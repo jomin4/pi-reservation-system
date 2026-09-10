@@ -24,7 +24,8 @@
 | DB | **PostgreSQL 17** — 좌석의 진실 |
 | 캐시 · 이벤트 | **Redis 7** — 좌석맵 캐시 + **Stream**(팬아웃 · 재개) |
 | 마이그레이션 | Flyway |
-| API 문서 | SpringDoc OpenAPI (OpenAPI 3) |
+| **API 계약** | **`docs/api/openapi.yaml`** — **손으로 작성.** 진실의 출처 (ADR-0007) |
+| API 문서 UI · 구현 검증 | **SpringDoc OpenAPI** — Swagger UI + **계약 대조용 산출 스펙** |
 | 테스트 | JUnit 5 · Testcontainers · AssertJ |
 | 관측 | Micrometer → Prometheus |
 
@@ -33,12 +34,13 @@
 | 구분 | 선택 |
 |---|---|
 | 패키지 관리 | **`front`/`mobile` 각자 독립** — workspace로 안 묶는다 (Expo metro resolver 이슈 회피) |
-| 공유 방식 | **각자 `openapi.yaml`에서 타입 생성** — 원본이 하나면 생성물 중복은 중복이 아니다 |
+| 공유 방식 | **각자 `docs/api/openapi.yaml`에서 타입 생성** — 원본이 하나면 생성물 중복은 중복이 아니다 |
+| Mock | **MSW** — 앱이 진짜 `fetch`를 호출하고 네트워크에서 가로챈다 (`api.md` §7.2) |
 | **웹** | React 19 + Vite (SPA) |
 | **모바일** | React Native + Expo → Android APK |
 | 서버 상태 | TanStack Query |
 | 스키마 검증 | Zod |
-| API 클라이언트 생성 | OpenAPI Generator / `openapi-typescript` |
+| API 클라이언트 생성 | **`openapi-typescript`** — 입력은 `docs/api/openapi.yaml` |
 | SSE (웹) | 네이티브 `EventSource` |
 | SSE (React Native) | `react-native-sse` |
 | 토큰 저장 (모바일) | Expo SecureStore |

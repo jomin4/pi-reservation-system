@@ -929,14 +929,219 @@ data: {"reason":"EVENT_ID_TOO_OLD","action":"REFETCH_SNAPSHOT"}
 
 ---
 
-## 다음 단계
+## §7 클라이언트 선행 개발
 
-| § | 절 | 내용 |
+### 7.1 문제
+
+**백엔드가 없는 동안 웹·모바일이 화면을 만든다.** 그러려면 계약이 **코드보다 먼저** 존재해야 한다.
+
+| 시점 | 계약의 출처 |
+|---|---|
+| 백엔드 개발 전 | **`openapi.yaml`** — 손으로 작성 |
+| 백엔드 개발 후 | 〃 — **SpringDoc 산출 스펙과 대조** |
+
+> **Flyway와 같은 구조다.** 스키마를 `V1__init.sql`로 **먼저 정의**하고 앱이 그대로 적용하듯, 계약을 `openapi.yaml`로 먼저 정의하고 백엔드가 그대로 구현한다. **`validate-on-migrate`가 하는 일을 CI diff가 한다.**
+
+### 7.2 Mock 전략 — MSW
+
+| | **MSW (Mock Service Worker)** ★채택 | 함수 안 하드코딩 `return` |
 |---|---|---|
-| 7 | Mock 서버 | 4개 트랙 선행 개발 |
-| 부록 | `openapi.yaml` | 코드 생성 소스 |
+| 앱 코드 | **진짜 `fetch`를 호출한다** | fake 함수 호출 |
+| 전환 | **핸들러만 끈다** | **코드 경로가 바뀐다** |
+| **로딩 상태** | ✅ `delay(500)` | ❌ **즉시 반환 — 만들 계기가 없다** |
+| **에러 화면** | ✅ `status(409)` + Problem 본문 | ❌ 별도 분기를 또 짜야 |
 
-> **관측 · 로그는 이 문서에 없다.** 로그 레벨 · 마스킹 · 메트릭은 클라이언트가 지킬 계약이 아니라 운영 방식이라 [operate.md](operate.md)로 분리했다. API 계약에 걸리는 부분(`X-Request-Id` 에코 · `requestId` 에러 필드)은 §2 · §4에 이미 있다.
+> **이게 결정적이다.** 와이어프레임에 **예외 화면이 웹 3개 · 모바일 4개** 있다 — `E-01` 좌석 경합, `E-03` 결제 타임아웃, `E-04` 백그라운드 복귀.
+>
+> **함수에서 즉시 `return`하면 그 화면들을 만들 계기가 없다.** MSW면 `delay`와 `status`를 조작해 **예외 화면을 백엔드보다 먼저 완성**할 수 있다.
+
+```
+컴포넌트 → TanStack Query → fetch('/api/v1/trips')
+                                   ↑
+                          MSW가 여기를 가로챈다
+                          끌 때는 핸들러만 뺀다
+```
+
+| 스위치 | `VITE_API_MODE=mock \| real` |
+|---|---|
+
+⚠️ **React Native에서 MSW 동작은 세팅 때 확인할 것.** 안 되면 mobile만 다른 방식으로 간다.
+
+**Prism은 쓰지 않는다** — `openapi.yaml`에서 Mock 서버를 띄우는 도구지만, **프로세스가 하나 늘고** MSW가 이미 같은 일을 앱 안에서 한다.
+
+### 7.3 fixture를 새로 만들지 않는다
+
+> **§5의 JSON 예시를 그대로 복사해 fixture로 쓴다.**
+
+```
+api.md §5.2  POST /holds 201 응답 예시
+        ↓ 복사
+front/src/mocks/fixtures/hold-created.json
+        ↓ 동시에
+백엔드 구현의 목표
+```
+
+| 같은 JSON이 쓰이는 곳 | |
+|---|---|
+| 문서의 예시 | §5 |
+| 프론트의 가짜 응답 | MSW fixture |
+| 백엔드 구현의 목표 | 테스트 기대값 |
+
+> **셋이 같은 파일에서 나오면 어긋날 여지가 줄어든다.** 그리고 **이미 §5에 써놨으니 새로 만들 게 없다.**
+
+**예외 fixture도 §4에서 나온다** — 에러 코드 21개와 §4의 `SEAT_ALREADY_HELD` 응답 예시가 그대로 MSW 핸들러가 된다.
+
+### 7.4 SSE는 인터페이스로 감싼다
+
+MSW로 SSE를 가로채는 건 불확실하다. **인터페이스를 하나 두는 게 확실하다.**
+
+```ts
+interface SeatEventSource {
+  subscribe(tripId: number, lastEventId?: string): void;
+  onSeatChanged(cb: (delta: SeatDelta) => void): void;
+  close(): void;
+}
+```
+
+| 구현 | 동작 |
+|---|---|
+| `RealSeatEvents` | `EventSource('/api/v1/trips/{id}/seat-events')` |
+| **`FakeSeatEvents`** | **3초마다 랜덤 좌석의 상태를 바꿔 뿜는다** |
+
+> **가짜 SSE가 시연에도 쓰인다.** 좌석맵이 저절로 움직이는 화면을 **백엔드 없이** 보여줄 수 있다. `cause` 5종(§6.2)을 돌려가며 뿜으면 **전이별 화면 반응을 다 확인**할 수 있다.
+
+### 7.5 전환 단계
+
+| # | back | front · mobile |
+|---|---|---|
+| **0** | — | **`openapi.yaml`에서 타입 생성** |
+| 1 | — | **MSW 핸들러 = §5 · §4 예시** |
+| 2 | — | 화면 개발 — **정상 + 예외 전부** |
+| 3 | **구현** | (계속) |
+| 4 | **SpringDoc 스펙 노출 → CI diff 통과** | — |
+| 5 | — | **MSW 끄기** (`VITE_API_MODE=real`) |
+| 6 | — | 통합 확인 |
+
+> **0번이 code-first와 갈리는 지점이다.** 계약을 손으로 썼으니 **백엔드가 한 줄도 없을 때부터 타입이 존재한다.** 프론트는 처음부터 진짜 타입 위에서 개발한다.
+
+### 7.6 계약 검증 — 양방향으로 잠근다
+
+```
+        openapi.yaml (계약 · 진실)
+              │
+    ┌─────────┴──────────┐
+    ▼                    ▼
+타입 생성              CI diff
+front · mobile      SpringDoc 산출 스펙
+    │                    │
+어긋나면 컴파일 실패    어긋나면 CI 실패
+```
+
+| 방향 | 검사 | 어디서 |
+|---|---|---|
+| **계약 → 클라이언트** | 생성 타입 최신성 `diff` | `deploy.md` §7.2 · §8.1 |
+| **계약 → 백엔드** | **SpringDoc 산출 스펙과 `diff`** | `deploy.md` §6.1 |
+
+> **어느 쪽도 몰래 어긋날 수 없다.** 프론트는 계약에서 타입을 뽑고, 백엔드는 구현이 계약과 같은지 검사받는다.
+
+### 7.7 타입이 못 잡는 것 — 정직하게
+
+**타입은 모양만 검사한다.**
+
+| 안 잡히는 것 | 어디에 적혀 있나 |
+|---|---|
+| **값의 의미** — 날짜 형식 · enum 문자열 | §0 시각 표현 |
+| **상태 전이 규칙** — `409`가 언제 나는지 | §5 전이 컬럼 · `data.md` §5 |
+| **타이밍** — TTL 10분 · SSE 1초 | §5.2 · §6.4 |
+| **부수효과** — 확정이 5개 테이블을 바꾼다 | `data.md` §5.6 |
+
+> **그래서 `openapi.yaml`이 `api.md`를 대체하지 않는다.** 스펙은 **"무엇인가"**만 말하고 **"왜"와 "언제"**를 말하지 않는다.
+
+---
+
+## 부록 — `openapi.yaml`
+
+### A.1 위치와 성격
+
+| 항목 | 값 |
+|---|---|
+| 경로 | **`docs/api/openapi.yaml`** |
+| 성격 | **계약의 진실.** 손으로 작성한다 |
+| OpenAPI 버전 | **3.1** |
+| `info.version` | 제품 태그와 맞춘다 (`0.1.0`) |
+
+### A.2 작성 규칙
+
+| 규칙 | 내용 |
+|---|---|
+| **`$ref` 강제** | 두 번 이상 쓰이는 스키마는 **`components/schemas`로 뺀다** |
+| 에러 응답 | **`application/problem+json`** + `Problem` 스키마 재사용 (§4) |
+| 제약을 스펙에 | **`maxItems: 6`** · `pattern` · `enum` — 규칙을 스키마가 갖는다 |
+| 시각 | `format: date-time`(UTC) vs **`format: date`**(영업일) — §0 구분을 반영 |
+| 예시 | **`example`에 §5의 JSON을 그대로** |
+
+```yaml
+paths:
+  /holds:
+    post:
+      summary: 좌석 선점
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tripId, seats]
+              properties:
+                tripId: { type: integer, format: int64 }
+                seats:
+                  type: array
+                  minItems: 1
+                  maxItems: 6                       # 6석 규칙이 스펙에 산다
+                  items: { $ref: '#/components/schemas/SeatAddress' }
+      responses:
+        '201':
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HoldResponse' }
+        '409':
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+```
+
+### A.3 산출물
+
+| 대상 | 도구 | 쓰는 곳 |
+|---|---|---|
+| TypeScript 타입 | **`openapi-typescript`** | front · mobile |
+| MSW 핸들러 | 손으로 (fixture는 §5에서) | front · mobile |
+| Swagger UI | **SpringDoc** — 구현 기준으로 뜬다 | 개발 편의 |
+
+### A.4 검증
+
+| 검사 | 도구 | 시점 |
+|---|---|---|
+| 스펙 문법 · 스타일 | **`spectral lint`** | `docs/api-*` PR CI |
+| **계약 ↔ 구현** | SpringDoc 산출 스펙과 **`diff`** | back CI |
+| **계약 ↔ 클라이언트** | 생성 타입 `diff` | front · mobile CI |
+
+> **A.4가 이 설계의 전부다.** 계약을 손으로 쓰는 대가는 **"구현이 어겼는지 사람이 봐야 한다"**인데, **CI diff가 그걸 대신한다** — Flyway의 `validate-on-migrate`와 정확히 같은 역할이다.
+
+### A.5 SSE는 스펙에 잘 담기지 않는다
+
+| 항목 | OpenAPI로 표현 가능? |
+|---|---|
+| 엔드포인트 · `text/event-stream` | ✅ |
+| **이벤트 3종의 페이로드** | ⚠️ **부분적** — 스트림 프레임 구조는 표준 표현이 없다 |
+| 재개 · 하트비트 규약 | ❌ |
+
+> **SSE 계약의 진실은 `api.md` §6이다.** `openapi.yaml`에는 엔드포인트와 미디어 타입만 적고, **이벤트 형식은 문서를 가리킨다.** 억지로 스키마화하면 생성 타입이 쓸모없어진다.
+
+---
 
 ## 관련 문서
 

@@ -13,7 +13,7 @@
 | [docs/overview.md](docs/overview.md) | 프로젝트 주제 · 기획 · 범위 |
 | [docs/features.md](docs/features.md) | **기능정의서 25건 (P0 21)** — 초기 릴리스 범위 확정 |
 | [docs/data.md](docs/data.md) | **데이터 설계 §0~§9 완료** — ERD 12개 · 동시성 · 상태 전이 · Redis · 시드 · 쿼리 계획 · Flyway |
-| [docs/api.md](docs/api.md) | **API · DTO · Error.** §0~§6 작성, §7 Mock 서버 미작성 |
+| [docs/api.md](docs/api.md) | **API 설계 §0~§7 + 부록 완료** — 계약 · DTO · 에러 · 엔드포인트 · SSE · **클라이언트 선행 개발** |
 | [docs/operate.md](docs/operate.md) | **관측 · 로그 · 모니터링 §0~§7 완료** — 레벨 정책 · 대시보드 4계층 · 경보 10건 |
 | [docs/infra.md](docs/infra.md) | **인프라 §0~§10** — 호스트 · 네트워크 · 컨테이너 · 백업 · 보안 · 한계 |
 | [docs/workflow.md](docs/workflow.md) | **개발 워크플로우 §0~§9** — worktree · 브랜치 · 커밋 · **이슈·칸반** · PR · 금지사항 CI · Gemini |
@@ -343,8 +343,21 @@ pi-reservation-system/
 
 | 우선순위 | 문서 | 내용 |
 |---|---|---|
-| **1** | `docs/api.md` §7 · 부록 | **Mock 서버 · `openapi.yaml`** |
-| 2 | — | **설계 완료. 세팅·구현 착수** |
+| **1** | — | **설계 완료.** 원격 저장소 생성 → 세팅 → 구현 착수 |
+
+### API 계약 관리 (확정 — ADR-0007)
+
+| 항목 | 결정 |
+|---|---|
+| **진실의 출처** | **`docs/api/openapi.yaml` — 손으로 쓴다** (design-first) |
+| 비유 | **Flyway와 같은 구조** — 정의를 먼저 쓰고 기계가 검증한다 |
+| SpringDoc 역할 | **Swagger UI** + **계약 대조용 산출 스펙** (진실이 아니다) |
+| **양방향 잠금** | 계약→클라이언트 **타입 diff** · 계약→백엔드 **`generateOpenApiDocs` diff** |
+| 클라이언트 선행 | **MSW** — 앱이 진짜 `fetch`를 하고 네트워크에서 가로챈다 |
+| | ⚠️ **함수 안 `return` 금지** — 로딩·에러 화면을 만들 계기가 없어진다 |
+| fixture | **`api.md` §5·§4 JSON 예시를 복사** — 새로 만들지 않는다 |
+| SSE | **인터페이스 + `FakeSeatEvents`** · 계약의 진실은 `api.md` §6 (yaml로 표현 불가) |
+| `api.md`의 역할 | **왜·언제** — 스펙은 "무엇"만 말한다 |
 
 ### API 에러 규약 (확정 — `api.md` §4)
 
@@ -431,9 +444,9 @@ pi-reservation-system/
 | `docs/search/korail-trip-data.md` | ✅ 코레일 운행정보 조사 — **공공데이터 미채택 근거 포함** |
 | `docs/wireframes/web.html` | ✅ 화면 11 + 예외 3 |
 | `docs/wireframes/mobile.html` | ✅ 화면 11 + 예외 4 (`E-04` 백그라운드 복귀는 모바일 전용) |
-| `docs/api.md` | ✅ §0~§6 — 계약 원칙 · 리소스 · **DTO 경계** · **에러 설계** · **엔드포인트** · **SSE 계약** |
+| `docs/api.md` | ✅ **§0~§7 + 부록** — 계약 원칙 · DTO 경계 · 에러 · 엔드포인트 · SSE · **선행 개발** · **`openapi.yaml` 규약** |
 | `docs/operate.md` | ✅ §0~§7 — **레벨 정책** · 상관관계 · 마스킹 · 메트릭 · 수집 · **대시보드 4계층** · **경보 10건** |
-| **`docs/adr/`** | ✅ **ADR 6건 + 템플릿 + 색인** (0001~0006) |
+| **`docs/adr/`** | ✅ **ADR 7건 + 템플릿 + 색인** (0001~0007) |
 | `docs/diagrams/` × 5 | ✅ 전체 아키텍처 · 헥사고날 · Gradle 모듈 · Redis 워크로드 · **배포 토폴로지** |
 
 ## 작업 트랙 (병렬)
