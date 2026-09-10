@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "아웃바운드 포트 — 코어가 요구하고 어댑터가 구현한다",
+    "quality_profile": "showcase",
+    "viewBox": [1120, 700],
+    "views": [
+      {
+        "id": "own",
+        "label": "포트는 코어 것",
+        "focus": ["usecase", "seatRepo", "holdRepo"],
+        "note": "인터페이스를 :application 이 소유한다. 유스케이스는 이것만 본다."
+      },
+      {
+        "id": "impl",
+        "label": "구현은 어댑터 것",
+        "focus": ["persAdapter", "seatRepo", "txRunner"],
+        "note": "화살표가 안쪽을 향한다. 호출은 반대로 나간다."
+      },
+      {
+        "id": "rollback",
+        "label": "롤백되는 것과 아닌 것",
+        "focus": ["payRepo", "payGateway", "payAdapter"],
+        "note": "우리 DB 는 롤백된다. 토스 승인은 안 된다. 그래서 포트를 나눈다."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "usecase",
+      "type": "backend",
+      "label": "유스케이스",
+      "sublabel": "HoldSeatsService · ConfirmService",
+      "tag": "인터페이스만 본다",
+      "pos": [60, 300],
+      "size": [260, 110]
+    },
+    {
+      "id": "seatRepo",
+      "type": "security",
+      "label": "SeatRepository",
+      "sublabel": "id 순으로 잠그고 읽고 쓴다",
+      "tag": "락이 여기 요구된다",
+      "pos": [430, 80],
+      "size": [270, 58]
+    },
+    {
+      "id": "holdRepo",
+      "type": "security",
+      "label": "HoldRepository",
+      "sublabel": "선점 저장 · 조회",
+      "pos": [430, 158],
+      "size": [270, 58]
+    },
+    {
+      "id": "resRepo",
+      "type": "security",
+      "label": "ReservationRepository",
+      "sublabel": "예약 + 좌석 값 스냅샷",
+      "pos": [430, 236],
+      "size": [270, 58]
+    },
+    {
+      "id": "payRepo",
+      "type": "security",
+      "label": "PaymentRepository",
+      "sublabel": "결제 시도 기록",
+      "tag": "멱등키 UNIQUE",
+      "pos": [430, 314],
+      "size": [270, 58]
+    },
+    {
+      "id": "txRunner",
+      "type": "security",
+      "label": "TransactionRunner",
+      "sublabel": "여기까지가 한 덩어리",
+      "tag": "Spring 없이 경계를",
+      "pos": [430, 392],
+      "size": [270, 58]
+    },
+    {
+      "id": "payGateway",
+      "type": "security",
+      "label": "PaymentGateway",
+      "sublabel": "토스 승인 요청",
+      "tag": "롤백되지 않는다",
+      "pos": [430, 500],
+      "size": [270, 58]
+    },
+    {
+      "id": "broadcaster",
+      "type": "security",
+      "label": "SeatChangeBroadcaster",
+      "sublabel": "델타 하나가 캐시와 SSE 로",
+      "tag": "커밋 후에 부른다",
+      "pos": [430, 590],
+      "size": [270, 58]
+    },
+    {
+      "id": "persAdapter",
+      "type": "database",
+      "label": ":adapter-persistence",
+      "sublabel": "JPA · 매퍼 · 비관적 락",
+      "tag": "포트 5개 구현",
+      "brand": "postgresql",
+      "pos": [800, 220],
+      "size": [250, 100]
+    },
+    {
+      "id": "payAdapter",
+      "type": "external",
+      "label": ":adapter-payment",
+      "sublabel": "토스페이먼츠 클라이언트",
+      "pos": [800, 500],
+      "size": [250, 58]
+    },
+    {
+      "id": "cacheAdapter",
+      "type": "messagebus",
+      "label": ":adapter-cache",
+      "sublabel": "Redis HSET · XADD",
+      "brand": "redis",
+      "pos": [800, 590],
+      "size": [250, 58]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "애플리케이션 코어 — 포트를 소유한다",
+      "wraps": [
+        "usecase",
+        "seatRepo",
+        "holdRepo",
+        "resRepo",
+        "payRepo",
+        "txRunner",
+        "payGateway",
+        "broadcaster"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "아웃바운드 어댑터 — 포트를 구현한다",
+      "wraps": ["persAdapter", "payAdapter", "cacheAdapter"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "p-seat",
+      "from": "persAdapter",
+      "to": "seatRepo",
+      "label": "구현",
+      "variant": "emphasis"
+    },
+    { "id": "p-hold", "from": "persAdapter", "to": "holdRepo" },
+    { "id": "p-res", "from": "persAdapter", "to": "resRepo" },
+    { "id": "p-pay", "from": "persAdapter", "to": "payRepo" },
+    { "id": "p-tx", "from": "persAdapter", "to": "txRunner" },
+    {
+      "id": "pay-gw",
+      "from": "payAdapter",
+      "to": "payGateway",
+      "variant": "security"
+    },
+    { "id": "cache-bc", "from": "cacheAdapter", "to": "broadcaster" }
+  ]
+}
