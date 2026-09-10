@@ -14,7 +14,7 @@
 | [docs/features.md](docs/features.md) | **기능정의서 25건 (P0 21)** — 초기 릴리스 범위 확정 |
 | [docs/data.md](docs/data.md) | **데이터 설계 §0~§9 완료** — ERD 12개 · 동시성 · 상태 전이 · Redis · 시드 · 쿼리 계획 · Flyway |
 | [docs/api.md](docs/api.md) | **API · DTO · Error.** §0~§6 작성, §7 Mock 서버 미작성 |
-| [docs/operate.md](docs/operate.md) | **관측 · 로그 · 모니터링.** §0~§7 완료 |
+| [docs/operate.md](docs/operate.md) | **관측 · 로그 · 모니터링 §0~§7 완료** — 레벨 정책 · 대시보드 4계층 · 경보 10건 |
 | [docs/infra.md](docs/infra.md) | **인프라 §0~§10** — 호스트 · 네트워크 · 컨테이너 · 백업 · 보안 · 한계 |
 | [docs/workflow.md](docs/workflow.md) | **개발 워크플로우 §0~§9** — worktree · 브랜치 · 커밋 · **이슈·칸반** · PR · 금지사항 CI · Gemini |
 | [docs/deploy.md](docs/deploy.md) | **배포 설계 §0~§13** — CI/CD 7워크플로 · 네임스페이스 · Discord · **롤백** |
@@ -372,7 +372,21 @@ pi-reservation-system/
 | 트레이싱 | **안 넣는다** — `requestId` + 타이밍 필드로 대체. VM 자원 없음 |
 | 로깅 책임 | **`:domain` 금지 · `:application`부터 SLF4J API만** (구현체는 `:bootstrap`) |
 | 마스킹 | **화이트리스트** — 찍을 필드를 명시. 블랙리스트는 빼먹으면 샌다 |
-| 수집 | **Loki + Promtail · Prometheus · Grafana** — 메트릭과 로그를 한 화면에서 |
+| 수집 | **Loki + Promtail · Prometheus · Grafana** + **익스포터 3종** (node · postgres · redis) = **1.18GB** |
+| ~~cAdvisor~~ | **안 넣는다** — 컨테이너별 분해에 100MB는 아깝다. `docker stats`로 |
+| **`imageTag` 필드** | **모든 로그에 고정.** 없으면 "이 에러가 언제부터"를 배포와 대조할 수 없다 |
+| 헬스체크 | `/actuator/health` — ⚠️ **Redis를 `UP` 조건에 안 넣는다** (fail-open 설계가 무의미해진다) |
+| **대시보드** | **계층 4개** — ①인프라(USE) ②앱(Golden Signals) ③데이터 ④**좌석 경합(나중·직접)** |
+| | **1~3은 커뮤니티 것을 가져다 쓴다.** 4번만 우리 것 |
+| | ⚠️ **에러율에 `4xx`를 넣지 말 것** — `409` 때문에 대시보드가 상시 빨개진다 |
+| **경보** | **`#alert` 하나 + mention 유무.** 채널을 더 안 나눈다 · **critical 10개만** |
+| | **초반 warning 없음** — 대시보드로 본다 · `resolved`는 critical만 |
+| **백업 경보** | **dead man's switch** — 성공을 기록하고 **36시간 부재**를 경보 |
+| ⚠️ 대사 쿼리 | **경보에서 뺀다** — 자동 측정이 아니다. **검증 절차**로 |
+| Redis 다운 | **경보 아님** — fail-open이라 예매는 된다 |
+| 소음 억제 | `for:` · `group_by` · `repeat_interval 4h` · **`inhibit_rules`**(원인 하나에 알림 하나) |
+| 전송 | **Discord 웹훅** — `DISCORD_WEBHOOK_ALERT` (호스트 `.env`) |
+| 메시지 | `[계층] 경보명` + **조치 한 줄** — 없으면 받고도 뭘 할지 모른다 |
 
 ### SSE 계약 (확정 — `api.md` §6)
 
@@ -418,7 +432,7 @@ pi-reservation-system/
 | `docs/wireframes/web.html` | ✅ 화면 11 + 예외 3 |
 | `docs/wireframes/mobile.html` | ✅ 화면 11 + 예외 4 (`E-04` 백그라운드 복귀는 모바일 전용) |
 | `docs/api.md` | ✅ §0~§6 — 계약 원칙 · 리소스 · **DTO 경계** · **에러 설계** · **엔드포인트** · **SSE 계약** |
-| `docs/operate.md` | ✅ §0~§7 — **레벨 정책** · 상관관계 · 마스킹 · 메트릭 · 수집 · 경보 |
+| `docs/operate.md` | ✅ §0~§7 — **레벨 정책** · 상관관계 · 마스킹 · 메트릭 · 수집 · **대시보드 4계층** · **경보 10건** |
 | **`docs/adr/`** | ✅ **ADR 6건 + 템플릿 + 색인** (0001~0006) |
 | `docs/diagrams/` × 5 | ✅ 전체 아키텍처 · 헥사고날 · Gradle 모듈 · Redis 워크로드 · **배포 토폴로지** |
 
