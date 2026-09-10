@@ -16,7 +16,7 @@
 | [docs/api.md](docs/api.md) | **API · DTO · Error.** §0~§6 작성, §7 Mock 서버 미작성 |
 | [docs/operate.md](docs/operate.md) | **관측 · 로그 · 모니터링.** §0~§7 완료 |
 | [docs/infra.md](docs/infra.md) | **인프라 §0~§10** — 호스트 · 네트워크 · 컨테이너 · 백업 · 보안 · 한계 |
-| [docs/workflow.md](docs/workflow.md) | **개발 워크플로우 §0~§8** — worktree · 브랜치 · 커밋 · PR · 금지사항 CI · Gemini 리뷰 |
+| [docs/workflow.md](docs/workflow.md) | **개발 워크플로우 §0~§9** — worktree · 브랜치 · 커밋 · **이슈·칸반** · PR · 금지사항 CI · Gemini |
 | [docs/tech.md](docs/tech.md) | 확정된 기술 스택 |
 | [docs/research.md](docs/research.md) | 코레일 · 타사 조사 결과 (재조사 불필요) |
 | **[docs/adr/](docs/adr/)** | **아키텍처 결정 기록 6건.** 되돌리기 비싼 결정만. **불변 — 바뀌면 새 ADR** |
@@ -123,6 +123,15 @@ pi-reservation-system/
 | | `git log --first-parent develop` 으로 PR 단위 시야도 확보 |
 | 브랜치 보호 | 직접 push 금지 · **필수 체크는 CI만** · 사람 승인·Gemini는 차단 조건 아님 |
 | 릴리스 | `v0.1.0` 마일스톤 단위 · `develop → main` 시 태그 |
+| **이슈 · 보드** | **일곱 번째 식별자 체계를 만들지 않는다** — `F-xx` · 트랙 · 커밋 어휘에 얹힌다 |
+| 라벨 | **3축 네임스페이스** `track:` `type:` `prio:` (+ `status:needs-adr`) |
+| 이슈 제목 | `<type>(<track>): <무엇> [F-xx]` — **F는 뒤에 대괄호로** |
+| ⚠️ **범위 선행** | **F-번호 없는 새 기능은 `docs/features-*` PR을 먼저** — 계약 선행과 같은 원리 |
+| 템플릿 | **3종** `task` · `bug` · `design` (+`config.yml`로 빈 이슈 차단) |
+| | 판별 기준 = **필드가 실질적으로 다른가.** 조사는 `type:research` 라벨로 |
+| 칸반 | **Todo → In Progress → In Review → Done.** 보드에는 **이슈만** (PR은 `Closes #`) |
+| | 양 끝 자동 · 가운데 둘은 세션이 `gh`로 · **트랙별 뷰 4개** |
+| WIP | In Progress 트랙당 1장 · **In Review 4장 = 통합 위험 신호** |
 | **금지사항 CI** | **7종 grep** — `scripts/check-forbidden.sh` |
 | | ⚠️ **`.github/workflows` 밖에 둔다** — Gemini가 그 디렉터리를 리뷰에서 제외하므로 |
 | Gemini 리뷰 | **GCP + 결제계정 + Developer Connect(`us-east1`) 필수.** 미리보기 무료 · PR 100+/일 |
@@ -374,7 +383,7 @@ pi-reservation-system/
 | `docs/features.md` | ✅ 25건 (P0 21 · P1 4). 철회 ID 11개 |
 | `docs/data.md` | ✅ **§0~§9 전체 완료** — ERD 12개 · 동시성 · 상태 전이 · Redis · 시드 · 쿼리 계획 · Flyway |
 | **`docs/infra.md`** | ✅ **§0~§10** — 호스트 · Docker 네트워크 3분리 · 백업 · 보안 · 한계 |
-| **`docs/workflow.md`** | ✅ **§0~§8 + 부록 3** — 설정 파일 원본 포함 (실제 생성은 세팅 때) |
+| **`docs/workflow.md`** | ✅ **§0~§9 + 부록 5** — 설정 파일 원본 포함 (실제 생성은 세팅 때) |
 | `docs/tech.md` | ✅ 임베디드 스택 제거 |
 | `docs/search/korail-auth.md` | ✅ 코레일 인증 · 인가 조사 |
 | `docs/search/korail-trip-data.md` | ✅ 코레일 운행정보 조사 — **공공데이터 미채택 근거 포함** |

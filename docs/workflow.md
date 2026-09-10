@@ -140,9 +140,159 @@ test(back): 6석 원자성 동시 요청 시나리오
 
 ---
 
-## §5 Pull Request
+## §5 이슈와 칸반 보드
 
-### 5.1 템플릿
+### 5.1 원칙 — 일곱 번째 식별자 체계를 만들지 않는다
+
+이 프로젝트엔 식별자가 이미 여섯이다.
+
+| 체계 | 예 | 소유 |
+|---|---|---|
+| **`F-xx`** | `F-04` | `features.md` |
+| **`ADR-000N`** | `ADR-0002` | `docs/adr/` |
+| `§N.M` | `data.md` §4.5 | 각 설계 문서 |
+| 트랙 | `back` `front` `mobile` `infra` | 저장소 구조 |
+| 브랜치 | `feat/back-seat-hold` | §2 |
+| 커밋 스코프 | `feat(back):` | §4 |
+
+> **이슈와 보드는 새 번호를 발급하지 않고 기존 것에 얹힌다.** 일곱 번째를 만들면 "이 이슈가 어느 기능인지"를 사람이 대조하게 된다.
+
+### 5.2 전체 흐름
+
+```
+features.md  F-04
+      ↓
+   이슈 #12       라벨: track:back  type:feat  prio:P0
+      ↓           제목: feat(back): 좌석 선점 API [F-04]
+  ┌─────────┐
+  │  Todo   │  ← 이슈 생성 시 자동
+  └────┬────┘
+       │  worktree + 브랜치  feat/back-seat-hold
+  ┌────▼─────────┐
+  │ In Progress  │
+  └────┬─────────┘
+       │  PR 열기 (본문에 Closes #12) → Gemini 자동 리뷰
+  ┌────▼─────────┐
+  │  In Review   │  ← Gemini + CI 대기
+  └────┬─────────┘
+       │  develop 머지 → 이슈 자동 종료
+  ┌────▼────┐
+  │  Done   │
+  └─────────┘
+```
+
+> **보드에는 이슈만 올린다.** PR은 `Closes #12`로 매달리고 별도 카드가 되지 않는다 — **둘 다 올리면 같은 일이 두 장으로 보인다.**
+
+### 5.3 라벨 — 3축 네임스페이스
+
+`<축>:<값>`. 목록이 축별로 묶여 보인다. 전체 목록은 **부록 D**.
+
+| 축 | 값 | 출처 |
+|---|---|---|
+| **`track:`** | `back` `front` `mobile` `infra` `docs` | **커밋 스코프와 동일** |
+| **`type:`** | `feat` `fix` `chore` `docs` `refactor` `research` | **커밋 타입과 동일** |
+| **`prio:`** | `P0` `P1` | **`features.md` 그대로** |
+| `status:` | `blocked` `needs-decision` **`needs-adr`** | 신규 (최소) |
+
+> **`track:`과 `type:`이 커밋 어휘와 같다.** 라벨 → 브랜치 → 커밋이 한 단어로 이어진다.
+>
+> ```
+> 라벨    track:back  type:feat
+> 브랜치  feat/back-seat-hold
+> 커밋    feat(back): 좌석 선점 유스케이스 추가
+> ```
+
+**`status:needs-adr`** — ADR 기준 3개를 만족하는 결정이 이슈에서 나왔다는 표시. **구현 전에 ADR을 쓰라는 뜻**이다.
+
+### 5.4 이슈 제목
+
+```
+<type>(<track>): <무엇>  [F-xx]
+```
+
+| 예 | 비고 |
+|---|---|
+| `feat(back): 좌석 선점 API [F-04]` | 기능 |
+| `fix(front): 백그라운드 복귀 시 타이머 어긋남` | 버그 — F 없음 |
+| `research: EAS Build 무료 티어 한도` | 조사 — 트랙 없음 |
+
+**F-번호는 뒤에 대괄호로** — 앞에 두면 F가 없는 이슈와 형식이 갈린다. 뒤에 두면 있으면 붙고 없으면 안 붙는다.
+
+### 5.5 ⚠️ `features.md` 선행 규칙
+
+| 상황 | 규칙 |
+|---|---|
+| F-번호 있음 | 바로 이슈 → 구현 |
+| **F-번호 없는 새 기능** | ⚠️ **`docs/features-*` PR을 먼저** |
+
+> **범위가 이슈에서 늘어나면 안 된다.** `features.md`는 "초기 릴리스 범위 확정" 문서인데, 이슈로 기능이 추가되기 시작하면 **그 문서가 곧 거짓말이 된다.** §3 계약 PR 선행과 같은 원리다.
+
+### 5.6 템플릿 3종
+
+`.github/ISSUE_TEMPLATE/` — 원본은 **부록 E**.
+
+| 파일 | 덮는 범위 | 고유 필드 |
+|---|---|---|
+| **`task.yml`** | 기능 · 조사 · 잡일 · 리팩터링 | F-번호(선택) · 완료 조건 |
+| **`bug.yml`** | 버그 | **`requestId`** · 재현 · 기대 vs 실제 |
+| **`design.yml`** | 설계 변경 제안 | 대상 문서 §N · **ADR 기준 3개** |
+| `config.yml` | (설정) | 빈 이슈 비활성 · 문서 링크 |
+
+**판별 기준은 하나 — 필드가 실질적으로 다른가.** 조사 전용 템플릿을 두지 않는 이유가 이것이다. "답할 질문" 하나가 다를 뿐이고 나머지는 `task`와 같다. **구분은 `type:research` 라벨이 한다.**
+
+> **`bug.yml`의 첫 칸이 `requestId`여야 한다.** `api.md` §2가 모든 에러 응답에 그 값을 넣고 `operate.md` §2.2가 그걸로 로그를 추적한다 — **리포트에 그 칸이 없으면 설계해둔 추적 경로를 안 쓰게 된다.**
+
+> **`design.yml`이 ADR을 살린다.** `adr/README.md`에 기준 3개를 적어놨지만 **묻는 자리가 없으면 아무도 안 본다.** 폼에 체크박스로 박아두면 그 순간 판단이 강제된다.
+
+### 5.7 보드 — 컬럼 4개
+
+| 상태 | 뜻 | 나가는 조건 |
+|---|---|---|
+| **Todo** | 정의됐고 아직 안 잡음 | worktree + 브랜치 생성 |
+| **In Progress** | 세션이 작업 중 | PR 열기 |
+| **In Review** | **Gemini + CI 대기** | `develop` 머지 |
+| **Done** | 머지됨 | — |
+
+**전이 자동화**
+
+| 전이 | 방법 |
+|---|---|
+| → **Todo** | Projects 내장 (항목 추가 시) |
+| → In Progress | 수동 또는 세션이 `gh project item-edit` |
+| → In Review | Actions — PR `ready_for_review` 시 연결 이슈 이동 |
+| → **Done** | Projects 내장 (이슈 closed — PR 머지가 닫는다) |
+
+> **양 끝은 자동, 가운데 둘이 수동이다.** 4세션이 병렬로 도는데 사람이 옮기면 놓친다 — **세션이 `gh`로 옮기거나 Actions로** 처리한다.
+>
+> ⚠️ **Projects 내장 워크플로의 정확한 이름·조건은 세팅 때 UI에서 확인한다.** 여기서는 의도만 정한다.
+
+### 5.8 트랙별 뷰 — 4세션의 실질적 이득
+
+| 뷰 | 필터 |
+|---|---|
+| 전체 칸반 | — |
+| back · front · mobile · infra | `label:track:<트랙>` |
+
+> **worktree가 파일을 격리했다면 보드 뷰가 작업 목록을 격리한다.** 각 세션이 자기 트랙 뷰만 본다.
+
+### 5.9 WIP 규칙
+
+| 컬럼 | 규칙 |
+|---|---|
+| In Progress | **트랙당 1장** — 세션이 하나니까 |
+| **In Review** | ⚠️ **4장 이상 쌓이면 통합 위험 신호** |
+
+> **In Review가 병목 지표다.** 네 트랙 PR이 동시에 대기 중이면 **서로 다른 계약 버전 위에 서 있을 가능성**이 커진다(§3). 그때는 새로 시작하지 말고 **머지부터 한다.**
+
+### 5.10 초기 채우기
+
+**`features.md`의 생존 25건(P0 21 · P1 4)을 이슈로 일괄 생성**하면 Todo가 채워진다. 마일스톤은 §7.3의 릴리스 태그와 같은 이름(`v0.1.0`)을 쓴다.
+
+---
+
+## §6 Pull Request
+
+### 6.1 템플릿
 
 `.github/PULL_REQUEST_TEMPLATE.md` — 부록 B.
 
@@ -157,7 +307,7 @@ test(back): 6석 원자성 동시 요청 시나리오
 
 > **"근거 문서" 칸이 이 프로젝트에 특히 필요하다.** 설계를 문서로 먼저 정하고 구현하므로, **PR이 어느 절을 구현했는지**가 드러나야 문서가 안 낡는다. 문서에 없는 걸 구현하려 한다면 **문서부터 고치는 PR**이 먼저다.
 
-### 5.2 초안 PR
+### 6.2 초안 PR
 
 | 상태 | Gemini 리뷰 |
 |---|---|
@@ -169,9 +319,9 @@ test(back): 6석 원자성 동시 요청 시나리오
 
 ---
 
-## §6 머지 · 릴리스
+## §7 머지 · 릴리스
 
-### 6.1 머지 전략 — 양쪽 다 머지 커밋
+### 7.1 머지 전략 — 양쪽 다 머지 커밋
 
 | 경로 | 방식 |
 |---|---|
@@ -187,20 +337,20 @@ test(back): 6석 원자성 동시 요청 시나리오
 
 **대가** — 로그가 길어진다. `--first-parent`가 그 대가를 상쇄한다.
 
-### 6.2 브랜치 보호
+### 7.2 브랜치 보호
 
 | 항목 | 설정 |
 |---|---|
 | 직접 push | **금지** (`main` · `develop`) |
-| **필수 체크** | **CI 통과** (§7) |
+| **필수 체크** | **CI 통과** (§8) |
 | 사람 승인 | **필수로 걸지 않는다** |
 | Gemini 리뷰 | **차단 조건 아님** — 참고 의견 |
 
 > **1인 프로젝트에서 승인을 필수로 걸면 무의미한 클릭이 늘 뿐이다.** 자기 PR을 자기가 승인하는 건 형식이다.
 >
-> **실제 게이트는 CI다.** 그래서 §7의 금지사항 검사에 힘을 실었다 — **사람의 주의력이 아니라 기계가 막는다.**
+> **실제 게이트는 CI다.** 그래서 §8의 금지사항 검사에 힘을 실었다 — **사람의 주의력이 아니라 기계가 막는다.**
 
-### 6.3 릴리스
+### 7.3 릴리스
 
 | 항목 | 값 |
 |---|---|
@@ -210,9 +360,9 @@ test(back): 6석 원자성 동시 요청 시나리오
 
 ---
 
-## §7 금지사항 검사 — CI가 막는다
+## §8 금지사항 검사 — CI가 막는다
 
-### 7.1 ⚠️ 검사 로직을 `.github/workflows` 밖에 둔다
+### 8.1 ⚠️ 검사 로직을 `.github/workflows` 밖에 둔다
 
 > **Gemini Code Assist는 `.github/workflows` 파일을 리뷰 대상에서 제외한다** (안전하지 않은 구성 유입 방지).
 
@@ -223,7 +373,7 @@ scripts/check-forbidden.sh      ← 봇이 리뷰한다 · 로컬에서도 돌�
 
 > **검사 로직이 워크플로 안에 있으면 그 로직이 잘못돼도 봇이 못 잡는다.** 셸 스크립트로 빼두면 **리뷰도 받고 로컬에서도 돌아간다.**
 
-### 7.2 검사 목록
+### 8.2 검사 목록
 
 | # | 금지 | 근거 |
 |---|---|---|
@@ -243,9 +393,9 @@ scripts/check-forbidden.sh      ← 봇이 리뷰한다 · 로컬에서도 돌�
 
 ---
 
-## §8 코드 리뷰 — Gemini Code Assist
+## §9 코드 리뷰 — Gemini Code Assist
 
-### 8.1 설치
+### 9.1 설치
 
 | 항목 | 내용 |
 |---|---|
@@ -258,7 +408,7 @@ scripts/check-forbidden.sh      ← 봇이 리뷰한다 · 로컬에서도 돌�
 
 > ⚠️ **"GitHub App만 설치하면 끝"이 아니다.** 공식 문제 해결 항목이 **"응답이 없으면 결제 계정부터 확인하라"**로 시작한다.
 
-### 8.2 설정 파일 2개
+### 9.2 설정 파일 2개
 
 | 파일 | 성격 |
 |---|---|
@@ -267,7 +417,7 @@ scripts/check-forbidden.sh      ← 봇이 리뷰한다 · 로컬에서도 돌�
 
 **커스텀 스타일가이드 위반은 심각도 임계값에 안 걸러진다** — 공식 문서가 "일반적으로 기준을 충족하거나 초과한다"고 명시한다.
 
-### 8.3 `styleguide.md`는 `CLAUDE.md`와 다른 문서다
+### 9.3 `styleguide.md`는 `CLAUDE.md`와 다른 문서다
 
 | | `CLAUDE.md` | **`.gemini/styleguide.md`** |
 |---|---|---|
@@ -277,7 +427,7 @@ scripts/check-forbidden.sh      ← 봇이 리뷰한다 · 로컬에서도 돌�
 
 > **참조로 떼우지 않는다.** "자세한 건 `docs/adr/`를 보라"고 쓰면 **봇이 안 읽을 수 있다.** 규칙을 자족적으로 적는다.
 
-### 8.4 호출
+### 9.4 호출
 
 | 명령 | 동작 |
 |---|---|
@@ -387,6 +537,143 @@ grep -rn --include='V*.sql' -iE 'create[[:space:]]+index' back/ \
 [ $fail -eq 0 ] && echo "✅ 금지 사항 위반 없음"
 exit $fail
 ```
+
+---
+
+## 부록 D — 라벨 목록
+
+`gh label create` 로 일괄 생성한다. 색은 축별로 묶는다.
+
+| 라벨 | 색 | 설명 |
+|---|---|---|
+| `track:back` | `#0E7490` | Spring · Gradle 멀티모듈 |
+| `track:front` | `#0E7490` | React 19 + Vite |
+| `track:mobile` | `#0E7490` | React Native + Expo |
+| `track:infra` | `#0E7490` | Compose · Ansible · nginx |
+| `track:docs` | `#0E7490` | 설계 문서 · ADR |
+| `type:feat` | `#8B5CF6` | 새 기능 |
+| `type:fix` | `#8B5CF6` | 버그 수정 |
+| `type:chore` | `#8B5CF6` | 잡일 |
+| `type:docs` | `#8B5CF6` | 문서 |
+| `type:refactor` | `#8B5CF6` | 리팩터링 |
+| `type:research` | `#8B5CF6` | 조사 → `docs/search/` |
+| `prio:P0` | `#EF4444` | 초기 릴리스 필수 |
+| `prio:P1` | `#F59E0B` | 있으면 좋음 |
+| `status:blocked` | `#6B7280` | 다른 것에 막힘 |
+| `status:needs-decision` | `#6B7280` | 사용자 판단 대기 |
+| **`status:needs-adr`** | `#6B7280` | **구현 전 ADR을 써야 한다** |
+
+## 부록 E — 이슈 템플릿
+
+`.github/ISSUE_TEMPLATE/`
+
+### `task.yml` — 기능 · 조사 · 잡일
+
+```yaml
+name: 작업
+description: 기능 구현 · 조사 · 잡일 · 리팩터링
+title: "<type>(<track>): "
+body:
+  - type: input
+    id: feature-id
+    attributes:
+      label: F-번호
+      description: features.md 에 있으면 적는다. 없는 새 기능이면 features.md PR 이 먼저다.
+      placeholder: F-04
+  - type: textarea
+    id: what
+    attributes:
+      label: 무엇을
+    validations: { required: true }
+  - type: input
+    id: source
+    attributes:
+      label: 근거 문서
+      placeholder: data.md §4.5 · ADR-0002
+  - type: textarea
+    id: done
+    attributes:
+      label: 완료 조건
+      description: 무엇이 되면 끝인가
+    validations: { required: true }
+```
+
+### `bug.yml` — 버그
+
+```yaml
+name: 버그
+description: 동작이 설계와 다르다
+title: "fix(<track>): "
+labels: ["type:fix"]
+body:
+  - type: input
+    id: request-id
+    attributes:
+      label: requestId
+      description: 에러 응답 본문이나 응답 헤더의 X-Request-Id
+      placeholder: 7f3a9c21
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 절차
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대 vs 실제
+      description: 설계 문서의 어느 절과 어긋나는가
+    validations: { required: true }
+```
+
+### `design.yml` — 설계 변경 제안
+
+```yaml
+name: 설계 변경
+description: 코드보다 문서를 먼저 고쳐야 하는 건
+title: "docs(<track>): "
+labels: ["type:docs", "status:needs-decision"]
+body:
+  - type: input
+    id: target
+    attributes:
+      label: 대상 문서 · 절
+      placeholder: data.md §6.8
+    validations: { required: true }
+  - type: textarea
+    id: why
+    attributes:
+      label: 지금 결정이 왜 안 맞나
+      description: 전제가 바뀌었나, 처음부터 틀렸나
+    validations: { required: true }
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 검토한 대안
+    validations: { required: true }
+  - type: checkboxes
+    id: adr-criteria
+    attributes:
+      label: ADR 기준 — 셋 다 예면 ADR 을 쓴다
+      options:
+        - label: 되돌리기가 비싼가?
+        - label: 대안을 실제로 저울질했나?
+        - label: 6개월 뒤 "왜 이랬지?"를 물을 것 같나?
+```
+
+### `config.yml` — 설정
+
+```yaml
+blank_issues_enabled: false
+contact_links:
+  - name: 설계 문서
+    url: https://github.com/<owner>/pi-reservation-system/tree/main/docs
+    about: 결정된 내용은 여기 있다. 이슈를 열기 전에 확인할 것.
+  - name: ADR
+    url: https://github.com/<owner>/pi-reservation-system/tree/main/docs/adr
+    about: 되돌리기 비싼 결정과 그 근거.
+```
+
+> **`blank_issues_enabled: false`** — 빈 이슈를 막아야 템플릿이 실제로 쓰인다. 열어두면 대부분 빈 이슈로 간다.
 
 ---
 
