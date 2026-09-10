@@ -49,15 +49,34 @@ jobs:
       - name: 변경 파일 목록
         id: f
         env:
-          BASE: ${{ github.event.pull_request.base.sha }}
-          HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
 
-          if [ -n "${BASE:-}" ]; then
-            files=$(git diff --name-only "${BASE}" "${HEAD}")
+          ZERO=0000000000000000000000000000000000000000
+          base=''
+
+          if [ -n "${PR_BASE:-}" ]; then
+            # PR — base 와 head 사이
+            base="${PR_BASE}"
+            head="${PR_HEAD}"
+          elif [ -n "${PUSH_BEFORE:-}" ] && [ "${PUSH_BEFORE}" != "${ZERO}" ]; then
+            # push — 직전 커밋과 사이. 머지 결과가 깨졌는지를 본다
+            if git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null; then
+              base="${PUSH_BEFORE}"
+              head="${SHA}"
+            fi
+          fi
+
+          if [ -n "${base}" ]; then
+            files=$(git diff --name-only "${base}" "${head}")
           else
-            # pull_request 가 아닌 트리거 — 전부 돈다
+            # ⚠️ 브랜치 첫 push 거나 before 를 못 찾는다(force push · 얕은 클론).
+            #    비교 대상이 없으므로 전부 바뀐 것으로 본다.
+            echo '비교 기준이 없다. 전체를 대상으로 돈다.'
             files=$(git ls-files)
           fi
 
