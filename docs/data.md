@@ -128,6 +128,7 @@ erDiagram
     }
     SEAT_HOLD {
         bigint id PK
+        char public_id UK "h_ + hex 6자리"
         bigint trip_id FK
         bigint member_id FK "NOT NULL"
         varchar channel "WEB MOBILE"
@@ -314,6 +315,7 @@ CHECK (from_station_id <> to_station_id)
 | 컬럼 | 타입 | 제약 |
 |---|---|---|
 | `id` | `bigserial` | PK |
+| **`public_id`** | **`char(8)`** | **UNIQUE** · `h_` + hex 6자리 (`h_8f3a21`) |
 | `trip_id` | `bigint` | FK → `trip` |
 | `member_id` | `bigint` | FK → `member` · **NOT NULL** |
 | `channel` | `varchar(8)` | `WEB` · `MOBILE` |
@@ -322,6 +324,13 @@ CHECK (from_station_id <> to_station_id)
 | `created_at` | `timestamptz` | NOT NULL |
 
 인덱스 — **`(expires_at) WHERE status = 'HELD'`** · 만료 회수 스케줄러(`F-07`)가 쓴다
+· UNIQUE **`(public_id)`** · API 경로 조회
+
+> **`public_id`가 왜 있나** — `GET /holds/{holdId}`의 경로 키다. `reservation_no`와 **같은 판단**이다(§3 예매 계열): **내부 `bigserial`을 URL에 노출하지 않는다.**
+>
+> ⚠️ **보안이 이유가 아니다.** 남의 선점은 `403 HOLD_NOT_OWNED`가 막는다(`F-31`). 이유는 **DTO 경계**다 — 내부 PK가 밖으로 나가면 그 값에 의존하는 클라이언트가 생기고, PK 전략을 못 바꾸게 된다.
+>
+> **충돌은 UNIQUE가 잡는다.** hex 6자리 = 1,677만. 생성 시 충돌하면 다시 뽑는다. 종착 상태 3개가 누적되는 테이블이라(§5.2) **영원히 안전하진 않지만**, 이 프로젝트 규모에서 재시도 한 번이면 충분하다.
 
 > **부분 인덱스인 이유** — 종착 상태가 3개라(§5.2) 시간이 갈수록 `CONFIRMED` · `RELEASED` · `EXPIRED`가 쌓이고 **`HELD`는 항상 소수**다. 인덱스 크기가 **누적이 아니라 현재 부하에 비례**한다. 근거는 §8.6.
 
@@ -1429,6 +1438,7 @@ SELECT ... FROM reservation
 | | `(hold_id) WHERE hold_id IS NOT NULL` | **Q5** |
 | | `(reservation_id) WHERE reservation_id IS NOT NULL` | 취소 |
 | `seat_hold` | `(expires_at) WHERE status = 'HELD'` | **Q5** |
+| | UNIQUE `(public_id)` | `GET /holds/{holdId}` |
 | `reservation` | UNIQUE `(reservation_no)` · `(member_id, created_at DESC)` | **Q6** |
 | `payment` | UNIQUE `(idempotency_key)` | 멱등 |
 | `member` | UNIQUE `(email)` | 로그인 |

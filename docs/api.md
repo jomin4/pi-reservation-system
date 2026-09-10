@@ -594,6 +594,8 @@ record HoldResult(
 | 운행 없음       | `404 TRIP_NOT_FOUND`                        |                                            |
 | 미인증          | `401 UNAUTHENTICATED`                       | 로그인으로 보낸 뒤**좌석 선택 복원** |
 
+> **`holdId`는 `seat_hold.public_id`다** (`data.md` §3). `h_` + hex 6자리 · `char(8)`. **내부 `bigserial`이 아니다** — `reservation_no`와 같은 판단이다. 클라이언트는 **불투명 문자열로 다룬다**: 파싱하거나 증감시키지 않는다.
+
 > **`expiresAt`과 `remainingSeconds`를 둘 다 준다.** 클라이언트는 `expiresAt`으로 타이머를 역산하고, `remainingSeconds`는 시계 오차를 잡는 보조값이다. **인터벌 카운트로 만들면 안 된다** — 모바일 백그라운드에서 멈춘다.
 
 #### `GET /api/v1/holds/{holdId}` · `F-05`
