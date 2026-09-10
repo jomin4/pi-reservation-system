@@ -5,7 +5,7 @@
 | 상태 | 채택 |
 | 날짜 | 2026-09-10 |
 | 대체 | 초기안 — Proxmox VE 8 · VM 다중화 · VLAN 4분리 (ADR 없음) |
-| 관련 문서 | [tech.md](../tech.md) · [system-architecture](../diagrams/system-architecture.html) · `infra.md` (미작성) |
+| 관련 문서 | [tech.md](../tech.md) · [system-architecture](../diagrams/system-architecture.html) · [infra.md](../infra.md) |
 
 ## 맥락
 

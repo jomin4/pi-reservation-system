@@ -15,6 +15,7 @@
 | [docs/data.md](docs/data.md) | **데이터 설계 §0~§9 완료** — ERD 12개 · 동시성 · 상태 전이 · Redis · 시드 · 쿼리 계획 · Flyway |
 | [docs/api.md](docs/api.md) | **API · DTO · Error.** §0~§6 작성, §7 Mock 서버 미작성 |
 | [docs/operate.md](docs/operate.md) | **관측 · 로그 · 모니터링.** §0~§7 완료 |
+| [docs/infra.md](docs/infra.md) | **인프라 §0~§10** — 호스트 · 네트워크 · 컨테이너 · 백업 · 보안 · 한계 |
 | [docs/tech.md](docs/tech.md) | 확정된 기술 스택 |
 | [docs/research.md](docs/research.md) | 코레일 · 타사 조사 결과 (재조사 불필요) |
 | **[docs/adr/](docs/adr/)** | **아키텍처 결정 기록 6건.** 되돌리기 비싼 결정만. **불변 — 바뀌면 새 ADR** |
@@ -106,6 +107,22 @@ pi-reservation-system/
 | Gradle | `back/settings.gradle.kts` — **루트에 두지 않는다** (pnpm과 안 부딪히게) |
 | CI | Actions **`paths:` 필터**로 트랙별 분리 |
 | 빌드 루트 지정 | Cloudflare Pages → `front/` · EAS → `mobile/` |
+
+### 인프라 (확정 — `infra.md`)
+
+| 항목 | 결정 |
+|---|---|
+| ⚠️ **Docker가 `ufw`를 우회한다** | 포트를 publish하면 **`ufw deny`를 무시하고 열린다.** 방어는 **"애초에 `ports:`를 안 쓰는 것"** |
+| 포트 공개 | **compose 전체에 `ports:` 0개가 정상.** DB 접근은 `docker compose exec` |
+| PostgreSQL | `shared_buffers 256MB` · `work_mem 4MB` · **`max_connections 50`** · Hikari 풀 10 |
+| ⚠️ `lock_timeout` | **전역 설정 금지** — 선점 200ms vs 마이그레이션 3s. `SET LOCAL`로만 |
+| nginx | ⚠️ **`proxy_buffering off`** 없으면 SSE가 조용히 안 된다 |
+| JVM | `-Xmx` 대신 **`MaxRAMPercentage=70`** — `mem_limit` 한 곳만 고치면 된다 |
+| 볼륨 | **bind mount** `/srv/pi/*` — named volume보다 백업·점검이 쉽다 |
+| **시각** | **호스트 타임존 UTC** · `timesyncd`. **선점 TTL이 시각 기반**이라 시계가 튀면 만료가 어긋난다 |
+| SSH | 공개키만 · **LAN에서만** (22를 인터넷에 안 연다) |
+| **한계** | **호스트 = 단일 장애점.** `--scale app=2`는 **가용성이 아니라 팬아웃 실증**이다 |
+| 먼저 터지는 것 | **① 메모리(스왑) → ② 커넥션 풀 → ③ 락 대기.** 디스크는 해당 없음 |
 
 ### 백엔드 구조 (확정)
 
@@ -269,10 +286,8 @@ pi-reservation-system/
 
 | 우선순위 | 문서 | 내용 |
 |---|---|---|
-| **1** | `docs/infra.md` | **단일 호스트 구성 · Docker 네트워크 · 도메인 · 백업** |
+| **1** | `docs/deploy.md` | **CI/CD · self-hosted runner · 개발 워크플로우** |
 | 2 | `docs/api.md` §7 · 부록 | Mock 서버 · `openapi.yaml` |
-| 3 | `docs/deploy.md` | CI/CD · self-hosted runner |
-| 4 | `docs/structure.md` | 모노레포 폴더 구조 |
 
 ### API 에러 규약 (확정 — `api.md` §4)
 
@@ -337,6 +352,7 @@ pi-reservation-system/
 | `docs/overview.md` | ✅ 2026-09-04 재작성 — 동시성 중심 서사 |
 | `docs/features.md` | ✅ 25건 (P0 21 · P1 4). 철회 ID 11개 |
 | `docs/data.md` | ✅ **§0~§9 전체 완료** — ERD 12개 · 동시성 · 상태 전이 · Redis · 시드 · 쿼리 계획 · Flyway |
+| **`docs/infra.md`** | ✅ **§0~§10** — 호스트 · Docker 네트워크 3분리 · 백업 · 보안 · 한계 |
 | `docs/tech.md` | ✅ 임베디드 스택 제거 |
 | `docs/search/korail-auth.md` | ✅ 코레일 인증 · 인가 조사 |
 | `docs/search/korail-trip-data.md` | ✅ 코레일 운행정보 조사 — **공공데이터 미채택 근거 포함** |
