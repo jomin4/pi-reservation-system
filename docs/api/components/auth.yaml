@@ -1,0 +1,223 @@
+# §5.5 인증 · 회원
+# 근거: api.md §5.5 · §4.3 · data.md §3 (member) · §6.5 (Refresh 회전) · §6.6 (F-36)
+#
+# 이 절의 판단 하나: 실패 응답이 계정 존재 여부를 흘리지 않는다.
+
+schemas:
+
+  Email:
+    type: string
+    format: email
+    maxLength: 120
+    example: hong@example.com
+
+  Password:
+    type: string
+    format: password
+    description: |
+      ⚠️ **최대 72바이트.** BCrypt 가 72바이트를 넘는 입력을 **조용히 자른다** —
+      길이를 안 막으면 "73번째 글자부터는 아무거나 통과" 가 된다 (`data.md` §3 `password_hash`).
+    minLength: 8
+    maxLength: 72
+
+  PhoneNumber:
+    type: string
+    pattern: '^01[0-9]-[0-9]{3,4}-[0-9]{4}$'
+    example: 010-0000-0000
+
+  # ── 가입 ───────────────────────────────────────────────────
+  SignupRequest:
+    type: object
+    required: [email, password, name, phone]
+    properties:
+      email:
+        $ref: '#/schemas/Email'
+      password:
+        $ref: '#/schemas/Password'
+      name:
+        type: string
+        minLength: 1
+        maxLength: 30
+        example: 홍길동
+      phone:
+        $ref: '#/schemas/PhoneNumber'
+
+  EmailAvailability:
+    type: object
+    description: |
+      ⚠️ **최종 판정이 아니다.** 확인과 가입 사이에 남이 채갈 수 있다.
+      **진짜 판정은 가입 요청의 DB unique 제약**이고, 이건 폼 편의용이다 (`F-21`).
+    required: [available]
+    properties:
+      available:
+        type: boolean
+    example:
+      available: true
+
+  # ── 토큰 ───────────────────────────────────────────────────
+  LoginRequest:
+    type: object
+    required: [email, password]
+    properties:
+      email:
+        $ref: '#/schemas/Email'
+      password:
+        $ref: '#/schemas/Password'
+
+  RefreshRequest:
+    type: object
+    description: |
+      **Refresh 토큰 자체가 인증이다** — `Authorization` 헤더를 쓰지 않는다.
+      Access 가 이미 만료된 상태에서 부르는 호출이라 그럴 수밖에 없다.
+    required: [refreshToken]
+    properties:
+      refreshToken:
+        type: string
+
+  TokenPair:
+    type: object
+    description: |
+      **Refresh 는 회전한다** (`data.md` §6.5). 이 응답을 받으면 **이전 Refresh 는 죽는다** —
+      들고 있다가 다시 쓰면 **재사용 탐지**에 걸려 그 회원의 토큰이 전부 폐기된다.
+    required: [accessToken, refreshToken, accessExpiresAt]
+    properties:
+      accessToken:
+        type: string
+        description: Access JWT · **15분**
+      refreshToken:
+        type: string
+        description: Refresh JWT · **14일** · Redis 저장 · 회전
+      accessExpiresAt:
+        type: string
+        format: date-time
+        description: |
+          Access 만료 시각. **선제 갱신의 근거**다 —
+          `401` 을 받고 나서 갱신하면 사용자 동작 하나가 실패한 뒤다.
+    example:
+      accessToken: eyJhbGc…
+      refreshToken: eyJhbGc…
+      accessExpiresAt: '2026-09-04T05:27:33Z'
+
+  # ── 회원 ───────────────────────────────────────────────────
+  MemberProfile:
+    type: object
+    description: |
+      **내부 `member.id` 를 노출하지 않는다** (`api.md` §3).
+      `/me` 는 토큰이 주체를 정하므로 식별자가 경로에 필요 없다.
+    required: [email, name, phone]
+    properties:
+      email:
+        $ref: '#/schemas/Email'
+      name:
+        type: string
+        example: 홍길동
+      phone:
+        $ref: '#/schemas/PhoneNumber'
+      createdAt:
+        type: string
+        format: date-time
+    example:
+      email: hong@example.com
+      name: 홍길동
+      phone: 010-0000-0000
+      createdAt: '2026-08-01T09:00:00Z'
+
+  UpdateProfileRequest:
+    type: object
+    description: |
+      **이름 · 연락처만 (`F-22`).**
+      비밀번호 변경 · 이메일 변경 · 이메일 인증은 **범위 밖**이다 (`CLAUDE.md` 회원).
+    minProperties: 1
+    properties:
+      name:
+        type: string
+        minLength: 1
+        maxLength: 30
+      phone:
+        $ref: '#/schemas/PhoneNumber'
+
+responses:
+
+  MemberCreated:
+    description: '`201` — 가입 완료'
+    headers:
+      X-Request-Id:
+        $ref: './common.yaml#/headers/XRequestId'
+    content:
+      application/json:
+        schema:
+          $ref: '#/schemas/MemberProfile'
+
+  EmailAlreadyExists:
+    description: |
+      `409` — 이미 쓰는 이메일이다.
+
+      > `GET /auth/email-available` 이 `true` 를 줬어도 여기서 `409` 가 날 수 있다.
+      > **그 사이에 남이 채간 것**이고, 그게 정상이다.
+    headers:
+      X-Request-Id:
+        $ref: './common.yaml#/headers/XRequestId'
+    content:
+      application/problem+json:
+        schema:
+          $ref: './common.yaml#/schemas/Problem'
+        example:
+          type: https://api.jomin4.cloud/problems/email-exists
+          title: 이미 가입된 이메일입니다
+          status: 409
+          code: EMAIL_ALREADY_EXISTS
+          requestId: 7f3a9c21
+
+  InvalidCredentials:
+    description: |
+      `401` — **자격 불일치.**
+
+      ⚠️ **"없는 이메일" 과 "비밀번호 틀림" 을 구분하지 않는다.**
+      나누는 순간 **계정 존재 여부가 새어나간다.** 화면 문구도 하나여야 한다.
+
+      **`POST /auth/refresh` 의 실패도 같은 코드다** — 만료된 토큰이든
+      **재사용 탐지**든 밖에서는 구분되지 않는다 (`data.md` §6.5).
+      탐지 사실은 **로그에만 남는다** (`WARN` · `event=REFRESH_REUSE_DETECTED`).
+    headers:
+      X-Request-Id:
+        $ref: './common.yaml#/headers/XRequestId'
+    content:
+      application/problem+json:
+        schema:
+          $ref: './common.yaml#/schemas/Problem'
+        example:
+          type: https://api.jomin4.cloud/problems/invalid-credentials
+          title: 이메일 또는 비밀번호가 올바르지 않습니다
+          status: 401
+          code: INVALID_CREDENTIALS
+          requestId: 7f3a9c21
+
+  TooManyAttempts:
+    description: |
+      `429` — 로그인 시도 제한 (`F-36`).
+
+      ⚠️ **영구 잠금이 아니다.** `Retry-After` 가 화면 문구의 근거다 —
+      **"계정이 잠겼습니다" 가 아니라 "5분 뒤 다시 시도하세요"** 여야 한다.
+      비밀번호 재설정이 범위 밖이라 **영구 잠금이면 계정이 그대로 죽는다.**
+
+      > 키가 `email` 인 이유도 존재 여부 은닉이다 (`data.md` §6.6).
+      > 없는 이메일도 똑같이 카운트돼야 **차단 여부로 계정 존재를 역추적할 수 없다.**
+    headers:
+      Retry-After:
+        description: '초. **300 고정** — 차단이 풀리기까지'
+        schema:
+          type: integer
+        example: 300
+      X-Request-Id:
+        $ref: './common.yaml#/headers/XRequestId'
+    content:
+      application/problem+json:
+        schema:
+          $ref: './common.yaml#/schemas/Problem'
+        example:
+          type: https://api.jomin4.cloud/problems/too-many-attempts
+          title: 로그인 시도가 너무 많습니다
+          status: 429
+          detail: 5분 뒤 다시 시도해 주세요.
+          code: TOO_MANY_ATTEMPTS
+          requestId: 7f3a9c21

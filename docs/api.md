@@ -1068,6 +1068,7 @@ front · mobile      SpringDoc 산출 스펙
 | 항목 | 값 |
 |---|---|
 | 경로 | **`docs/api/openapi.yaml`** |
+| 상태 | ✅ **2026-09-10 작성 완료** — 20 오퍼레이션 (SSE 1건 포함) |
 | 성격 | **계약의 진실.** 손으로 작성한다 |
 | OpenAPI 버전 | **3.1** |
 | `info.version` | 제품 태그와 맞춘다 (`0.1.0`) |
@@ -1114,6 +1115,24 @@ paths:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
 ```
+
+### A.2-1 파일 구성
+
+**`paths` 는 진입점에, 스키마는 절별 파일에.**
+
+| 파일 | 담는 것 |
+|---|---|
+| `openapi.yaml` | `info` · `servers` · `tags` · **`paths` 전부** |
+| `components/common.yaml` | `Problem` · `ErrorCode` · `PageMeta` · 공통 파라미터 · 공통 에러 응답 |
+| `components/catalog.yaml` | §5.1 조회 |
+| `components/holds.yaml` | §5.2 선점 |
+| `components/payments.yaml` | §5.3 결제 |
+| `components/reservations.yaml` | §5.3 확정 응답 + §5.4 예약 |
+| `components/auth.yaml` | §5.5 인증 |
+
+> **한 파일에 다 넣으면 3천 줄이 되고 PR 리뷰에서 diff 를 못 읽는다.** 절 단위로 나누면 **"어느 절이 바뀌었나"가 파일 이름으로 보인다.**
+
+> ⚠️ **`reservations.yaml` 만 절 경계와 어긋난다.** 결제 확정 응답이 곧 예약이라 §5.3 이 이 파일을 참조한다. 스키마가 있어야 할 곳은 **누가 쓰느냐가 아니라 무엇이냐**로 정했다.
 
 ### A.3 산출물
 

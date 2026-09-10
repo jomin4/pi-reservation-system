@@ -34,6 +34,10 @@ tags:
     description: |
       예약 관리 — **인증 필수.**
       경로 키가 **예약번호**다. 내부 `id` 를 노출하지 않는다.
+  - name: auth
+    description: |
+      인증 · 회원.
+      **실패 응답이 계정 존재 여부를 흘리지 않는 것**이 이 절의 판단 하나다.
 
 paths:
   /stations:
@@ -111,6 +115,56 @@ paths:
             application/json:
               schema:
                 $ref: './components/catalog.yaml#/schemas/SeatMapResponse'
+        '404':
+          $ref: './components/common.yaml#/responses/TripNotFound'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /trips/{tripId}/seat-events:
+    get:
+      tags: [catalog]
+      operationId: subscribeSeatEvents
+      summary: 좌석 변경 SSE 구독 — 계약의 진실은 api.md §6 이다
+      description: |
+        운행 1개의 좌석 변경을 실시간으로 받는다 (`F-16`).
+
+        ⚠️ **여기 적힌 건 엔드포인트와 미디어 타입뿐이다** (`api.md` 부록 A.5).
+        **이벤트 3종의 페이로드 · 재개 · 하트비트 규약은 `api.md` §6 이 진실이다** —
+        `text/event-stream` 의 프레임 구조는 OpenAPI 에 표준 표현이 없다.
+        억지로 스키마화하면 **생성 타입이 쓸모없어진다.**
+
+        | 항목 | 값 |
+        |---|---|
+        | 인증 | **없음** — `EventSource` 가 커스텀 헤더를 못 보낸다 |
+        | 구독 단위 | **운행 1개.** 호차 필터는 클라이언트가 한다 |
+        | 재개 | `Last-Event-ID` → Redis Stream 재생 (`XADD MAXLEN ~ 1000`) |
+        | 하트비트 | **15초 named event.** 클라 45초 무수신 시 재연결 |
+        | 시작점 | `GET /trips/{tripId}/seats` 응답의 **`lastEventId`** |
+
+        > **개인 알림을 여기 못 싣는다.** 비인증이라 서버가 "내" 를 모른다 —
+        > 선점 만료 같은 건 **클라 타이머 + 서버 lazy 판정**으로 대체한다.
+      security: []
+      parameters:
+        - $ref: './components/common.yaml#/parameters/TripId'
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: |
+            마지막으로 받은 이벤트 ID. 재연결 시 SSE 표준 헤더로 자동 전송된다.
+            **보관 범위를 벗어나면 `resume-failed` 이벤트**가 내려온다 —
+            HTTP 에러가 아니다 (`api.md` §6.3).
+          schema:
+            type: string
+            pattern: '^[0-9]+-[0-9]+$'
+      responses:
+        '200':
+          description: |
+            이벤트 스트림. **끊기지 않는다** — 정상 종료는 클라이언트가 닫을 때뿐이다.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: '⚠️ **형식은 `api.md` §6 을 볼 것.** 여기서는 표현되지 않는다'
         '404':
           $ref: './components/common.yaml#/responses/TripNotFound'
         '500':
@@ -435,6 +489,232 @@ paths:
           $ref: './components/reservations.yaml#/responses/ReservationNotFound'
         '409':
           $ref: './components/reservations.yaml#/responses/ReservationNotCancellable'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /auth/signup:
+    post:
+      tags: [auth]
+      operationId: signup
+      summary: 회원가입
+      description: |
+        `F-20`. 비밀번호는 **BCrypt** 로 저장한다 (`data.md` §3).
+
+        > **이메일 인증 · 비밀번호 재설정은 범위 밖이다** (`CLAUDE.md` 회원).
+      security: []
+      parameters:
+        - $ref: './components/common.yaml#/parameters/XRequestIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/auth.yaml#/schemas/SignupRequest'
+      responses:
+        '201':
+          $ref: './components/auth.yaml#/responses/MemberCreated'
+        '400':
+          $ref: './components/common.yaml#/responses/ValidationFailed'
+        '409':
+          $ref: './components/auth.yaml#/responses/EmailAlreadyExists'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /auth/email-available:
+    get:
+      tags: [auth]
+      operationId: checkEmailAvailable
+      summary: 이메일 중복 확인 — 최종 판정이 아니다
+      description: |
+        `F-21`. **폼 편의용이다.**
+
+        ⚠️ **`true` 를 받았어도 가입에서 `409` 가 날 수 있다.** 확인과 가입 사이에
+        남이 채갈 수 있고, **진짜 판정은 DB unique 제약**이다.
+        화면은 이 응답을 **가입 버튼 활성 조건으로 쓰되 결과로 믿지 않는다.**
+      security: []
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            $ref: './components/auth.yaml#/schemas/Email'
+        - $ref: './components/common.yaml#/parameters/XRequestIdHeader'
+      responses:
+        '200':
+          description: 사용 가능 여부
+          headers:
+            X-Request-Id:
+              $ref: './components/common.yaml#/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: './components/auth.yaml#/schemas/EmailAvailability'
+        '400':
+          $ref: './components/common.yaml#/responses/ValidationFailed'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: 로그인
+      description: |
+        `F-24`. Access 15분 + Refresh 14일.
+
+        ⚠️ **자격 불일치는 `INVALID_CREDENTIALS` 하나뿐이다** —
+        "없는 이메일" 과 "비밀번호 틀림" 을 나누면 **계정 존재 여부가 샌다.**
+
+        ⚠️ **5회 실패면 `429` 다** (`F-36`). 영구 잠금이 아니라 **5분 뒤 자동 해제**다.
+      security: []
+      parameters:
+        - $ref: './components/common.yaml#/parameters/XRequestIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/auth.yaml#/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 토큰 쌍
+          headers:
+            X-Request-Id:
+              $ref: './components/common.yaml#/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: './components/auth.yaml#/schemas/TokenPair'
+        '400':
+          $ref: './components/common.yaml#/responses/ValidationFailed'
+        '401':
+          $ref: './components/auth.yaml#/responses/InvalidCredentials'
+        '429':
+          $ref: './components/auth.yaml#/responses/TooManyAttempts'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refreshToken
+      summary: 토큰 갱신 — 회전 + 재사용 탐지
+      description: |
+        `F-26`. **Refresh 토큰 자체가 인증**이라 `Authorization` 헤더를 쓰지 않는다.
+
+        **회전한다** — 이 호출이 성공하면 **보낸 Refresh 는 죽는다**
+        (`data.md` §6.5 회전 6단계).
+
+        ⚠️ **폐기된 토큰이 다시 오면 탈취로 본다.** 그 회원의 Refresh 를 **전부 폐기**하고
+        `401` 을 준다. 밖에서는 만료와 구분되지 않는다 — **탐지 사실은 로그에만** 남는다.
+
+        > **재사용 탐지 없는 회전은 회전의 절반만 하는 것이다.** 탈취범과 사용자가
+        > 번갈아 회전하면 둘 다 무한히 갱신된다. **폐기된 `jti` 가 돌아오는 순간이
+        > 유일한 탐지 기회다.**
+      security: []
+      parameters:
+        - $ref: './components/common.yaml#/parameters/XRequestIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/auth.yaml#/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: '**새** 토큰 쌍. 이전 Refresh 는 이 시점에 죽는다'
+          headers:
+            X-Request-Id:
+              $ref: './components/common.yaml#/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: './components/auth.yaml#/schemas/TokenPair'
+        '400':
+          $ref: './components/common.yaml#/responses/ValidationFailed'
+        '401':
+          $ref: './components/auth.yaml#/responses/InvalidCredentials'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: 로그아웃
+      description: |
+        `F-25`. Redis 에서 **Refresh 를 지운다** (`DEL` + `SREM`).
+
+        ⚠️ **Access 토큰은 최대 15분 더 산다** — 그게 무상태 JWT 의 대가다
+        (`data.md` §6.5). 클라이언트는 저장된 토큰을 즉시 버려야 한다.
+      parameters:
+        - $ref: './components/common.yaml#/parameters/XRequestIdHeader'
+      responses:
+        '204':
+          description: '`204` — 로그아웃됨'
+          headers:
+            X-Request-Id:
+              $ref: './components/common.yaml#/headers/XRequestId'
+        '401':
+          $ref: './components/common.yaml#/responses/Unauthenticated'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /me:
+    get:
+      tags: [auth]
+      operationId: getMe
+      summary: 내 정보 조회
+      description: |
+        `F-22`. **토큰이 주체를 정하므로 식별자가 경로에 없다.**
+      parameters:
+        - $ref: './components/common.yaml#/parameters/XRequestIdHeader'
+      responses:
+        '200':
+          description: 회원 정보
+          headers:
+            X-Request-Id:
+              $ref: './components/common.yaml#/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: './components/auth.yaml#/schemas/MemberProfile'
+        '401':
+          $ref: './components/common.yaml#/responses/Unauthenticated'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+    patch:
+      tags: [auth]
+      operationId: updateMe
+      summary: 내 정보 수정 — 이름 · 연락처만
+      description: |
+        `F-22`. **비밀번호 변경 · 이메일 변경은 범위 밖이다** (`CLAUDE.md` 회원).
+
+        > 여기서 이름을 바꿔도 **이미 만든 예약의 `passengerName` 은 안 변한다** —
+        > 예약 시점 스냅샷이다 (`data.md` §3 `reservation`).
+      parameters:
+        - $ref: './components/common.yaml#/parameters/XRequestIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/auth.yaml#/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: 갱신된 회원 정보
+          headers:
+            X-Request-Id:
+              $ref: './components/common.yaml#/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: './components/auth.yaml#/schemas/MemberProfile'
+        '400':
+          $ref: './components/common.yaml#/responses/ValidationFailed'
+        '401':
+          $ref: './components/common.yaml#/responses/Unauthenticated'
         '500':
           $ref: './components/common.yaml#/responses/InternalError'
 

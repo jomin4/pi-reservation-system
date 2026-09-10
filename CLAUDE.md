@@ -33,7 +33,9 @@
 | 상태가 어떻게 바뀌나 | [data.md](docs/data.md) §5 |
 | Redis 키를 어떻게 쓰나 | [data.md](docs/data.md) §6 |
 | 시드 · 쿼리 계획 · 마이그레이션 | [data.md](docs/data.md) §7~§9 |
-| **이 응답 형태가 맞나** | **`docs/api/openapi.yaml`** · [api.md](docs/api.md) §5 |
+| **이 응답 형태가 맞나** | **`docs/api/openapi.yaml`** ✅ · [api.md](docs/api.md) §5 |
+| 타입을 어떻게 뽑나 | `npx openapi-typescript docs/api/openapi.yaml -o src/api/schema.d.ts` |
+| 계약을 어떻게 검사하나 | `npx @redocly/cli lint docs/api/openapi.yaml` |
 | 이 에러를 몇 번으로 | [api.md](docs/api.md) §4 |
 | DTO를 어느 계층에 두나 | [api.md](docs/api.md) §3 |
 | SSE 계약 | [api.md](docs/api.md) §6 |
