@@ -259,10 +259,11 @@ features.md  F-04
 
 | 전이 | 방법 |
 |---|---|
-| → **Todo** | **Projects 내장** — `Item added to project` |
-| → In Progress | **세션이** `gh project item-edit` |
-| → In Review | **세션이** `gh project item-edit` |
-| → **Done** | **Projects 내장** — `Item closed` |
+| → **Todo** | ✅ **자동** — `Item added to project` |
+| → **In Progress** | ⬜ **세션이** `gh project item-edit` — **유일한 수동** |
+| → **In Review** | ✅ **자동** — `Pull request linked to issue` |
+| → **Done** | ✅ **자동** — `Item closed` · `Pull request merged` |
+| 이슈 종료 | ✅ **자동** — `Auto-close issue` |
 
 **실제 세팅 (2026-09-10 확정)**
 
@@ -313,9 +314,7 @@ features.md  F-04
 
 > **셋 다 사람 손은 0인데 마지막만 잃는 게 없다.** "수동"은 **GitHub이 안 한다**는 뜻이지 **사람이 한다**는 뜻이 아니다 — 세션 시작 프로토콜 5번이 그걸 실행한다.
 
-> **양 끝은 자동, 가운데 둘이 수동이다.** 4세션이 병렬로 도는데 사람이 옮기면 놓친다 — **세션이 `gh`로 옮기거나 Actions로** 처리한다.
->
-> ⚠️ **Projects 내장 워크플로의 정확한 이름·조건은 세팅 때 UI에서 확인한다.** 여기서는 의도만 정한다.
+> **다섯 전이 중 넷이 자동이다.** 남은 하나(`In Progress`)도 **세션이 실행하므로 사람 손은 0**이다.
 
 ### 5.8 트랙별 뷰 — 4세션의 실질적 이득
 
