@@ -16,6 +16,7 @@
 | [docs/api.md](docs/api.md) | **API · DTO · Error.** §0~§6 작성, §7 Mock 서버 미작성 |
 | [docs/operate.md](docs/operate.md) | **관측 · 로그 · 모니터링.** §0~§7 완료 |
 | [docs/infra.md](docs/infra.md) | **인프라 §0~§10** — 호스트 · 네트워크 · 컨테이너 · 백업 · 보안 · 한계 |
+| [docs/workflow.md](docs/workflow.md) | **개발 워크플로우 §0~§8** — worktree · 브랜치 · 커밋 · PR · 금지사항 CI · Gemini 리뷰 |
 | [docs/tech.md](docs/tech.md) | 확정된 기술 스택 |
 | [docs/research.md](docs/research.md) | 코레일 · 타사 조사 결과 (재조사 불필요) |
 | **[docs/adr/](docs/adr/)** | **아키텍처 결정 기록 6건.** 되돌리기 비싼 결정만. **불변 — 바뀌면 새 ADR** |
@@ -107,6 +108,26 @@ pi-reservation-system/
 | Gradle | `back/settings.gradle.kts` — **루트에 두지 않는다** (pnpm과 안 부딪히게) |
 | CI | Actions **`paths:` 필터**로 트랙별 분리 |
 | 빌드 루트 지정 | Cloudflare Pages → `front/` · EAS → `mobile/` |
+
+### 개발 워크플로우 (확정 — `workflow.md`)
+
+| 항목 | 결정 |
+|---|---|
+| **병렬 개발** | **`git worktree` 5개** — 트랙마다 Claude 세션. 한 폴더 공유는 불가능 |
+| | 본체 `develop`(문서) · `../pi-back` `../pi-front` `../pi-mobile` `../pi-infra` |
+| 세션 규칙 | **자기 트랙 밖을 안 고친다** · 세션 간 소통은 **PR과 `develop`으로만** · **문서는 본체에서** |
+| 브랜치 | `main` · `develop` · **`<type>/<track>-<slug>`** (`feat/back-seat-hold`) |
+| ⚠️ **계약 선행** | **`docs/api-*` PR이 구현 PR보다 먼저 머지.** PR 템플릿의 "API 계약 변경" 칸이 집행 지점 |
+| 커밋 | **Conventional + 트랙 스코프** — `feat(back):` · `git log \| grep "(back)"` |
+| **머지** | **양쪽 다 merge commit** — squash하면 트랙 스코프 필터가 무의미해진다 |
+| | `git log --first-parent develop` 으로 PR 단위 시야도 확보 |
+| 브랜치 보호 | 직접 push 금지 · **필수 체크는 CI만** · 사람 승인·Gemini는 차단 조건 아님 |
+| 릴리스 | `v0.1.0` 마일스톤 단위 · `develop → main` 시 태그 |
+| **금지사항 CI** | **7종 grep** — `scripts/check-forbidden.sh` |
+| | ⚠️ **`.github/workflows` 밖에 둔다** — Gemini가 그 디렉터리를 리뷰에서 제외하므로 |
+| Gemini 리뷰 | **GCP + 결제계정 + Developer Connect(`us-east1`) 필수.** 미리보기 무료 · PR 100+/일 |
+| | `.gemini/config.yaml` + `.gemini/styleguide.md` · `include_drafts: false` · `summary: true` |
+| | **`styleguide.md`는 `CLAUDE.md`와 청중이 다르다** — 참조로 떼우지 말고 자족적으로 |
 
 ### 인프라 (확정 — `infra.md`)
 
@@ -286,7 +307,7 @@ pi-reservation-system/
 
 | 우선순위 | 문서 | 내용 |
 |---|---|---|
-| **1** | `docs/deploy.md` | **CI/CD · self-hosted runner · 개발 워크플로우** |
+| **1** | `docs/deploy.md` | **CI/CD 파이프라인 · self-hosted runner · 릴리스** |
 | 2 | `docs/api.md` §7 · 부록 | Mock 서버 · `openapi.yaml` |
 
 ### API 에러 규약 (확정 — `api.md` §4)
@@ -353,6 +374,7 @@ pi-reservation-system/
 | `docs/features.md` | ✅ 25건 (P0 21 · P1 4). 철회 ID 11개 |
 | `docs/data.md` | ✅ **§0~§9 전체 완료** — ERD 12개 · 동시성 · 상태 전이 · Redis · 시드 · 쿼리 계획 · Flyway |
 | **`docs/infra.md`** | ✅ **§0~§10** — 호스트 · Docker 네트워크 3분리 · 백업 · 보안 · 한계 |
+| **`docs/workflow.md`** | ✅ **§0~§8 + 부록 3** — 설정 파일 원본 포함 (실제 생성은 세팅 때) |
 | `docs/tech.md` | ✅ 임베디드 스택 제거 |
 | `docs/search/korail-auth.md` | ✅ 코레일 인증 · 인가 조사 |
 | `docs/search/korail-trip-data.md` | ✅ 코레일 운행정보 조사 — **공공데이터 미채택 근거 포함** |
