@@ -6,7 +6,7 @@
 
 | 날짜 | 증상 | 트랙 | 상태 |
 |---|---|---|---|
-| — | *아직 없다* | — | — |
+| 2026-09-10 | [`redocly.yaml` 의 `apis:` 가 `openapi-typescript` 의 `-o` 를 무시](2026-09-10-redocly-config-hijacks-openapi-typescript.md) | tooling | 해결 |
 
 ---
 

@@ -1,0 +1,232 @@
+# §5.1 조회 — 역 · 운행 · 좌석맵
+# 근거: api.md §5.1 · data.md §2 §5.1 §6.3
+
+parameters:
+
+  From:
+    name: from
+    in: query
+    required: true
+    description: 출발역 코드
+    schema:
+      $ref: '#/schemas/StationCode'
+    example: SEO
+
+  To:
+    name: to
+    in: query
+    required: true
+    description: 도착역 코드. **`from` 과 같으면 `400`**
+    schema:
+      $ref: '#/schemas/StationCode'
+    example: BSN
+
+  Date:
+    name: date
+    in: query
+    required: true
+    description: |
+      **KST 영업일** (`YYYY-MM-DD`).
+      ⚠️ 시각이 아니다 — 응답의 `departAt` 은 UTC 순간이지만 이건 날짜다 (`api.md` §0).
+    schema:
+      type: string
+      format: date
+    example: '2026-09-20'
+
+  Passengers:
+    name: passengers
+    in: query
+    required: false
+    description: 인원. 좌석 6석 상한과 같은 근거 (`F-04`)
+    schema:
+      type: integer
+      minimum: 1
+      maximum: 6
+      default: 1
+
+  CarNo:
+    name: carNo
+    in: query
+    required: false
+    description: 호차. **없으면 800석 전체를 준다**
+    schema:
+      type: integer
+      minimum: 1
+      maximum: 10
+    example: 4
+
+schemas:
+
+  # ── 역 ─────────────────────────────────────────────────────
+  StationCode:
+    type: string
+    description: |
+      역 코드 3자.
+      ⚠️ **`enum` 이 아니다** — 지금은 4역이지만 역 추가가 계약 변경이 되면 안 된다
+      (`data.md` §7 확장성).
+    pattern: '^[A-Z]{3}$'
+    examples: [SEO, DJN, DDG, BSN]
+
+  Station:
+    type: object
+    required: [code, name, lineSeq]
+    properties:
+      code:
+        $ref: '#/schemas/StationCode'
+      name:
+        type: string
+        example: 서울
+      lineSeq:
+        type: integer
+        minimum: 1
+        description: 노선 순서. **방향 판정의 근거** (`data.md` §8.3)
+        example: 1
+
+  StationListResponse:
+    type: object
+    required: [stations]
+    properties:
+      stations:
+        type: array
+        items:
+          $ref: '#/schemas/Station'
+    example:
+      stations:
+        - { code: SEO, name: 서울,   lineSeq: 1 }
+        - { code: DJN, name: 대전,   lineSeq: 2 }
+        - { code: DDG, name: 동대구, lineSeq: 3 }
+        - { code: BSN, name: 부산,   lineSeq: 4 }
+
+  # ── 운행 ───────────────────────────────────────────────────
+  Trip:
+    type: object
+    required: [tripId, trainNo, departAt, arriveAt, durationMinutes, availableSeats, fare]
+    properties:
+      tripId:
+        type: integer
+        format: int64
+        example: 101
+      trainNo:
+        type: string
+        description: 열차번호. **하행 홀수 · 상행 짝수** (`data.md` §7)
+        example: '101'
+      departAt:
+        type: string
+        format: date-time
+        description: '**UTC ISO-8601.** 표시 변환은 클라이언트가 한다'
+        example: '2026-09-20T00:00:00Z'
+      arriveAt:
+        type: string
+        format: date-time
+        example: '2026-09-20T02:40:00Z'
+      durationMinutes:
+        type: integer
+        description: 파생값. 서버가 계산해 준다
+        example: 160
+      availableSeats:
+        type: integer
+        minimum: 0
+        maximum: 800
+        description: |
+          ⚠️ **Redis 캐시 근사값이다.**
+          잔여 1석을 보고 들어가도 좌석 선택에서 밀릴 수 있다.
+          **판정 근거로 쓰지 말 것** — 진실은 `POST /holds` 의 결과뿐이다.
+        example: 412
+      fare:
+        type: integer
+        description: '**1인 운임**(원). 탄 구간 기준 (`data.md` §3 `fare`)'
+        example: 59800
+
+  TripListResponse:
+    type: object
+    required: [trips]
+    properties:
+      trips:
+        type: array
+        description: '**결과가 없으면 빈 배열이다.** `404` 가 아니다'
+        items:
+          $ref: '#/schemas/Trip'
+    example:
+      trips:
+        - tripId: 101
+          trainNo: '101'
+          departAt: '2026-09-20T00:00:00Z'
+          arriveAt: '2026-09-20T02:40:00Z'
+          durationMinutes: 160
+          availableSeats: 412
+          fare: 59800
+
+  # ── 좌석맵 ─────────────────────────────────────────────────
+  SeatStatus:
+    type: string
+    description: |
+      `data.md` §5.1 `trip_seat` 상태. **이 셋만 순환한다.**
+      선점 소유자 구분(내 선점 vs 남의 선점)은 여기 없다 —
+      **좌석맵이 비인증이라 서버가 "내" 를 모른다** (`api.md` §6).
+      클라이언트가 자기 `holdId` 로 대조한다.
+    enum: [AVAILABLE, HELD, SOLD]
+
+  Seat:
+    type: object
+    required: [rowNo, colLetter, status, windowSide]
+    properties:
+      rowNo:
+        type: integer
+        minimum: 1
+        maximum: 20
+      colLetter:
+        type: string
+        pattern: '^[A-D]$'
+      status:
+        $ref: '#/schemas/SeatStatus'
+      windowSide:
+        type: boolean
+        description: 창측 여부. `A` · `D` 가 창측
+
+  Car:
+    type: object
+    required: [carNo, seats]
+    properties:
+      carNo:
+        type: integer
+        minimum: 1
+        maximum: 10
+      seats:
+        type: array
+        maxItems: 80
+        items:
+          $ref: '#/schemas/Seat'
+
+  SeatMapResponse:
+    type: object
+    required: [tripId, snapshotAt, lastEventId, cars]
+    properties:
+      tripId:
+        type: integer
+        format: int64
+      snapshotAt:
+        type: string
+        format: date-time
+        description: 이 좌석맵이 어느 시점인지
+      lastEventId:
+        type: string
+        description: |
+          **SSE 구독 시작점.** Redis Stream 엔트리 ID (`밀리초-시퀀스`).
+          이 값을 `Last-Event-ID` 로 넘기면 **좌석맵과 SSE 사이에 구멍이 없다**
+          (`api.md` §6.3).
+        pattern: '^[0-9]+-[0-9]+$'
+        example: '1725426753000-7'
+      cars:
+        type: array
+        maxItems: 10
+        items:
+          $ref: '#/schemas/Car'
+    example:
+      tripId: 101
+      snapshotAt: '2026-09-04T05:12:33Z'
+      lastEventId: '1725426753000-7'
+      cars:
+        - carNo: 4
+          seats:
+            - { rowNo: 7, colLetter: A, status: AVAILABLE, windowSide: true }
+            - { rowNo: 7, colLetter: B, status: HELD,      windowSide: false }

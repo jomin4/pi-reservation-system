@@ -1,0 +1,164 @@
+# 전 덩이 공용 — RFC 9457 Problem · 에러 코드 · 공통 파라미터
+# 근거: api.md §4
+
+securitySchemes:
+  bearerAuth:
+    type: http
+    scheme: bearer
+    bearerFormat: JWT
+    description: Access JWT (15분). `api.md` §5.5
+
+parameters:
+  TripId:
+    name: tripId
+    in: path
+    required: true
+    description: 운행 ID
+    schema:
+      type: integer
+      format: int64
+      minimum: 1
+    example: 101
+
+schemas:
+
+  # ── RFC 9457 ────────────────────────────────────────────────
+  Problem:
+    type: object
+    description: |
+      **모든 에러 응답의 기본형** (RFC 9457).
+      `type` `title` 은 유형마다 고정, `detail` 은 발생마다 다르다.
+      프론트는 **`code` 로 분기한다** — `type` URI 비교는 장황하다.
+    required: [type, title, status, code, requestId]
+    properties:
+      type:
+        type: string
+        format: uri
+        description: 문제 유형 URI. 유형마다 고정
+        example: https://api.jomin4.cloud/problems/seat-conflict
+      title:
+        type: string
+        description: 유형의 이름. 유형마다 고정
+        example: 좌석을 선점하지 못했습니다
+      status:
+        type: integer
+        minimum: 400
+        maximum: 599
+        example: 409
+      detail:
+        type: string
+        description: |
+          이번 발생에 대한 설명. **`5xx` 에는 없다** (§4.5).
+        example: 선택한 6석 중 2석을 다른 고객이 먼저 선점했습니다.
+      instance:
+        type: string
+        description: 요청 경로
+        example: /api/v1/holds
+      code:
+        $ref: '#/schemas/ErrorCode'
+      requestId:
+        type: string
+        description: 상관관계 ID (`api.md` §2). **모든 에러에 들어간다**
+        example: 7f3a9c21
+
+  ValidationProblem:
+    description: 필드 단위 검증 실패 (§4.4)
+    allOf:
+      - $ref: '#/schemas/Problem'
+      - type: object
+        required: [errors]
+        properties:
+          errors:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [field, reason]
+              properties:
+                field:
+                  type: string
+                  example: seats
+                reason:
+                  type: string
+                  example: 1~6석까지 선택할 수 있습니다
+
+  # ── 에러 코드 ───────────────────────────────────────────────
+  ErrorCode:
+    type: string
+    description: |
+      **프론트가 분기하는 열쇠.** `api.md` §4.2~§4.5 의 전체 목록이다.
+
+      ⚠️ **여기 없는 코드를 서버가 내려보내면 계약 위반이다.**
+      새 코드가 필요하면 이 파일을 고치는 PR 이 먼저다 (`workflow.md` §3).
+    enum:
+      # 좌석 · 선점 (§4.2)
+      - SEAT_ALREADY_HELD
+      - SEAT_LOCK_TIMEOUT
+      - SEAT_COUNT_EXCEEDED
+      - HOLD_EXPIRED
+      - HOLD_NOT_OWNED
+      - TRIP_NOT_FOUND
+      # 결제 (§4.3)
+      - PAYMENT_DECLINED
+      - PAYMENT_PENDING
+      - PAYMENT_AMOUNT_MISMATCH
+      - IDEMPOTENCY_KEY_REUSED
+      # 인증 · 인가
+      - UNAUTHENTICATED
+      - INVALID_CREDENTIALS
+      - TOO_MANY_ATTEMPTS
+      - EMAIL_ALREADY_EXISTS
+      - RESERVATION_NOT_OWNED
+      # 예약
+      - RESERVATION_NOT_FOUND
+      - RESERVATION_NOT_CANCELLABLE
+      - RESERVATION_ALREADY_CANCELLED
+      # 공통
+      - VALIDATION_FAILED
+      - INTERNAL_ERROR
+
+responses:
+
+  ValidationFailed:
+    description: '`400` — 요청이 올바르지 않다'
+    content:
+      application/problem+json:
+        schema:
+          $ref: '#/schemas/ValidationProblem'
+        example:
+          type: https://api.jomin4.cloud/problems/validation
+          title: 요청이 올바르지 않습니다
+          status: 400
+          code: VALIDATION_FAILED
+          requestId: 7f3a9c21
+          errors:
+            - field: to
+              reason: 출발역과 도착역이 같습니다
+
+  TripNotFound:
+    description: '`404` — 운행이 없다'
+    content:
+      application/problem+json:
+        schema:
+          $ref: '#/schemas/Problem'
+        example:
+          type: https://api.jomin4.cloud/problems/not-found
+          title: 운행을 찾을 수 없습니다
+          status: 404
+          code: TRIP_NOT_FOUND
+          requestId: 7f3a9c21
+
+  InternalError:
+    description: |
+      `5xx` — **`detail` 이 없다.** 스택 트레이스 · SQL · 내부 경로가 새면 안 된다 (§4.5).
+      `requestId` 만 준다.
+    content:
+      application/problem+json:
+        schema:
+          $ref: '#/schemas/Problem'
+        example:
+          type: about:blank
+          title: 일시적인 오류가 발생했습니다
+          status: 500
+          code: INTERNAL_ERROR
+          requestId: 7f3a9c21

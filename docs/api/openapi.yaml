@@ -1,0 +1,112 @@
+openapi: 3.1.0
+
+info:
+  title: pi-reservation-system API
+  version: 0.1.0
+  description: |
+    폐쇄망 기반 좌석 예매 시스템 API.
+
+    **이 파일이 계약의 진실이다.** 구현이 이걸 따르는지 CI 가 검사한다 (`api.md` 부록 A.4).
+
+    - 설계 근거 · 상태 머신 — `docs/api.md` · `docs/data.md`
+    - **SSE 계약은 여기 없다** — `text/event-stream` 은 OpenAPI 로 표현되지 않는다.
+      `docs/api.md` §6 이 진실이다 (부록 A.5).
+
+servers:
+  - url: https://api.jomin4.cloud/api/v1
+    description: 운영
+  - url: http://localhost:8080/api/v1
+    description: 로컬
+
+tags:
+  - name: catalog
+    description: 역 · 운행 · 좌석맵 조회 — 인증 불필요
+
+paths:
+  /stations:
+    get:
+      tags: [catalog]
+      operationId: listStations
+      summary: 역 목록 조회
+      description: |
+        시드 데이터라 바뀌지 않는다 (`F-01`).
+        `lineSeq` 오름차순 = 상행 기준 노선 순서.
+      security: []
+      responses:
+        '200':
+          description: 역 목록
+          headers:
+            Cache-Control:
+              description: 하루 캐시
+              schema:
+                type: string
+                const: 'public, max-age=86400'
+          content:
+            application/json:
+              schema:
+                $ref: './components/catalog.yaml#/schemas/StationListResponse'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /trips:
+    get:
+      tags: [catalog]
+      operationId: searchTrips
+      summary: 운행 조회
+      description: |
+        구간 + 날짜로 운행을 찾는다 (`F-02`).
+
+        - **결과가 없으면 `200` + 빈 배열이다.** `404` 가 아니다.
+        - `availableSeats` 는 **Redis 캐시 근사값**이며 판정 근거가 아니다.
+      security: []
+      parameters:
+        - $ref: './components/catalog.yaml#/parameters/From'
+        - $ref: './components/catalog.yaml#/parameters/To'
+        - $ref: './components/catalog.yaml#/parameters/Date'
+        - $ref: './components/catalog.yaml#/parameters/Passengers'
+      responses:
+        '200':
+          description: 운행 목록 (없으면 빈 배열)
+          content:
+            application/json:
+              schema:
+                $ref: './components/catalog.yaml#/schemas/TripListResponse'
+        '400':
+          $ref: './components/common.yaml#/responses/ValidationFailed'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /trips/{tripId}/seats:
+    get:
+      tags: [catalog]
+      operationId: getSeatMap
+      summary: 좌석 배치도 조회
+      description: |
+        운행 한 건의 좌석 상태 전체 (`F-03`).
+
+        **응답의 `lastEventId` 가 SSE 구독 시작점이다.**
+        좌석맵을 받고 SSE 를 붙이는 사이의 변경을 놓치지 않으려면
+        이 값을 `Last-Event-ID` 로 넘긴다 (`api.md` §6.3).
+      security: []
+      parameters:
+        - $ref: './components/common.yaml#/parameters/TripId'
+        - $ref: './components/catalog.yaml#/parameters/CarNo'
+      responses:
+        '200':
+          description: 좌석맵
+          content:
+            application/json:
+              schema:
+                $ref: './components/catalog.yaml#/schemas/SeatMapResponse'
+        '404':
+          $ref: './components/common.yaml#/responses/TripNotFound'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: './components/common.yaml#/securitySchemes/bearerAuth'
+
+security:
+  - bearerAuth: []

@@ -313,7 +313,7 @@ record HoldResult(
 
 ```json
 {
-  "type": "https://pi-reservation/problems/seat-conflict",
+  "type": "https://api.jomin4.cloud/problems/seat-conflict",
   "title": "좌석을 선점하지 못했습니다",
   "status": 409,
   "detail": "선택한 6석 중 2석을 다른 고객이 먼저 선점했습니다.",
@@ -330,7 +330,7 @@ record HoldResult(
 
 | 필드          | 성격                                           |
 | ------------- | ---------------------------------------------- |
-| `type`      | 문제 유형 URI.**유형마다 고정**          |
+| `type`      | 문제 유형 URI.**유형마다 고정** · 호스트는 `api.jomin4.cloud` |
 | `title`     | 그 유형의 이름.**유형마다 고정**         |
 | `detail`    | **이번 발생**에 대한 설명. 매번 다름     |
 | `code`      | **프론트가 분기하는 열쇠.** 확장 필드    |
@@ -416,7 +416,7 @@ record HoldResult(
 
 ```json
 {
-  "type": "https://pi-reservation/problems/validation",
+  "type": "https://api.jomin4.cloud/problems/validation",
   "title": "요청이 올바르지 않습니다",
   "status": 400,
   "code": "VALIDATION_FAILED",
@@ -1125,9 +1125,13 @@ paths:
 
 | 검사 | 도구 | 시점 |
 |---|---|---|
-| 스펙 문법 · 스타일 | **`spectral lint`** | `docs/api-*` PR CI |
+| 스펙 문법 · 스타일 | **`redocly lint`** | `docs/api-*` PR CI |
 | **계약 ↔ 구현** | SpringDoc 산출 스펙과 **`diff`** | back CI |
 | **계약 ↔ 클라이언트** | 생성 타입 `diff` | front · mobile CI |
+
+> **왜 `spectral` 이 아니라 `redocly` 인가** — `openapi-typescript` 가 내부적으로 `@redocly/openapi-core` 를 쓴다. 린터와 타입 생성기가 **같은 `$ref` 해석기**를 공유해야 **한쪽만 통과하는 상황**이 안 생긴다. 파일을 나눠 쓰기로 한 이상(A.2) 해석기 일치가 문법 검사보다 중요하다.
+>
+> 규칙 조정은 **저장소 루트 `redocly.yaml`** 에 **끈 이유를 주석으로 달아** 둔다. ⚠️ **루트여야 한다** — redocly 는 설정을 실행 디렉터리에서 위로 찾으므로 `docs/api/` 에 두면 **CI 가 못 읽어 끈 규칙이 조용히 되살아난다.** ⚠️ **`apis:` 키는 쓰지 않는다** — `openapi-typescript` 가 같은 파일을 읽어서, `apis:` 가 있으면 CLI 인자를 무시하고 `x-openapi-ts.output` 을 요구한다. 출력 경로는 front · mobile 이 각자 정한다 (`docs/troubleshooting/`).
 
 > **A.4가 이 설계의 전부다.** 계약을 손으로 쓰는 대가는 **"구현이 어겼는지 사람이 봐야 한다"**인데, **CI diff가 그걸 대신한다** — Flyway의 `validate-on-migrate`와 정확히 같은 역할이다.
 
