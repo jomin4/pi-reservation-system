@@ -264,14 +264,23 @@ features.md  F-04
 | → In Review | **세션이** `gh project item-edit` |
 | → **Done** | **Projects 내장** — `Item closed` |
 
-**켜는 워크플로 3개**
+**실제 세팅 (2026-09-10 확정)**
 
-| 워크플로 | 설정 |
-|---|---|
-| `Item added to project` | Status = **Todo** |
-| `Item closed` | Status = **Done** |
-| `Auto-add to project` | 저장소 필터 · **`is:issue`** |
-| ~~`Pull request merged`~~ | ❌ **안 켠다** — 보드에 PR을 안 올린다(§5.2) |
+| 워크플로 | 설정 | 담당 전이 |
+|---|---|---|
+| `Auto-add to project` | 저장소 · **`is:issue is:open`** | 보드 등록 |
+| `Item added to project` | `issue` → **Todo** | → Todo |
+| **`Pull request linked to issue`** | **→ In review** | **→ In Review** |
+| `Pull request merged` | → Done | → Done (동작 미확인) |
+| `Item closed` | `issue` → **Done** | → Done |
+| **`Auto-close issue`** | Done 이면 이슈를 닫는다 | 이슈 종료 |
+| `Item reopened` | → In progress | Done 이탈 |
+
+> **`Pull request linked to issue`가 `In review` 전이를 자동화한다.** PR 본문의 `Closes #`가 연결을 만들고(우리 PR 템플릿에 이미 있다), 그 순간 카드가 In Review로 간다.
+>
+> **`Auto-close issue`가 `Closes #`의 한계를 우회한다.** 카드가 Done이 되면 이슈를 닫으므로, **`develop` 머지에서 이슈가 안 닫히는 문제**가 사라진다.
+
+⚠️ **`Pull request merged`가 "연결된 이슈"를 건드리는지 "PR 아이템"만 건드리는지 미확인.** 첫 PR을 돌려보면 확정된다. (a)면 무해한 no-op, (b)면 A안의 수동 단계가 사라진다.
 
 ### ⚠️ `Closes #`는 `develop` 머지에서 이슈를 안 닫는다
 
@@ -281,17 +290,28 @@ features.md  F-04
 |---|---|
 | 결과 | §5.9의 **"In Review 4장 = 통합 위험 신호"가 상시 켜진다** |
 
-**결정 — 세션이 닫는다.**
+**해결 — `Auto-close issue` 워크플로가 우회한다.**
 
-```
-1. PR 머지 (develop)
-2. gh issue close <번호>     ← 카드가 Done 으로 (Item closed 가 받는다)
-3. worktree 정리 / 다음 이슈
-```
+카드가 **Done이 되면 이슈를 닫는다**. `Closes #`가 아니라 **보드 상태가 트리거**라 브랜치를 안 가린다.
 
-> **In Progress · In Review를 이미 세션이 옮기고 있으니 `gh issue close`도 같은 손에서 나온다** — 새로 배울 게 없다.
->
-> **CI를 만들 때 자동화로 올릴 수 있다** — `push` to `develop`에서 커밋의 `Closes #N`을 파싱해 닫는 워크플로. `_notify.yml`을 만드는 김에 넣으면 부품이 사실상 안 는다.
+| 경로 | |
+|---|---|
+| PR 머지 → 카드 Done → **이슈 자동 종료** | `Pull request merged`가 (b)로 동작할 때 |
+| 세션이 `gh issue close` → 카드 Done | 폴백 |
+
+> **어느 쪽으로 시작해도 "닫힘 + Done"으로 수렴한다.** 두 워크플로가 반대 방향을 보지만 진동하지 않는다.
+
+### ⚠️ `In Progress`만 자동화가 안 된다
+
+**GitHub 내장 트리거에 "브랜치 생성"·"작업 시작"이 없다.** 검토한 대안:
+
+| 대안 | 비용 | 판정 |
+|---|---|---|
+| 3컬럼으로 축소 (Draft PR = 시작) | ⚠️ **§5.9 In Review 신호를 잃는다** | ❌ |
+| Actions + 브랜치명에 이슈번호 | ⚠️ **PAT 시크릿 추가** (`GITHUB_TOKEN`은 Projects 권한 없음) | ❌ |
+| **세션이 `gh project item-edit`** | 0 | ✅ **채택** |
+
+> **셋 다 사람 손은 0인데 마지막만 잃는 게 없다.** "수동"은 **GitHub이 안 한다**는 뜻이지 **사람이 한다**는 뜻이 아니다 — 세션 시작 프로토콜 5번이 그걸 실행한다.
 
 > **양 끝은 자동, 가운데 둘이 수동이다.** 4세션이 병렬로 도는데 사람이 옮기면 놓친다 — **세션이 `gh`로 옮기거나 Actions로** 처리한다.
 >
