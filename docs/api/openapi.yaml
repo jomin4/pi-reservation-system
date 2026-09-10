@@ -30,6 +30,10 @@ tags:
     description: |
       결제 · 확정 — **인증 필수 · 2단계.**
       계약이 막는 것 둘: **금액 위변조**(`orderId`) · **이중 결제**(`Idempotency-Key`).
+  - name: reservations
+    description: |
+      예약 관리 — **인증 필수.**
+      경로 키가 **예약번호**다. 내부 `id` 를 노출하지 않는다.
 
 paths:
   /stations:
@@ -330,6 +334,107 @@ paths:
           $ref: './components/holds.yaml#/responses/HoldNotOwned'
         '410':
           $ref: './components/holds.yaml#/responses/HoldExpired'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /reservations:
+    get:
+      tags: [reservations]
+      operationId: listReservations
+      summary: 내 예약 목록
+      description: |
+        회원 본인의 예약 이력 (`F-12`). 정렬 **`createdAt DESC`** 고정.
+
+        - **취소분도 남는다** — `F-14` 는 삭제가 아니라 `CANCELLED` 전이다.
+        - **진행 중인 선점은 여기 없다** — 선점은 예약이 아니다.
+        - `COMPLETED` 는 **응답 시점에 파생**된다 (`data.md` §5.5).
+      parameters:
+        - $ref: './components/common.yaml#/parameters/Page'
+        - $ref: './components/common.yaml#/parameters/Size'
+        - $ref: './components/common.yaml#/parameters/XRequestIdHeader'
+      responses:
+        '200':
+          description: 예약 목록
+          headers:
+            X-Request-Id:
+              $ref: './components/common.yaml#/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: './components/reservations.yaml#/schemas/ReservationPage'
+        '401':
+          $ref: './components/common.yaml#/responses/Unauthenticated'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /reservations/{reservationNo}:
+    parameters:
+      - $ref: './components/common.yaml#/parameters/ReservationNoPath'
+
+    get:
+      tags: [reservations]
+      operationId: getReservation
+      summary: 예약 상세
+      description: |
+        경로 키가 **예약번호**다 (`F-12`). 내부 `id` 를 노출하지 않는다.
+
+        ⚠️ **예약번호는 조회 열쇠가 아니다.** 남의 번호를 알아도 못 본다 —
+        **로그인이 열쇠**다. 그래서 `403` 이지 `404` 가 아니다 (`api.md` §5.4).
+      parameters:
+        - $ref: './components/common.yaml#/parameters/XRequestIdHeader'
+      responses:
+        '200':
+          $ref: './components/reservations.yaml#/responses/ReservationDetail'
+        '401':
+          $ref: './components/common.yaml#/responses/Unauthenticated'
+        '403':
+          $ref: './components/reservations.yaml#/responses/ReservationNotOwned'
+        '404':
+          $ref: './components/reservations.yaml#/responses/ReservationNotFound'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /reservations/{reservationNo}/cancel:
+    parameters:
+      - $ref: './components/common.yaml#/parameters/ReservationNoPath'
+
+    post:
+      tags: [reservations]
+      operationId: cancelReservation
+      summary: 예약 취소 — DELETE 가 아니다
+      description: |
+        전이 **`TS-5`** (`SOLD`→`AVAILABLE`) + **`RV-2`** (+`PM-4` — `F-15` 는 P1).
+
+        ⚠️ **`DELETE` 가 아니다.** 예약은 지워지지 않고 `CANCELLED` 로 전이한다 —
+        **이력 보존이 요구사항**이다 (`F-14`).
+
+        > 이 호출이 **해당 운행을 보고 있는 모든 화면에 SSE 로 좌석 복귀를 전파**한다
+        > (`api.md` §6, `cause: RESERVATION_CANCELLED`).
+        > 시연에서 가장 보여주기 좋은 장면이다.
+
+        ⚠️ **P0 단계에서는 좌석만 돌아가고 결제는 그대로 남는다.**
+        환불(`F-15`)은 P1 이다 — 화면은 "좌석이 반환되었습니다. 환불은 별도
+        처리됩니다" 라고 솔직하게 적는다 (`W-10`).
+      parameters:
+        - $ref: './components/common.yaml#/parameters/XRequestIdHeader'
+      responses:
+        '200':
+          description: '`200` — 취소됨. **갱신된 예약**을 준다 (`status: CANCELLED`)'
+          headers:
+            X-Request-Id:
+              $ref: './components/common.yaml#/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: './components/reservations.yaml#/schemas/Reservation'
+        '401':
+          $ref: './components/common.yaml#/responses/Unauthenticated'
+        '403':
+          $ref: './components/reservations.yaml#/responses/ReservationNotOwned'
+        '404':
+          $ref: './components/reservations.yaml#/responses/ReservationNotFound'
+        '409':
+          $ref: './components/reservations.yaml#/responses/ReservationNotCancellable'
         '500':
           $ref: './components/common.yaml#/responses/InternalError'
 

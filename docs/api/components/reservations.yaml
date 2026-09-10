@@ -1,8 +1,8 @@
 # 예약 스키마
 # 근거: api.md §5.3 · §5.4 · data.md §3 (reservation · reservation_seat) · §5.4 · §5.5
 #
-# ⚠️ 3덩이(결제)에서 만들었다. 결제 확정 응답이 곧 예약이기 때문이다.
-#    목록 · 취소는 4덩이에서 여기 붙는다.
+# ⚠️ 3덩이(결제)에서 Reservation 을 먼저 만들었다 — 결제 확정 응답이 곧 예약이라서.
+#    4덩이에서 목록 · 상세 · 취소를 붙였다.
 
 schemas:
 
@@ -51,12 +51,30 @@ schemas:
         description: '**예약 시점 운임.** 나중에 운임이 바뀌어도 이 값은 안 변한다'
         example: 59800
 
+  StationBrief:
+    type: object
+    description: 예약이 자기 구간을 스스로 설명하기 위한 최소 정보
+    required: [code, name]
+    properties:
+      code:
+        type: string
+        pattern: '^[A-Z]{3}$'
+      name:
+        type: string
+    example: { code: SEO, name: 서울 }
+
   Reservation:
     type: object
     description: |
-      예약 상세. **세 곳이 같은 형태를 준다** —
-      결제 확정(`201`) · 결제 결과 조회(`200`) · 예약 상세(`200`).
-    required: [reservationNo, status, tripId, trainNo, departAt, seats, totalFare]
+      예약 상세. **네 곳이 같은 형태를 준다** —
+      결제 확정(`201`) · 결제 결과 조회(`200`) · 예약 상세(`200`) · 취소(`200`).
+
+      > **자기 구간과 예매자를 스스로 설명한다.** `W-10` 은 목록을 거치지 않고
+      > `/reservations/48207315` 로 바로 열릴 수 있다. 그때 운행 정보를
+      > 따로 조회해야 한다면 화면이 두 번 깜빡인다.
+    required:
+      [reservationNo, status, tripId, trainNo, fromStation, toStation,
+       departAt, arriveAt, seats, totalFare, passengerName, passengerPhone]
     properties:
       reservationNo:
         $ref: '#/schemas/ReservationNo'
@@ -69,10 +87,26 @@ schemas:
       trainNo:
         type: string
         example: KTX 101
+      fromStation:
+        $ref: '#/schemas/StationBrief'
+      toStation:
+        $ref: '#/schemas/StationBrief'
       departAt:
         type: string
         format: date-time
         description: '**UTC ISO-8601**'
+      arriveAt:
+        type: string
+        format: date-time
+      passengerName:
+        type: string
+        description: |
+          **예약 시점 스냅샷** (`data.md` §3).
+          회원 정보에서 자동으로 채워지고, 나중에 회원이 이름을 바꿔도 **이 값은 안 변한다**.
+        example: 홍길동
+      passengerPhone:
+        type: string
+        example: 010-0000-0000
       seats:
         type: array
         minItems: 1
@@ -95,9 +129,141 @@ schemas:
       status: CONFIRMED
       tripId: 101
       trainNo: KTX 101
+      fromStation: { code: SEO, name: 서울 }
+      toStation: { code: BSN, name: 부산 }
       departAt: '2026-09-10T21:00:00Z'
+      arriveAt: '2026-09-10T23:17:00Z'
+      passengerName: 홍길동
+      passengerPhone: 010-0000-0000
       seats:
         - { carNo: 4, rowNo: 7, colLetter: A, fare: 59800 }
         - { carNo: 4, rowNo: 7, colLetter: B, fare: 59800 }
       totalFare: 119600
       paidAt: '2026-09-04T05:18:02Z'
+
+  # ── 목록 ───────────────────────────────────────────────────
+  ReservationSummary:
+    type: object
+    description: |
+      `W-09` 목록 한 줄 — **예약번호 · 열차 · 일시 · 좌석 · 상태**.
+
+      > **취소된 예약도 목록에 남는다.** `F-14` 는 삭제가 아니라 `CANCELLED` 전이다.
+      > **진행 중인 선점은 여기 없다** — 선점은 예약이 아니다.
+    required: [reservationNo, status, trainNo, departAt, seats, totalFare]
+    properties:
+      reservationNo:
+        $ref: '#/schemas/ReservationNo'
+      status:
+        $ref: '#/schemas/ReservationStatus'
+      trainNo:
+        type: string
+        example: KTX 101
+      departAt:
+        type: string
+        format: date-time
+      seats:
+        type: array
+        minItems: 1
+        maxItems: 6
+        items:
+          $ref: '#/schemas/ReservedSeat'
+      totalFare:
+        type: integer
+        example: 119600
+
+  ReservationPage:
+    description: |
+      `PageResponse<ReservationSummary>` (`api.md` §0).
+      정렬은 **`createdAt DESC`** 고정 — 정렬 파라미터를 열지 않는다.
+    allOf:
+      - $ref: './common.yaml#/schemas/PageMeta'
+      - type: object
+        required: [content]
+        properties:
+          content:
+            type: array
+            items:
+              $ref: '#/schemas/ReservationSummary'
+
+responses:
+
+  ReservationDetail:
+    description: '`200` — 예약 상세'
+    headers:
+      X-Request-Id:
+        $ref: './common.yaml#/headers/XRequestId'
+    content:
+      application/json:
+        schema:
+          $ref: '#/schemas/Reservation'
+
+  ReservationNotFound:
+    description: '`404` — 그런 예약번호가 없다'
+    headers:
+      X-Request-Id:
+        $ref: './common.yaml#/headers/XRequestId'
+    content:
+      application/problem+json:
+        schema:
+          $ref: './common.yaml#/schemas/Problem'
+        example:
+          type: https://api.jomin4.cloud/problems/reservation-not-found
+          title: 예약을 찾을 수 없습니다
+          status: 404
+          code: RESERVATION_NOT_FOUND
+          requestId: 7f3a9c21
+
+  ReservationNotOwned:
+    description: |
+      `403` — 남의 예약이다.
+
+      > **`404` 로 숨기지 않는다** (`api.md` §5.4).
+      > 예약번호가 조회 열쇠가 아니라 **로그인이 열쇠**이므로,
+      > 이미 인증된 사용자에게 존재 여부를 숨겨서 얻는 게 적다.
+    headers:
+      X-Request-Id:
+        $ref: './common.yaml#/headers/XRequestId'
+    content:
+      application/problem+json:
+        schema:
+          $ref: './common.yaml#/schemas/Problem'
+        example:
+          type: https://api.jomin4.cloud/problems/reservation-not-owned
+          title: 접근할 수 없는 예약입니다
+          status: 403
+          code: RESERVATION_NOT_OWNED
+          requestId: 7f3a9c21
+
+  ReservationNotCancellable:
+    description: |
+      `409` — 취소할 수 없다. **두 가지 `code` 가 온다.**
+
+      | `code` | 언제 | 화면 |
+      |---|---|---|
+      | `RESERVATION_NOT_CANCELLABLE` | **출발 시각이 지났다** | 취소 버튼 비활성 + 사유 표기 |
+      | `RESERVATION_ALREADY_CANCELLED` | 이미 취소됨 | 목록을 새로 고친다 |
+    headers:
+      X-Request-Id:
+        $ref: './common.yaml#/headers/XRequestId'
+    content:
+      application/problem+json:
+        schema:
+          $ref: './common.yaml#/schemas/Problem'
+        examples:
+          departed:
+            summary: 출발 후
+            value:
+              type: https://api.jomin4.cloud/problems/reservation-not-cancellable
+              title: 취소할 수 없는 예약입니다
+              status: 409
+              detail: 출발 시각이 지난 예약은 취소할 수 없습니다.
+              code: RESERVATION_NOT_CANCELLABLE
+              requestId: 7f3a9c21
+          already:
+            summary: 이미 취소됨
+            value:
+              type: https://api.jomin4.cloud/problems/reservation-already-cancelled
+              title: 이미 취소된 예약입니다
+              status: 409
+              code: RESERVATION_ALREADY_CANCELLED
+              requestId: 7f3a9c21
