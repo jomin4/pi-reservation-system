@@ -160,6 +160,7 @@ erDiagram
         bigint id PK
         bigint hold_id FK "nullable"
         bigint reservation_id FK "nullable"
+        varchar order_id UK "ord_ + hex 8자리"
         varchar idempotency_key UK
         varchar pg_payment_key "토스 paymentKey"
         int amount
@@ -372,11 +373,16 @@ CHECK (from_station_id <> to_station_id)
 | `id` | `bigserial` | PK |
 | `hold_id` | `bigint` | FK → `seat_hold` · nullable |
 | `reservation_id` | `bigint` | FK → `reservation` · **nullable** |
+| **`order_id`** | **`varchar(64)`** | **UNIQUE** · `ord_` + hex 8자리 (`ord_9c2f4a17`) |
 | `idempotency_key` | `varchar(64)` | **UNIQUE** |
 | `pg_payment_key` | `varchar(64)` | 토스 `paymentKey` |
 | `amount` | `int` | NOT NULL |
 | `status` | `varchar(12)` | `REQUESTED` · `APPROVED` · `FAILED` · `CANCELLED` |
 | `approved_at` · `cancelled_at` | `timestamptz` | |
+
+> **`order_id`가 왜 컬럼인가** — §5.3 전이 1이 "`order_id` · `amount`를 여기서 못박는다"고 말하는데, **못박으려면 저장돼 있어야 한다.** `payment-intent`가 이 값을 발급하고, 다음 단계에서 클라이언트가 돌려준 `orderId`로 행을 찾아 **`amount`를 대조**한다. 클라이언트가 보낸 `amount`를 그대로 믿지 않는 게 이 2단계의 전부다.
+>
+> **`idempotency_key`와 역할이 다르다.** `order_id`는 **"어느 결제 건인가"**(서버가 발급), `idempotency_key`는 **"같은 시도인가"**(클라이언트가 발급). 둘 다 UNIQUE지만 막는 것이 다르다 — 앞은 **금액 위변조**, 뒤는 **이중 결제**.
 
 > **`reservation_id`가 nullable인 이유** — `F-08` 6단계(승인됐는데 확정 실패)를 표현하기 위해서다. `status='APPROVED' AND reservation_id IS NULL`인 행이 **보상 취소 대상**이며, 이 조건 하나로 미아 결제를 찾아낼 수 있다.
 
@@ -1441,6 +1447,7 @@ SELECT ... FROM reservation
 | | UNIQUE `(public_id)` | `GET /holds/{holdId}` |
 | `reservation` | UNIQUE `(reservation_no)` · `(member_id, created_at DESC)` | **Q6** |
 | `payment` | UNIQUE `(idempotency_key)` | 멱등 |
+| | UNIQUE `(order_id)` | 금액 대조 |
 | `member` | UNIQUE `(email)` | 로그인 |
 
 **`trip_seat` 인덱스는 4개뿐이고 그중 둘이 부분 인덱스다.**

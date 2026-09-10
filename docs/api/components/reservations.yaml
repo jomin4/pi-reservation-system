@@ -1,0 +1,103 @@
+# 예약 스키마
+# 근거: api.md §5.3 · §5.4 · data.md §3 (reservation · reservation_seat) · §5.4 · §5.5
+#
+# ⚠️ 3덩이(결제)에서 만들었다. 결제 확정 응답이 곧 예약이기 때문이다.
+#    목록 · 취소는 4덩이에서 여기 붙는다.
+
+schemas:
+
+  ReservationNo:
+    type: string
+    description: |
+      예약번호 **8자리 숫자 무작위** (`data.md` §3 `reservation_no`).
+
+      ⚠️ **식별용이지 조회 열쇠가 아니다.** 이 번호를 알아도 남의 예약은 못 본다 —
+      조회는 로그인으로만 된다 (`403 RESERVATION_NOT_OWNED`).
+    pattern: '^[0-9]{8}$'
+    example: '48207315'
+
+  ReservationStatus:
+    type: string
+    description: |
+      ⚠️ **`COMPLETED` 는 DB 에 없다** (`data.md` §5.5).
+      `depart_at < now()` 로 **응답 시점에 파생**한다.
+      **클라이언트는 파생인지 저장인지 알 필요가 없다** — 서버가 준 대로 표시한다.
+    enum:
+      - CONFIRMED
+      - CANCELLED
+      - COMPLETED
+
+  ReservedSeat:
+    type: object
+    description: |
+      **값 스냅샷**이다 (`data.md` §3 `reservation_seat`).
+      `trip_seat` 을 가리키지 않는다 — 취소하면 그 좌석은 남에게 팔리는데,
+      참조로 두면 **취소된 예약이 남의 좌석을 가리키게 된다.**
+    required: [carNo, rowNo, colLetter, fare]
+    properties:
+      carNo:
+        type: integer
+        minimum: 1
+        maximum: 10
+      rowNo:
+        type: integer
+        minimum: 1
+        maximum: 20
+      colLetter:
+        type: string
+        pattern: '^[A-D]$'
+      fare:
+        type: integer
+        description: '**예약 시점 운임.** 나중에 운임이 바뀌어도 이 값은 안 변한다'
+        example: 59800
+
+  Reservation:
+    type: object
+    description: |
+      예약 상세. **세 곳이 같은 형태를 준다** —
+      결제 확정(`201`) · 결제 결과 조회(`200`) · 예약 상세(`200`).
+    required: [reservationNo, status, tripId, trainNo, departAt, seats, totalFare]
+    properties:
+      reservationNo:
+        $ref: '#/schemas/ReservationNo'
+      status:
+        $ref: '#/schemas/ReservationStatus'
+      tripId:
+        type: integer
+        format: int64
+        example: 101
+      trainNo:
+        type: string
+        example: KTX 101
+      departAt:
+        type: string
+        format: date-time
+        description: '**UTC ISO-8601**'
+      seats:
+        type: array
+        minItems: 1
+        maxItems: 6
+        items:
+          $ref: '#/schemas/ReservedSeat'
+      totalFare:
+        type: integer
+        example: 119600
+      paidAt:
+        type: string
+        format: date-time
+        description: 결제 승인 시각
+      cancelledAt:
+        type: string
+        format: date-time
+        description: '`status` 가 `CANCELLED` 일 때만 있다'
+    example:
+      reservationNo: '48207315'
+      status: CONFIRMED
+      tripId: 101
+      trainNo: KTX 101
+      departAt: '2026-09-10T21:00:00Z'
+      seats:
+        - { carNo: 4, rowNo: 7, colLetter: A, fare: 59800 }
+        - { carNo: 4, rowNo: 7, colLetter: B, fare: 59800 }
+      totalFare: 119600
+      paidAt: '2026-09-04T05:18:02Z'
