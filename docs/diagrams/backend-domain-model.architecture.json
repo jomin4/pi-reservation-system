@@ -1,0 +1,248 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "도메인 코어 — 애그리거트 3개와 값 객체",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1100,
+      600
+    ],
+    "views": [
+      {
+        "id": "rule",
+        "label": "6석 규칙",
+        "focus": [
+          "seat",
+          "hold",
+          "unavailable"
+        ],
+        "note": "Hold.create 가 판정하고 거부한다. 원자성은 락이 만든다."
+      },
+      {
+        "id": "vo",
+        "label": "값 객체",
+        "focus": [
+          "address",
+          "holdId",
+          "reservedSeat"
+        ],
+        "note": "불변이고 동등성은 값으로 판정한다. 식별자가 없다."
+      },
+      {
+        "id": "confirm",
+        "label": "확정 경로",
+        "focus": [
+          "hold",
+          "reservation",
+          "reservedSeat"
+        ],
+        "note": "예약은 좌석을 참조하지 않고 그 시점의 값을 복사한다."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "seat",
+      "type": "backend",
+      "label": "Seat",
+      "sublabel": "엔티티 — 좌석 한 자리",
+      "tag": "AVAILABLE · HELD · SOLD",
+      "pos": [
+        60,
+        90
+      ],
+      "size": [
+        230,
+        90
+      ]
+    },
+    {
+      "id": "address",
+      "type": "security",
+      "label": "SeatAddress",
+      "sublabel": "VO — 호차 · 행 · 열",
+      "tag": "4호차 7A",
+      "pos": [
+        60,
+        250
+      ],
+      "size": [
+        230,
+        62
+      ]
+    },
+    {
+      "id": "hold",
+      "type": "backend",
+      "label": "Hold",
+      "sublabel": "애그리거트 루트 — 선점",
+      "tag": "6석 규칙이 사는 곳",
+      "pos": [
+        420,
+        90
+      ],
+      "size": [
+        230,
+        90
+      ]
+    },
+    {
+      "id": "holdId",
+      "type": "security",
+      "label": "HoldId",
+      "sublabel": "VO — h_ + hex 6자리",
+      "tag": "불투명",
+      "pos": [
+        420,
+        450
+      ],
+      "size": [
+        230,
+        62
+      ]
+    },
+    {
+      "id": "unavailable",
+      "type": "external",
+      "label": "SeatUnavailable",
+      "sublabel": "도메인 예외",
+      "tag": "HTTP 를 모른다",
+      "pos": [
+        420,
+        250
+      ],
+      "size": [
+        230,
+        62
+      ]
+    },
+    {
+      "id": "failure",
+      "type": "security",
+      "label": "SeatFailure",
+      "sublabel": "VO — 주소 + 실패 사유",
+      "tag": "ALL_OR_NOTHING",
+      "pos": [
+        420,
+        350
+      ],
+      "size": [
+        230,
+        62
+      ]
+    },
+    {
+      "id": "reservation",
+      "type": "backend",
+      "label": "Reservation",
+      "sublabel": "애그리거트 루트 — 예약",
+      "tag": "CONFIRMED · CANCELLED",
+      "pos": [
+        780,
+        90
+      ],
+      "size": [
+        230,
+        90
+      ]
+    },
+    {
+      "id": "reservationNo",
+      "type": "security",
+      "label": "ReservationNo",
+      "sublabel": "VO — 8자리 숫자",
+      "tag": "조회 열쇠가 아니다",
+      "pos": [
+        780,
+        250
+      ],
+      "size": [
+        230,
+        62
+      ]
+    },
+    {
+      "id": "reservedSeat",
+      "type": "security",
+      "label": "ReservedSeat",
+      "sublabel": "VO — 주소 + 그때의 운임",
+      "tag": "값 스냅샷 · 참조 아님",
+      "pos": [
+        780,
+        350
+      ],
+      "size": [
+        230,
+        62
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "seat/ — 좌석은 운행에 매여 있다",
+      "wraps": [
+        "seat",
+        "address"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "hold/ — 전부 성공 또는 전부 실패",
+      "wraps": [
+        "hold",
+        "holdId",
+        "unavailable",
+        "failure"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "reservation/ — 확정된 뒤의 세계",
+      "wraps": [
+        "reservation",
+        "reservationNo",
+        "reservedSeat"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "seat-hold",
+      "from": "seat",
+      "to": "hold",
+      "label": "선점 TS-1",
+      "variant": "emphasis"
+    },
+    {
+      "id": "hold-fail",
+      "from": "hold",
+      "to": "unavailable",
+      "label": "규칙 위반",
+      "variant": "security",
+      "labelAt": [
+        535,
+        194
+      ]
+    },
+    {
+      "id": "fail-detail",
+      "from": "unavailable",
+      "to": "failure",
+      "label": "실패 좌석 목록",
+      "variant": "dashed",
+      "labelAt": [
+        535,
+        331
+      ]
+    },
+    {
+      "id": "hold-res",
+      "from": "hold",
+      "to": "reservation",
+      "label": "확정 TS-4",
+      "variant": "emphasis"
+    }
+  ]
+}
