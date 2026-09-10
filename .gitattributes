@@ -1,0 +1,15 @@
+# ⚠️ 셸 스크립트가 CRLF 로 저장소에 들어가면 리눅스 러너에서
+#    "bad interpreter: /usr/bin/env bash^M" 로 죽는다.
+#    개발은 Windows, 실행은 Ubuntu 라 여기서 못 박는다.
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.conf          text eol=lf
+*.sql           text eol=lf
+gradlew         text eol=lf
+
+# 생성물 — diff 를 만들지 않는다
+docs/diagrams/*.html    linguist-generated=true -diff
+docs/wireframes/*.html  linguist-generated=true -diff
+*.lock                  -diff
