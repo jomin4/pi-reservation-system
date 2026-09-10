@@ -1,0 +1,317 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "시스템 전체 아키텍처 — 온프레미스 단일 호스트 (Ubuntu 8GB · Docker Compose)",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1340,
+      490
+    ],
+    "views": [
+      {
+        "id": "inbound",
+        "label": "예매 주경로",
+        "focus": [
+          "web",
+          "tunnel",
+          "nginx",
+          "app"
+        ],
+        "note": "인터넷에서 앱까지 닿는 유일한 경로. 터널이 아웃바운드로 먼저 연결한다."
+      },
+      {
+        "id": "data",
+        "label": "상태 저장소",
+        "focus": [
+          "app",
+          "postgres",
+          "redis"
+        ],
+        "note": "두 저장소 모두 호스트 포트를 열지 않는다. 앱 컨테이너만 닿는다."
+      },
+      {
+        "id": "outbound",
+        "label": "외부로 나가는 두 갈래",
+        "focus": [
+          "app",
+          "egress",
+          "payment",
+          "r2"
+        ],
+        "note": "결제 승인과 암호화 백업. 화이트리스트에 오른 두 곳뿐이다."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "웹",
+      "sublabel": "React 19 + Vite",
+      "tag": "JWT",
+      "pos": [
+        30,
+        56
+      ],
+      "size": [
+        150,
+        58
+      ]
+    },
+    {
+      "id": "mobile",
+      "type": "frontend",
+      "label": "모바일",
+      "sublabel": "React Native · APK",
+      "tag": "JWT",
+      "pos": [
+        30,
+        164
+      ],
+      "size": [
+        150,
+        58
+      ]
+    },
+    {
+      "id": "tunnel",
+      "type": "cloud",
+      "label": "Cloudflare",
+      "sublabel": "Tunnel · WAF · Access",
+      "tag": "인바운드 유일 경로",
+      "pos": [
+        235,
+        108
+      ],
+      "size": [
+        160,
+        62
+      ]
+    },
+    {
+      "id": "nginx",
+      "type": "security",
+      "label": "nginx",
+      "sublabel": "리버스 프록시 · LB",
+      "tag": "SSE 패스스루",
+      "pos": [
+        520,
+        52
+      ],
+      "size": [
+        155,
+        62
+      ]
+    },
+    {
+      "id": "egress",
+      "type": "security",
+      "label": "tinyproxy",
+      "sublabel": "아웃바운드 프록시",
+      "tag": "화이트리스트 2곳",
+      "pos": [
+        520,
+        300
+      ],
+      "size": [
+        155,
+        62
+      ]
+    },
+    {
+      "id": "app",
+      "type": "backend",
+      "label": "예매 API",
+      "sublabel": "Spring Boot · heap 512MB",
+      "tag": "평시 1대 · 실증 2대",
+      "pos": [
+        790,
+        108
+      ],
+      "size": [
+        165,
+        62
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "messagebus",
+      "label": "Redis 7",
+      "sublabel": "캐시 · Stream",
+      "tag": "maxmemory 256MB",
+      "brand": "redis",
+      "pos": [
+        1060,
+        44
+      ],
+      "size": [
+        175,
+        62
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL 17",
+      "sublabel": "좌석 · 예약 원장",
+      "tag": "호스트 포트 미노출",
+      "brand": "postgresql",
+      "pos": [
+        1060,
+        152
+      ],
+      "size": [
+        175,
+        62
+      ]
+    },
+    {
+      "id": "payment",
+      "type": "external",
+      "label": "토스페이먼츠",
+      "sublabel": "카드 승인",
+      "tag": "동기 호출",
+      "pos": [
+        1120,
+        268
+      ],
+      "size": [
+        170,
+        62
+      ]
+    },
+    {
+      "id": "r2",
+      "type": "external",
+      "label": "Cloudflare R2",
+      "sublabel": "백업 버킷",
+      "tag": "age 암호화",
+      "pos": [
+        1120,
+        372
+      ],
+      "size": [
+        170,
+        62
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "net:dmz — 외부와 닿는 유일한 구간",
+      "wraps": [
+        "nginx",
+        "egress"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "net:app",
+      "wraps": [
+        "app"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "net:data — 호스트 포트를 열지 않는다",
+      "wraps": [
+        "redis",
+        "postgres"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "web-tunnel",
+      "from": "web",
+      "to": "tunnel",
+      "label": "HTTPS"
+    },
+    {
+      "id": "mobile-tunnel",
+      "from": "mobile",
+      "to": "tunnel",
+      "label": "HTTPS"
+    },
+    {
+      "id": "tunnel-nginx",
+      "from": "tunnel",
+      "to": "nginx",
+      "label": "터널 연결"
+    },
+    {
+      "id": "nginx-app",
+      "from": "nginx",
+      "to": "app",
+      "label": "단일 API",
+      "variant": "emphasis"
+    },
+    {
+      "id": "app-redis",
+      "from": "app",
+      "to": "redis",
+      "label": "캐시 · 발행"
+    },
+    {
+      "id": "app-postgres",
+      "from": "app",
+      "to": "postgres",
+      "label": "좌석 판정",
+      "variant": "emphasis"
+    },
+    {
+      "id": "app-egress",
+      "from": "app",
+      "to": "egress",
+      "label": "외부 출구"
+    },
+    {
+      "id": "egress-payment",
+      "from": "egress",
+      "to": "payment",
+      "label": "결제 승인"
+    },
+    {
+      "id": "egress-r2",
+      "from": "egress",
+      "to": "r2",
+      "label": "암호화 백업"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "8GB 한 대에 다 올린다",
+      "items": [
+        "Proxmox 하이퍼바이저와 VM 다중화는 철회했다 — 메모리 예산이 허락하지 않는다",
+        "추정 4.1GB 사용에 3.9GB 여유. 데스크톱 환경을 끈 헤드리스 운영이 전제다"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "폐쇄망을 물리가 아니라 논리로 지킨다",
+      "items": [
+        "VLAN 4분리를 Docker 네트워크 3분리로 대체했다 — 축소이며 문서에 그대로 기록한다",
+        "PostgreSQL과 Redis는 호스트 포트를 열지 않는다. 앱 컨테이너만 닿는다"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "1대로 시작하고 필요할 때 2대로",
+      "items": [
+        "앱이 1대여도 nginx를 처음부터 앞에 둔다 — 나중에 붙이면 SSE 경로를 다시 검증해야 한다",
+        "scale 옵션 한 줄로 2대가 되고 그때 Redis Stream 팬아웃이 실증된다"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "백업은 오프사이트 한 벌뿐",
+      "items": [
+        "외장 USB RAID를 철회하고 R2 하나로 간다 — 원본과 운명을 공유하지 않는 사본이 목적이다",
+        "pg_dump 를 age 로 암호화한 뒤 올린다. 복호화 키는 호스트에 두지 않는다"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>모바일 와이어프레임 — pi-reservation-system</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --mid:#666; --faint:#9a9a9a;
+    --line:#b8b8b8; --line-soft:#dcdcdc;
+    --paper:#fff; --bg:#ececeb; --fill:#f4f4f3;
+    --note:#0f5c8c; --note-bg:#eaf3f9; --note-line:#b6d4e6;
+    --warn:#8c3a0f; --warn-bg:#fbf0e9; --warn-line:#e6c3ac;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","맑은 고딕",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans)}
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 20px 96px}
+
+  .doc-head{margin-bottom:28px}
+  .doc-head h1{font-size:22px;margin:0 0 6px;letter-spacing:-.01em}
+  .doc-head .sub{color:var(--mid);font-size:13px}
+  .meta{margin-top:14px;display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font:11px var(--mono);border:1px solid var(--line);background:var(--paper);
+        padding:3px 8px;border-radius:2px;color:var(--mid)}
+
+  .toc{background:var(--paper);border:1px solid var(--line);padding:14px 16px;margin-bottom:20px}
+  .toc h2{font-size:12px;margin:0 0 10px;letter-spacing:.08em;text-transform:uppercase;color:var(--mid)}
+  .toc ol{margin:0;padding:0;list-style:none;display:grid;
+          grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 18px}
+  .toc a{color:var(--ink);text-decoration:none;font-size:13px;display:block;padding:2px 0}
+  .toc a:hover{text-decoration:underline}
+  .toc code{font:11px var(--mono);color:var(--faint);margin-right:7px}
+
+  .callout{border:1px solid var(--warn-line);background:var(--warn-bg);padding:14px 16px;margin-bottom:34px}
+  .callout h3{margin:0 0 7px;font-size:13px;color:var(--warn)}
+  .callout p{margin:0 0 7px;font-size:12.5px;color:#5c2d12}
+  .callout p:last-child{margin-bottom:0}
+
+  /* ---------- screen block: phone left, notes right ---------- */
+  .screen{margin-bottom:46px;scroll-margin-top:16px}
+  .screen > h2{font-size:15px;margin:0 0 3px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+  .screen > h2 .id{font:11px var(--mono);color:var(--paper);background:var(--ink);
+                   padding:2px 6px;border-radius:2px;letter-spacing:.04em}
+  .screen > h2 .fids{font:11px var(--mono);color:var(--faint);font-weight:400}
+  .screen > .purpose{color:var(--mid);font-size:13px;margin:0 0 14px}
+  .split{display:grid;grid-template-columns:322px 1fr;gap:22px;align-items:start}
+
+  /* ---------- phone ---------- */
+  .phone{width:322px;border:1px solid var(--line);border-radius:24px;background:var(--fill);padding:9px}
+  .pscreen{border:1px solid var(--line-soft);border-radius:16px;overflow:hidden;background:var(--paper)}
+  .statusbar{display:flex;justify-content:space-between;padding:5px 14px;
+             font:9.5px var(--mono);color:var(--mid);background:var(--fill)}
+  .navbar{display:flex;align-items:center;gap:9px;padding:9px 12px;
+          border-bottom:1px solid var(--line-soft);font-size:12.5px;font-weight:700}
+  .navbar .back{color:var(--mid);font-weight:400}
+  .navbar .right{margin-left:auto;font-size:11px;font-weight:400;color:var(--mid)}
+  .pbody{padding:12px}
+  .pbody.tight{padding:10px}
+  .tabbar{display:flex;border-top:1px solid var(--line-soft);background:var(--fill)}
+  .tabbar span{flex:1;text-align:center;padding:7px 0;font-size:9.5px;color:var(--faint)}
+  .tabbar span[data-on]{color:var(--ink);font-weight:700}
+
+  /* ---------- atoms ---------- */
+  .label{font-size:10.5px;color:var(--mid);margin-bottom:4px;display:block}
+  .field{border:1px solid var(--line);background:var(--paper);padding:8px 10px;
+         font-size:12.5px;color:var(--faint);display:flex;justify-content:space-between;align-items:center}
+  .field.filled{color:var(--ink)}
+  .field .caret{color:var(--line);font-size:9px}
+  .stack{display:flex;flex-direction:column;gap:10px}
+  .row2{display:flex;gap:9px}
+  .row2>*{flex:1;min-width:0}
+  .btn{display:flex;align-items:center;justify-content:center;
+       border:1px solid var(--ink);background:var(--ink);color:var(--paper);
+       padding:11px 14px;font-size:13px;font-weight:600;width:100%}
+  .btn.ghost{background:var(--paper);color:var(--ink)}
+  .btn.quiet{background:var(--paper);color:var(--mid);border-color:var(--line)}
+  .btn[data-disabled]{border-color:var(--line-soft);background:var(--fill);color:var(--faint)}
+  .btn.sm{padding:7px 10px;font-size:11.5px}
+  .btnrow{display:flex;gap:8px}
+  .btnrow>*{flex:1}
+  .card{border:1px solid var(--line-soft);padding:10px;font-size:12px}
+  .card + .card{margin-top:8px}
+  .card .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+  .card .ttl{font-weight:700;font-size:12.5px}
+  .card .sub{color:var(--mid);font-size:11px}
+  .hr{height:1px;background:var(--line-soft);margin:11px 0}
+  .sec{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+       color:var(--mid);margin:0 0 8px}
+  .kv{display:grid;grid-template-columns:66px 1fr;gap:5px 10px;font-size:12px}
+  .kv dt{color:var(--mid);font-size:11px}
+  .kv dd{margin:0}
+  .muted{font-size:10.5px;color:var(--mid);line-height:1.5}
+
+  /* ---------- sticky timer ---------- */
+  .stickybar{border:1px solid var(--ink);background:var(--paper);padding:8px 11px;
+             display:flex;justify-content:space-between;align-items:center;font-size:11.5px}
+  .stickybar b{font:16px var(--mono)}
+  .stickynote{font:9px var(--mono);color:var(--faint);text-align:center;padding:3px 0}
+
+  /* ---------- mobile seat grid ---------- */
+  .segbar{display:flex;gap:0;border:1px solid var(--line);margin-bottom:9px;overflow:hidden}
+  .segbar span{flex:1;text-align:center;padding:5px 0;font:10px var(--mono);color:var(--mid);
+               border-right:1px solid var(--line-soft)}
+  .segbar span:last-child{border-right:none}
+  .segbar span[data-on]{background:var(--ink);color:var(--paper)}
+  .dirbar{font:9px var(--mono);color:var(--faint);text-align:center;padding:4px 0;letter-spacing:.14em}
+  .mgrid{display:grid;grid-template-columns:20px 1fr 1fr 12px 1fr 1fr;gap:5px;align-items:center}
+  .colhead{font:9.5px var(--mono);color:var(--faint);text-align:center}
+  .rowno{font:9.5px var(--mono);color:var(--faint);text-align:center}
+  .gap{width:12px}
+  .mseat{height:34px;border:1px solid var(--line);background:var(--paper);
+         display:flex;align-items:center;justify-content:center;font:10px var(--mono);color:var(--mid)}
+  .mseat[data-s="mine"]{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+  .mseat[data-s="held"]{background:repeating-linear-gradient(45deg,#e4e4e4 0 4px,#f6f6f6 4px 8px);color:var(--faint)}
+  .mseat[data-s="sold"]{background:#9d9d9d;border-color:#8a8a8a;color:#f0f0f0}
+  .scrollhint{text-align:center;font:9px var(--mono);color:var(--faint);
+              padding:7px 0 2px;border-top:1px dashed var(--line-soft);margin-top:8px}
+  .legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:9px;font-size:9.5px;color:var(--mid)}
+  .legend span{display:flex;align-items:center;gap:4px}
+  .sw{width:12px;height:10px;border:1px solid var(--line);background:var(--paper);display:block}
+  .sw[data-s="mine"]{background:var(--ink);border-color:var(--ink)}
+  .sw[data-s="held"]{background:repeating-linear-gradient(45deg,#e4e4e4 0 4px,#f6f6f6 4px 8px)}
+  .sw[data-s="sold"]{background:#9d9d9d;border-color:#8a8a8a}
+
+  .live{display:inline-flex;align-items:center;gap:5px;font:9.5px var(--mono);color:var(--mid)}
+  .live i{width:5px;height:5px;border-radius:50%;background:#2f7d32;display:block}
+  .live[data-off] i{background:#b33}
+
+  /* ---------- bottom sheet ---------- */
+  .sheetstage{position:relative;background:var(--fill);padding-top:56px}
+  .sheet{background:var(--paper);border-top:1px solid var(--ink);padding:14px 13px 16px}
+  .grabber{width:34px;height:3px;border-radius:2px;background:var(--line);margin:0 auto 11px}
+  .sheet h3{margin:0 0 7px;font-size:13.5px}
+  .sheet p{margin:0 0 11px;font-size:11.5px;color:var(--mid);line-height:1.55}
+
+  /* ---------- notes ---------- */
+  .notes{border:1px solid var(--note-line);background:var(--note-bg);padding:13px 16px}
+  .notes + .notes{margin-top:10px}
+  .notes h4{margin:0 0 8px;font:11px var(--mono);letter-spacing:.06em;
+            text-transform:uppercase;color:var(--note)}
+  .notes ul{margin:0;padding-left:17px}
+  .notes li{font-size:12.5px;margin-bottom:6px;color:#1f3d4f}
+  .notes li:last-child{margin-bottom:0}
+  .notes code{font:11.5px var(--mono);background:#dbeaf3;padding:1px 5px;border-radius:2px}
+  .notes.warn{border-color:var(--warn-line);background:var(--warn-bg)}
+  .notes.warn h4{color:var(--warn)}
+  .notes.warn li{color:#5c2d12}
+  .notes.warn code{background:#f2ddcd}
+  table.cmp{width:100%;border-collapse:collapse;font-size:12px;margin-top:9px;background:var(--paper)}
+  table.cmp th,table.cmp td{border:1px solid var(--line-soft);padding:7px 9px;text-align:left;vertical-align:top}
+  table.cmp th{background:var(--fill);font-size:10.5px;color:var(--mid);
+               letter-spacing:.04em;text-transform:uppercase;font-weight:700}
+
+  .divider{margin:52px 0 34px;border-top:1px solid var(--line);padding-top:14px}
+  .divider h2{font-size:13px;margin:0;letter-spacing:.1em;text-transform:uppercase;color:var(--mid)}
+  .divider p{margin:5px 0 0;font-size:13px;color:var(--mid)}
+
+  footer{margin-top:56px;border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:var(--mid)}
+  footer table{border-collapse:collapse;font-size:12px;margin-top:10px;width:100%}
+  footer td,footer th{border:1px solid var(--line-soft);padding:6px 10px;text-align:left}
+  footer th{background:var(--paper);font-size:11px;color:var(--mid)}
+
+  @media (max-width:760px){
+    .split{grid-template-columns:1fr}
+    .phone{width:100%;max-width:322px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc-head">
+  <h1>모바일 채널 와이어프레임</h1>
+  <div class="sub">pi-reservation-system · React Native + Expo → Android APK · 저충실도 설계안</div>
+  <div class="meta">
+    <span class="chip">2026-09-04</span>
+    <span class="chip">화면 11 + 예외 4</span>
+    <span class="chip">기준: docs/features.md</span>
+    <span class="chip">인증: JWT</span>
+    <span class="chip">SSE: react-native-sse</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>화면 목록</h2>
+  <ol>
+    <li><a href="#m01"><code>M-01</code>홈 · 열차 조회</a></li>
+    <li><a href="#m02"><code>M-02</code>운행 목록</a></li>
+    <li><a href="#m03"><code>M-03</code>좌석 선택</a></li>
+    <li><a href="#m04"><code>M-04</code>선점 완료 · 승객 정보</a></li>
+    <li><a href="#m05"><code>M-05</code>결제</a></li>
+    <li><a href="#m06"><code>M-06</code>예약 완료</a></li>
+    <li><a href="#m07"><code>M-07</code>로그인</a></li>
+    <li><a href="#m08"><code>M-08</code>회원가입</a></li>
+    <li><a href="#m09"><code>M-09</code>예약 목록</a></li>
+    <li><a href="#m10"><code>M-10</code>예약 상세 · 취소</a></li>
+    <li><a href="#m12"><code>M-12</code>마이페이지</a></li>
+    <li><a href="#e01"><code>E-01</code>선점 충돌</a></li>
+    <li><a href="#e02"><code>E-02</code>선점 만료</a></li>
+    <li><a href="#e03"><code>E-03</code>결제 타임아웃</a></li>
+    <li><a href="#e04"><code>E-04</code>백그라운드 복귀</a></li>
+  </ol>
+</nav>
+
+<div class="callout">
+  <h3>웹과 무엇이 다른가</h3>
+  <p><b>웹과 기능이 완전히 같다.</b> 키오스크 채널이 2026-09-04 철회되면서 비회원 예매도 함께 사라졌다.</p>
+  <p><b>다른 건 셋이다.</b> ① 좌석 배치도가 가로로 안 들어간다 ② 앱이 백그라운드로 가면 SSE가 끊긴다 ③ 결제 중 앱을 벗어났다 돌아온다.</p>
+  <p>그래서 <code>M-03</code>과 <code>E-04</code>에 설계 무게를 뒀다. 나머지 화면은 웹과 구조가 같아 간략히 그렸다.</p>
+</div>
+
+
+<!-- ═══════════════════ M-01 ═══════════════════ -->
+<section class="screen" id="m01">
+  <h2><span class="id">M-01</span> 홈 · 열차 조회 <span class="fids">F-01 · F-02</span></h2>
+  <p class="purpose">앱 진입 첫 화면. 탭바 기반.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar">예매</div>
+      <div class="pbody">
+        <div class="stack">
+          <div><span class="label">출발역</span><div class="field filled">서울 <span class="caret">▼</span></div></div>
+          <div><span class="label">도착역</span><div class="field filled">부산 <span class="caret">▼</span></div></div>
+          <div><span class="label">출발일</span><div class="field filled">2026-09-11 (금) <span class="caret">▼</span></div></div>
+          <div><span class="label">인원 (최대 6명)</span><div class="field filled">1명 <span class="caret">▼</span></div></div>
+          <button class="btn">열차 조회</button>
+        </div>
+      </div>
+      <div class="tabbar"><span data-on>예매</span><span>예약</span><span>마이</span></div>
+    </div></div>
+    <div>
+      <div class="notes">
+        <h4>주석</h4>
+        <ul>
+          <li>탭 3개 — <b>예매 · 예약 · 마이</b>. 예약 탭은 로그인한 회원의 예약 목록이다.</li>
+          <li>웹은 출발·도착역을 한 줄에 나란히 뒀지만 모바일은 <b>세로로 쌓는다.</b> 역명이 길어질 여지가 있고 터치 표적을 키워야 한다.</li>
+          <li>비로그인으로도 조회는 된다. 로그인은 <code>M-03</code> 선점 시점에 요구한다 — 웹과 동일.</li>
+          <li>인원 상한 6은 좌석 선점 상한에서 역산한 값이다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ M-02 ═══════════════════ -->
+<section class="screen" id="m02">
+  <h2><span class="id">M-02</span> 운행 목록 <span class="fids">F-02</span></h2>
+  <p class="purpose">검색 결과. 표가 아니라 카드 목록.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar"><span class="back">←</span>서울 → 부산<span class="right">09-11 · 1명</span></div>
+      <div class="pbody tight">
+        <div class="btnrow" style="margin-bottom:9px">
+          <button class="btn sm quiet">◀ 이전날</button>
+          <button class="btn sm quiet">다음날 ▶</button>
+        </div>
+        <div class="card">
+          <div class="top"><span class="ttl">KTX 101</span><span class="sub">잔여 312석</span></div>
+          <div class="sub">06:00 → 08:17 · 2시간 17분</div>
+        </div>
+        <div class="card">
+          <div class="top"><span class="ttl">KTX 103</span><span class="sub">잔여 88석</span></div>
+          <div class="sub">06:30 → 08:49 · 2시간 19분</div>
+        </div>
+        <div class="card" style="background:#fafafa;color:var(--faint)">
+          <div class="top"><span class="ttl" style="color:var(--faint)">KTX 105</span><span class="sub">매진</span></div>
+          <div class="sub">07:00 → 09:18 · 2시간 18분</div>
+        </div>
+        <div class="card">
+          <div class="top"><span class="ttl">KTX 107</span><span class="sub">잔여 641석</span></div>
+          <div class="sub">07:30 → 09:47 · 2시간 17분</div>
+        </div>
+      </div>
+      <div class="tabbar"><span data-on>예매</span><span>예약</span><span>마이</span></div>
+    </div></div>
+    <div>
+      <div class="notes">
+        <h4>주석</h4>
+        <ul>
+          <li><b>표를 카드로 바꿨다.</b> 웹의 6열 표는 375px에서 열이 뭉개진다. 카드 하나가 통째로 터치 표적이 되어 "선택" 버튼도 필요 없다.</li>
+          <li>잔여석은 Redis 캐시에서 온 <b>근사값</b>이다. 웹과 마찬가지로 이 화면에는 SSE를 붙이지 않는다.</li>
+          <li>매진 카드는 흐리게 처리하되 목록에서 지우지 않는다 — 취소분이 돌아올 수 있다.</li>
+          <li>검색 조건은 내비게이션 바로 올려 본문 공간을 벌었다. 조건 변경은 뒤로가기로.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ M-03 ═══════════════════ -->
+<section class="screen" id="m03">
+  <h2><span class="id">M-03</span> 좌석 선택 <span class="fids">F-03 · F-04 · F-16 · F-17</span></h2>
+  <p class="purpose">모바일 설계의 핵심. 좌석 격자를 좁은 화면에 어떻게 넣는가.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar"><span class="back">←</span>좌석 선택<span class="right"><span class="live"><i></i>실시간</span></span></div>
+      <div class="pbody tight">
+        <div class="segbar">
+          <span>◀</span><span>3호차</span><span data-on>4호차</span><span>5호차</span><span>▶</span>
+        </div>
+        <div class="dirbar">▲ 진 행 방 향</div>
+        <div class="mgrid">
+          <span></span><span class="colhead">A</span><span class="colhead">B</span><span class="gap"></span><span class="colhead">C</span><span class="colhead">D</span>
+
+          <span class="rowno">1</span>
+          <span class="mseat">1A</span><span class="mseat">1B</span><span class="gap"></span>
+          <span class="mseat" data-s="sold">1C</span><span class="mseat" data-s="sold">1D</span>
+
+          <span class="rowno">2</span>
+          <span class="mseat">2A</span><span class="mseat">2B</span><span class="gap"></span>
+          <span class="mseat">2C</span><span class="mseat">2D</span>
+
+          <span class="rowno">3</span>
+          <span class="mseat" data-s="sold">3A</span><span class="mseat" data-s="sold">3B</span><span class="gap"></span>
+          <span class="mseat">3C</span><span class="mseat">3D</span>
+
+          <span class="rowno">4</span>
+          <span class="mseat">4A</span><span class="mseat">4B</span><span class="gap"></span>
+          <span class="mseat">4C</span><span class="mseat">4D</span>
+
+          <span class="rowno">5</span>
+          <span class="mseat" data-s="held">5A</span><span class="mseat" data-s="held">5B</span><span class="gap"></span>
+          <span class="mseat">5C</span><span class="mseat">5D</span>
+
+          <span class="rowno">6</span>
+          <span class="mseat">6A</span><span class="mseat">6B</span><span class="gap"></span>
+          <span class="mseat" data-s="held">6C</span><span class="mseat" data-s="held">6D</span>
+
+          <span class="rowno">7</span>
+          <span class="mseat" data-s="mine">7A</span><span class="mseat" data-s="mine">7B</span><span class="gap"></span>
+          <span class="mseat">7C</span><span class="mseat">7D</span>
+        </div>
+        <div class="scrollhint">↓ 8 ~ 15열 스크롤</div>
+        <div class="legend">
+          <span><i class="sw"></i>가능</span>
+          <span><i class="sw" data-s="mine"></i>내 선택</span>
+          <span><i class="sw" data-s="held"></i>선점 중</span>
+          <span><i class="sw" data-s="sold"></i>판매완료</span>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--line-soft);padding:10px 12px;background:var(--fill)">
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:8px">
+          <span><b>4호차 7A, 7B</b></span><span style="font-family:var(--mono)">2 / 6</span>
+        </div>
+        <button class="btn">좌석 선점하기 · 119,600원</button>
+      </div>
+    </div></div>
+    <div>
+      <div class="notes">
+        <h4>핵심 결정 — 가로 격자를 세로로 돌렸다</h4>
+        <ul>
+          <li>웹은 <b>진행방향이 가로</b>라 한 호차가 좌우로 길게 놓인다. 375px에서는 그대로 못 넣는다.</li>
+          <li>모바일은 <b>진행방향을 위로 세우고 4열(A B · 통로 · C D) 고정, 세로 스크롤</b>로 바꿨다. 좌석 폭 약 60px씩 4열 + 통로 = 여유 있게 들어간다.</li>
+          <li>이러면 <b>손가락이 자연스럽게 위아래로 움직인다.</b> 가로 스크롤이나 핀치 확대는 좌석 선택처럼 정확도가 필요한 조작과 상극이다.</li>
+        </ul>
+        <table class="cmp">
+          <thead><tr><th>대안</th><th>왜 안 골랐나</th></tr></thead>
+          <tbody>
+            <tr><td>가로 스크롤 유지</td><td>양방향 스크롤이 되면 지금 어디를 보는지 잃는다</td></tr>
+            <tr><td>핀치 확대 · 축소</td><td>확대 상태에서 오탭이 늘고, 6석 선택 중 위치를 놓친다</td></tr>
+            <tr><td>가로 모드 강제 회전</td><td>한 화면만 회전 강제하면 앱 전체 동선이 어색해진다</td></tr>
+            <tr><td><b>세로 스크롤 (채택)</b></td><td>스크롤 축이 하나. 열 위치가 고정이라 A·D가 창측인 게 계속 보인다</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="notes">
+        <h4>주석</h4>
+        <ul>
+          <li>호차 이동을 <b>세그먼트 컨트롤 + 좌우 화살표</b>로 뒀다. 18호차를 탭으로 나열할 수 없으니 현재 호차 주변만 보이고 화살표로 넘긴다.</li>
+          <li><b>선택 요약과 선점 버튼을 하단에 고정</b>한다. 좌석 목록을 스크롤하는 동안에도 <code>2 / 6</code>과 금액이 항상 보여야 한다.</li>
+          <li>실시간 배지를 내비게이션 바에 올렸다(<code>F-16</code>). 공간이 좁아 "실시간 연결됨" 대신 <b>"실시간"</b>으로 줄였고, 끊기면 빨강 + "재연결 중"으로 바뀐다.</li>
+          <li>좌석 주소 체계는 <b>미확정</b>이다. 일련번호 방식으로 정해지면 호차 세그먼트가 사라지고 스크롤 하나로 단순해진다 — <b>모바일이 웹보다 이 결정에 훨씬 크게 영향받는다.</b></li>
+          <li>격자는 4×15로 축약해 그렸다. 실제 배열은 시드 데이터를 따른다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ M-04 ═══════════════════ -->
+<section class="screen" id="m04">
+  <h2><span class="id">M-04</span> 선점 완료 · 승객 정보 <span class="fids">F-05 · F-06</span></h2>
+  <p class="purpose">타이머가 도는 화면. 스크롤해도 시간이 보여야 한다.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar"><span class="back">←</span>결제 정보</div>
+      <div style="padding:8px 12px 0"><div class="stickybar"><span>결제까지 남은 시간</span><b>09:47</b></div></div>
+      <div class="stickynote">↑ 스크롤해도 상단 고정</div>
+      <div class="pbody tight">
+        <div class="sec">선점한 좌석</div>
+        <div class="card">
+          <div class="top"><span class="ttl">4호차 7A</span><span class="sub">59,800원</span></div>
+        </div>
+        <div class="card">
+          <div class="top"><span class="ttl">4호차 7B</span><span class="sub">59,800원</span></div>
+        </div>
+        <div class="hr"></div>
+        <div class="sec">예매자 정보</div>
+        <div class="stack">
+          <div><span class="label">이름</span><div class="field filled">홍길동</div></div>
+          <div><span class="label">연락처</span><div class="field filled">010-0000-0000</div></div>
+        </div>
+        <p class="muted" style="margin:8px 0 0">회원 정보에서 자동으로 채워집니다.</p>
+      </div>
+      <div style="border-top:1px solid var(--line-soft);padding:10px 12px;background:var(--fill)">
+        <div class="btnrow">
+          <button class="btn quiet" style="flex:0 0 40%">선점 취소</button>
+          <button class="btn">결제 · 119,600원</button>
+        </div>
+      </div>
+    </div></div>
+    <div>
+      <div class="notes">
+        <h4>주석</h4>
+        <ul>
+          <li><b>타이머를 상단 고정 바로 뺐다.</b> 웹은 한 화면에 다 보이지만 모바일은 스크롤이 생긴다. 남은 시간이 화면 밖으로 밀려나면 안 된다.</li>
+          <li>타이머는 서버가 준 <code>expiresAt</code>에서 역산한다. <b>모바일에서 특히 중요하다</b> — 앱이 백그라운드로 가면 타이머 인터벌이 멈추거나 늦게 돈다. 복귀 시 실제 시각으로 다시 계산해야 한다(<code>E-04</code> 참조).</li>
+          <li>3분 미만에서 색·굵기를 바꿔 경고. 0이 되면 <code>E-02</code>.</li>
+          <li><b>안드로이드 하드웨어 뒤로가기</b>를 그냥 두면 안 된다. 이 화면에서 뒤로 가면 선점이 붕 뜬다 — "선점을 취소하시겠습니까?" 확인 시트를 띄우거나 좌석 선택으로 돌아가되 선점은 유지한다.</li>
+          <li>"선점 취소"(<code>F-06</code>)는 만료를 기다리지 않고 즉시 좌석을 반환한다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ M-05 ═══════════════════ -->
+<section class="screen" id="m05">
+  <h2><span class="id">M-05</span> 결제 <span class="fids">F-08 · F-10</span></h2>
+  <p class="purpose">토스페이먼츠로 넘어가기 직전. 앱을 벗어나는 유일한 지점.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar"><span class="back">←</span>결제</div>
+      <div style="padding:8px 12px 0"><div class="stickybar"><span>결제까지 남은 시간</span><b>07:12</b></div></div>
+      <div class="pbody tight">
+        <div class="sec">결제 내역</div>
+        <dl class="kv">
+          <dt>열차</dt><dd>KTX 101 · 서울 → 부산</dd>
+          <dt>일시</dt><dd>09-11 (금) 06:00</dd>
+          <dt>좌석</dt><dd>4호차 7A, 7B</dd>
+          <dt>금액</dt><dd><b>119,600원</b></dd>
+        </dl>
+        <div class="hr"></div>
+        <div class="sec">결제 수단</div>
+        <div class="field filled">토스페이먼츠 — 카드 <span class="caret">▼</span></div>
+        <p class="muted" style="margin:9px 0 0">
+          결제창으로 이동합니다. 결제를 마치면 앱으로 자동 복귀합니다.<br>
+          <b>복귀 전에 앱을 종료하지 마세요.</b>
+        </p>
+      </div>
+      <div style="border-top:1px solid var(--line-soft);padding:10px 12px;background:var(--fill)">
+        <button class="btn">119,600원 결제하기</button>
+      </div>
+    </div></div>
+    <div>
+      <div class="notes warn">
+        <h4>주석 — 앱을 벗어난다</h4>
+        <ul>
+          <li>결제창(토스페이먼츠 SDK 또는 웹뷰)으로 가는 순간 <b>앱이 백그라운드로 간다.</b> 이때 SSE가 끊기고, 타이머 인터벌이 멈출 수 있고, OS가 앱을 죽일 수도 있다.</li>
+          <li>따라서 <b>결제 진입 직전에 상태를 반드시 서버에 남긴다.</b> 복귀 후 화면 상태를 메모리에서 복원하려 하면 앱이 죽었을 때 아무것도 없다.</li>
+          <li><code>Idempotency-Key</code>는 <b>이 화면 진입 시 1회 생성</b>하고 <b>영속 저장</b>한다(AsyncStorage 등). 웹은 메모리로 버텨도 되지만 모바일은 프로세스가 죽으면 키가 사라진다 — 그러면 복귀 후 재시도가 새 결제가 되어 이중 결제가 난다.</li>
+          <li>복귀 시 순서 — ① 선점이 아직 유효한가 ② 결제가 이미 승인됐는가. <b>②를 먼저 확인하지 않으면 승인된 건을 만료로 오판한다.</b></li>
+          <li>버튼은 클릭 즉시 비활성. 이중 제출은 UI와 서버 양쪽에서 막는다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ M-06 ═══════════════════ -->
+<section class="screen" id="m06">
+  <h2><span class="id">M-06</span> 예약 완료 <span class="fids">F-09</span></h2>
+  <p class="purpose">확정 결과. 예약번호를 받는다.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar">예약 완료</div>
+      <div class="pbody">
+        <div style="text-align:center;padding:14px 10px;border:1px solid var(--line-soft)">
+          <div style="font-size:15px;font-weight:700;margin-bottom:10px">예약이 확정되었습니다</div>
+          <div style="border:1px solid var(--ink);padding:10px">
+            <div style="font-size:10px;color:var(--mid)">예약번호</div>
+            <div style="font:17px var(--mono);margin-top:3px">4820 7315</div>
+          </div>
+        </div>
+        <div style="height:10px"></div>
+        <dl class="kv">
+          <dt>열차</dt><dd>KTX 101 · 서울 → 부산</dd>
+          <dt>일시</dt><dd>09-11 (금) 06:00 → 08:17</dd>
+          <dt>좌석</dt><dd>4호차 7A, 7B</dd>
+          <dt>결제</dt><dd>119,600원</dd>
+          <dt>상태</dt><dd><b>CONFIRMED</b></dd>
+        </dl>
+        <div class="hr"></div>
+        <p class="muted">예약 상세에서 언제든 다시 확인할 수 있습니다.</p>
+        <div style="height:10px"></div>
+        <div class="btnrow">
+          <button class="btn ghost">예약 목록</button>
+          <button class="btn quiet">홈으로</button>
+        </div>
+      </div>
+      <div class="tabbar"><span>예매</span><span data-on>예약</span><span>마이</span></div>
+    </div></div>
+    <div>
+      <div class="notes">
+        <h4>주석</h4>
+        <ul>
+          <li><b>예약번호는 조회 열쇠가 아니다.</b> 조회는 로그인(<code>F-12</code>)으로만 한다 — 식별·문의용 번호다.</li>
+          <li><b>길게 눌러 복사</b>할 수 있어야 한다. 외울 필요는 없다 — <code>M-10</code>에서 언제든 다시 볼 수 있다.</li>
+          <li>이 화면에 도달하면 <b>SSE 구독을 해제한다.</b> 예매를 마친 사용자가 연결을 붙잡으면 서버 연결 수가 새어나간다.</li>
+          <li>웹과 달리 <b>화면을 캡처해 두는 사용자가 많다.</b> 예약번호를 가장 크게, 잘리지 않게 배치한다.</li>
+          <li>스크린샷 · 캘린더 추가 · 공유 같은 기능은 범위 밖.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ M-07 ═══════════════════ -->
+<section class="screen" id="m07">
+  <h2><span class="id">M-07</span> 로그인 <span class="fids">F-24 · F-36</span></h2>
+  <p class="purpose">구조는 웹과 동일. 시도 제한 상태를 함께 그렸다.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar"><span class="back">←</span>로그인</div>
+      <div class="pbody">
+        <div class="stack">
+          <div><span class="label">이메일</span><div class="field">you@example.com</div></div>
+          <div><span class="label">비밀번호</span><div class="field">••••••••</div></div>
+          <button class="btn">로그인</button>
+        </div>
+        <div style="border:1px solid var(--warn-line);background:var(--warn-bg);padding:9px 10px;margin-top:10px">
+          <div style="font-size:10.5px;color:#5c2d12;line-height:1.5">
+            <b>실패 상태 (F-36)</b><br>
+            이메일 또는 비밀번호가 올바르지 않습니다. <b>(3 / 5회)</b><br>
+            5회 실패하면 5분 동안 로그인할 수 없습니다.
+          </div>
+        </div>
+        <div class="hr"></div>
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mid)">
+          <span>회원가입</span>
+        </div>
+      </div>
+    </div></div>
+    <div>
+      <div class="notes warn">
+        <h4>주석</h4>
+        <ul>
+          <li><b>"비밀번호를 잊으셨나요?" 링크가 없다.</b> 재설정은 범위 밖이다. 웹과 마찬가지로 관습적으로 넣기 쉬운 자리라 명시해둔다.</li>
+          <li><code>F-36</code>은 잠금이 아니라 <b>5분 일시 차단</b>이다. 문구도 "계정이 잠겼습니다"가 아니라 "5분 뒤 다시 시도하세요"여야 한다.</li>
+          <li>로그인 후 <b>원래 화면으로 복귀</b>한다. 대개 <code>M-03</code>이며, <b>선택했던 좌석을 잃으면 안 된다.</b> 웹의 <code>redirect</code> 파라미터에 해당하는 처리를 내비게이션 스택으로 한다.</li>
+          <li>토큰 저장 위치는 프론트 설계에서 정한다. 모바일은 <b>Expo SecureStore</b> 같은 선택지가 추가로 있다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ M-08 ═══════════════════ -->
+<section class="screen" id="m08">
+  <h2><span class="id">M-08</span> 회원가입 <span class="fids">F-20 · F-21</span></h2>
+  <p class="purpose">가입 즉시 활성. 소유 증명 절차 없음.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar"><span class="back">←</span>회원가입</div>
+      <div class="pbody">
+        <div class="stack">
+          <div>
+            <span class="label">이메일</span>
+            <div style="display:flex;gap:7px">
+              <div class="field" style="flex:1">you@example.com</div>
+              <button class="btn sm ghost" style="width:auto;flex:0 0 auto">중복확인</button>
+            </div>
+            <span style="font-size:10px;color:#2f7d32;display:block;margin-top:4px">사용 가능한 이메일입니다.</span>
+          </div>
+          <div><span class="label">비밀번호</span><div class="field">••••••••</div></div>
+          <div><span class="label">비밀번호 확인</span><div class="field">••••••••</div></div>
+          <div><span class="label">이름</span><div class="field">홍길동</div></div>
+          <div><span class="label">연락처</span><div class="field">010-0000-0000</div></div>
+          <button class="btn">가입하기</button>
+        </div>
+      </div>
+    </div></div>
+    <div>
+      <div class="notes">
+        <h4>주석</h4>
+        <ul>
+          <li>웹은 이름·연락처를 한 줄에 나란히 뒀지만 모바일은 <b>전부 세로로 쌓는다.</b></li>
+          <li>중복확인(<code>F-21</code>)은 선검증용이고 <b>최종 판정은 가입 시 DB unique 제약</b>이 한다.</li>
+          <li><b>이메일 인증 단계가 없다.</b> 가입 즉시 활성. 이메일은 식별자로만 쓴다.</li>
+          <li>연락처는 예매 시 <code>reservation.passenger_phone</code> 으로 <b>스냅샷 복사</b>된다.</li>
+          <li>키보드가 올라오면 하단 필드가 가려진다. <b>KeyboardAvoidingView</b> 처리가 필요하다 — 웹에는 없는 문제다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ M-09 · M-10 ═══════════════════ -->
+<section class="screen" id="m09">
+  <h2><span class="id">M-09</span> 예약 목록 <span class="fids">F-12</span></h2>
+  <p class="purpose">회원 본인 예약 이력. 취소분도 남는다.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar">예약 목록</div>
+      <div class="pbody tight">
+        <div class="card">
+          <div class="top"><span class="ttl">KTX 101 · 서울 → 부산</span><span class="sub"><b>CONFIRMED</b></span></div>
+          <div class="sub">09-11 (금) 06:00 · 4호차 7A, 7B</div>
+          <div class="sub" style="font-family:var(--mono);font-size:10px;margin-top:3px">4820 7315</div>
+        </div>
+        <div class="card" style="background:#fafafa">
+          <div class="top"><span class="ttl" style="color:var(--faint)">KTX 107 · 서울 → 부산</span><span class="sub">CANCELLED</span></div>
+          <div class="sub">08-28 (금) 07:30 · 2호차 3D</div>
+          <div class="sub" style="font-family:var(--mono);font-size:10px;margin-top:3px">9174 2608</div>
+        </div>
+      </div>
+      <div class="tabbar"><span>예매</span><span data-on>예약</span><span>마이</span></div>
+    </div></div>
+    <div>
+      <div class="notes">
+        <h4>주석</h4>
+        <ul>
+          <li>웹의 6열 표를 카드로 바꿨다. 카드 전체가 상세로 가는 터치 표적이다.</li>
+          <li><b>취소된 예약도 남는다</b>(<code>F-14</code>는 삭제가 아니라 <code>CANCELLED</code> 전이).</li>
+          <li>진행 중인 선점은 이 목록에 없다 — 선점은 예약이 아니다. 있으면 <b>상단 배너로 <code>M-04</code>에 유도</b>한다. 모바일은 앱을 껐다 켜는 일이 잦아 이 배너가 웹보다 중요하다.</li>
+          <li>당겨서 새로고침(pull-to-refresh)을 붙인다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="m10">
+  <h2><span class="id">M-10</span> 예약 상세 · 취소 <span class="fids">F-14 · F-15</span></h2>
+  <p class="purpose">취소하면 좌석이 즉시 전 채널에 전파된다.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar"><span class="back">←</span>예약 상세</div>
+      <div class="pbody tight">
+        <div class="sec">예약 정보</div>
+        <dl class="kv">
+          <dt>예약번호</dt><dd style="font-family:var(--mono);font-size:11px">4820 7315</dd>
+          <dt>열차</dt><dd>KTX 101 · 서울 → 부산</dd>
+          <dt>일시</dt><dd>09-11 (금) 06:00 → 08:17</dd>
+          <dt>좌석</dt><dd>4호차 7A, 7B</dd>
+          <dt>예매자</dt><dd>홍길동 · 010-0000-0000</dd>
+          <dt>상태</dt><dd><b>CONFIRMED</b></dd>
+        </dl>
+        <div class="hr"></div>
+        <div class="sec">결제 정보</div>
+        <dl class="kv">
+          <dt>수단</dt><dd>토스페이먼츠 — 카드</dd>
+          <dt>금액</dt><dd>119,600원</dd>
+          <dt>일시</dt><dd>2026-09-04 14:22</dd>
+        </dl>
+      </div>
+      <div style="border-top:1px solid var(--line-soft);padding:10px 12px;background:var(--fill)">
+        <button class="btn ghost">예약 취소</button>
+      </div>
+    </div></div>
+    <div>
+      <div class="notes">
+        <h4>주석</h4>
+        <ul>
+          <li>취소 버튼은 <b>출발 시각 이전에만</b> 활성. 되돌릴 수 없으므로 확인 <b>바텀시트</b>가 필요하다.</li>
+          <li><b>환불(<code>F-15</code>)은 P1</b>이다. P0 단계에서는 좌석만 반환되고 결제는 남는다. 그 시기의 문구는 "좌석이 반환되었습니다. 환불은 별도 처리됩니다"로 솔직하게 적는다.</li>
+          <li>취소 즉시 해당 운행을 보는 <b>모든 채널에 SSE로 좌석 복귀가 전파</b>된다. 4채널 동시 시연에서 가장 보여주기 좋은 장면이다.</li>
+          <li>취소 버튼을 하단 고정으로 뒀다. 내용이 길어져도 위치가 변하지 않아야 오탭이 줄어든다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+<section class="screen" id="m12">
+  <h2><span class="id">M-12</span> 마이페이지 <span class="fids">F-22 <b style="color:var(--warn)">(P1)</b></span></h2>
+  <p class="purpose">이름 · 연락처 수정만. 비밀번호 변경은 범위 밖.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar">마이페이지</div>
+      <div class="pbody">
+        <div class="sec">내 정보</div>
+        <div class="stack">
+          <div><span class="label">이메일 (변경 불가)</span><div class="field filled" style="background:var(--fill)">you@example.com</div></div>
+          <div><span class="label">이름</span><div class="field filled">홍길동</div></div>
+          <div><span class="label">연락처</span><div class="field filled">010-0000-0000</div></div>
+          <button class="btn ghost">정보 수정</button>
+        </div>
+        <div class="hr"></div>
+        <div style="font-size:11.5px;color:var(--mid)">로그아웃</div>
+      </div>
+      <div class="tabbar"><span>예매</span><span>예약</span><span data-on>마이</span></div>
+    </div></div>
+    <div>
+      <div class="notes warn">
+        <h4>주석 — 비밀번호를 바꿀 방법이 없다</h4>
+        <ul>
+          <li><b>이메일은 변경 불가.</b> 소유 증명 수단이 없는데 변경을 허용하면 계정이 남의 것이 될 수 있다.</li>
+          <li><b>비밀번호 변경도 범위 밖</b>이다(<code>F-23</code> 철회). 재설정에 이어 변경까지 빠지면서 사용자가 비밀번호를 바꿀 수단이 전혀 없다. <b>의도된 축소이지 누락이 아니다.</b></li>
+          <li>로그아웃(<code>F-25</code>)을 이 화면에 뒀다. Redis에서 Refresh를 삭제한다.</li>
+          <li>회원 탈퇴는 범위 밖이다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<div class="divider">
+  <h2>예외 상태</h2>
+  <p>모바일에서는 모달 대신 <b>바텀시트</b>로 띄운다. <code>E-04</code>는 모바일에만 있는 상태다.</p>
+</div>
+
+
+<!-- ═══════════════════ E-01 ═══════════════════ -->
+<section class="screen" id="e01">
+  <h2><span class="id">E-01</span> 선점 충돌 <span class="fids">F-04 → 409</span></h2>
+  <p class="purpose">선점을 눌렀는데 그 사이 다른 채널이 좌석을 가져간 경우.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar"><span class="back">←</span>좌석 선택</div>
+      <div class="sheetstage">
+        <div class="sheet">
+          <div class="grabber"></div>
+          <h3>좌석을 잡지 못했습니다</h3>
+          <p><b>4호차 7B</b>를 다른 고객이 먼저 선택했습니다.<br>
+             함께 선택한 <b>7A</b>도 선점되지 않았습니다.</p>
+          <div style="border:1px solid var(--line-soft);background:var(--fill);padding:9px;margin-bottom:11px">
+            <div style="font-size:10.5px;color:var(--mid);line-height:1.55">
+              선택한 좌석은 <b>전부 함께 잡히거나 전부 실패</b>합니다.<br>
+              일부만 잡힌 상태로 남지 않습니다.
+            </div>
+          </div>
+          <div class="btnrow">
+            <button class="btn ghost">다른 좌석</button>
+            <button class="btn">다시 시도</button>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div>
+      <div class="notes warn">
+        <h4>주석 — 전부 성공 또는 전부 실패</h4>
+        <ul>
+          <li><b>이 시트가 <code>F-04</code>의 원자성을 설명하는 자리다.</b> "7B는 실패, 7A는 성공"이 없다는 걸 말해야 한다. 안 그러면 사용자는 7A가 잡혔다고 착각하고 다시 시도해 중복 선점을 만든다.</li>
+          <li>서버 <code>409</code> 응답에 <b>어느 좌석이 왜 실패했는지</b>가 들어와야 이 문구를 만들 수 있다 — <code>api.md</code> 계약 사항.</li>
+          <li>시트를 닫으면 좌석맵이 이미 최신이어야 한다(SSE 반영). <b>실패 직후 화면이 옛 상태면 사용자는 같은 좌석을 또 누른다.</b></li>
+          <li>시트는 <b>바깥 탭이나 아래로 밀어 닫을 수 있게</b> 한다. 모달과 달리 강제로 붙잡지 않는다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ E-02 ═══════════════════ -->
+<section class="screen" id="e02">
+  <h2><span class="id">E-02</span> 선점 만료 <span class="fids">F-07 → 410</span></h2>
+  <p class="purpose">10분이 지나 좌석이 회수된 경우.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar"><span class="back">←</span>결제 정보</div>
+      <div class="sheetstage">
+        <div class="sheet">
+          <div class="grabber"></div>
+          <h3>선점 시간이 만료되었습니다</h3>
+          <p>10분 안에 결제가 완료되지 않아 <b>4호차 7A, 7B</b> 좌석이 반환되었습니다.<br>
+             <b>결제는 진행되지 않았습니다.</b></p>
+          <div class="btnrow">
+            <button class="btn quiet">홈으로</button>
+            <button class="btn">좌석 다시 선택</button>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div>
+      <div class="notes">
+        <h4>주석</h4>
+        <ul>
+          <li>만료 판정은 <b>스케줄러(30초)와 요청 시점 lazy 판정 둘 다</b>가 한다. 화면 타이머가 0이 되는 순간과 서버 회수 시점에 최대 30초 차이가 난다.</li>
+          <li><b>타이머가 0이 되어도 클라이언트가 단정하지 않는다.</b> 서버에 확인해 <code>410</code>을 받은 뒤 이 시트를 띄운다.</li>
+          <li>"결제는 진행되지 않았습니다"를 반드시 명시한다. 돈이 걸린 화면에서 침묵은 불안을 만든다.</li>
+          <li><b>모바일에서는 백그라운드 복귀 직후에 이 시트가 뜨는 경우가 많다.</b> 앱을 잠깐 나갔다 온 사이 만료된 것이다 — <code>E-04</code>와 이어진다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ E-03 ═══════════════════ -->
+<section class="screen" id="e03">
+  <h2><span class="id">E-03</span> 결제 타임아웃 <span class="fids">F-08 5단계 · F-10</span></h2>
+  <p class="purpose">결제사 응답이 없는 상태. 승인됐는지 안 됐는지 모른다.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="navbar">결제</div>
+      <div class="sheetstage">
+        <div class="sheet">
+          <div class="grabber" style="background:var(--line-soft)"></div>
+          <h3>결제 결과를 확인하고 있습니다</h3>
+          <p>결제사 응답이 지연되고 있습니다.<br>
+             <b>앱을 종료하거나 다시 결제하지 마세요.</b></p>
+          <div style="border:1px solid var(--line-soft);background:var(--fill);padding:9px;margin-bottom:11px">
+            <div style="font:10.5px var(--mono);color:var(--mid)">확인 중… (3 / 10회)</div>
+          </div>
+          <div class="btnrow">
+            <button class="btn quiet" data-disabled>다시 결제</button>
+            <button class="btn ghost">예약 목록</button>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div>
+      <div class="notes warn">
+        <h4>주석 — 모바일에서 더 위험하다</h4>
+        <ul>
+          <li>승인 성공인지 실패인지 <b>모르는 구간</b>이다. 외부 결제와 내부 DB 사이에 분산 트랜잭션이 없어 생기는 필연적 상태다.</li>
+          <li>클라이언트는 <b>같은 <code>Idempotency-Key</code>로 상태를 폴링</b>한다. 새 결제 요청이 아니라 기존 요청의 결과 조회다.</li>
+          <li><b>이 시트는 밀어서 닫을 수 없게 한다.</b> 다른 시트와 달리 사용자가 이탈하면 이중 결제 위험이 커진다 — 그래서 grabber도 흐리게 그렸다.</li>
+          <li><b>웹보다 위험한 이유</b> — 사용자가 앱을 스와이프로 죽여버릴 수 있다. 폴링 상태를 메모리에만 두면 복귀 시 아무것도 모른다. <b>영속 저장한 멱등키로 <code>E-04</code>에서 이어받아야 한다.</b></li>
+          <li>폴링 상한(10회) 도달 시 "예약 목록에서 확인해주세요"로 빠진다. 이후 서버가 보상 취소를 수행하면 선점이 반환된다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ E-04 ═══════════════════ -->
+<section class="screen" id="e04">
+  <h2><span class="id">E-04</span> 백그라운드 복귀 <span class="fids">F-16 · F-17 · F-19 — <b style="color:var(--warn)">모바일 전용</b></span></h2>
+  <p class="purpose">앱을 나갔다 돌아왔다. SSE는 끊겼고 좌석맵은 낡았다.</p>
+  <div class="split">
+    <div class="phone"><div class="pscreen">
+      <div class="statusbar"><span>9:44</span><span>▮▮▮ 98%</span></div>
+      <div class="navbar"><span class="back">←</span>좌석 선택
+        <span class="right"><span class="live" data-off><i></i>재연결 중</span></span>
+      </div>
+      <div class="pbody tight">
+        <div style="border:1px solid var(--warn-line);background:var(--warn-bg);padding:9px 10px;margin-bottom:9px">
+          <div style="font-size:10.5px;color:#5c2d12;line-height:1.55">
+            <b>좌석 정보를 다시 불러오는 중입니다</b><br>
+            앱이 잠시 중단된 동안 좌석 상태가 바뀌었을 수 있습니다.
+          </div>
+        </div>
+        <div class="segbar"><span>◀</span><span>3호차</span><span data-on>4호차</span><span>5호차</span><span>▶</span></div>
+        <div class="dirbar">▲ 진 행 방 향</div>
+        <div class="mgrid" style="opacity:.42">
+          <span></span><span class="colhead">A</span><span class="colhead">B</span><span class="gap"></span><span class="colhead">C</span><span class="colhead">D</span>
+          <span class="rowno">5</span>
+          <span class="mseat" data-s="held">5A</span><span class="mseat" data-s="held">5B</span><span class="gap"></span>
+          <span class="mseat">5C</span><span class="mseat">5D</span>
+          <span class="rowno">6</span>
+          <span class="mseat">6A</span><span class="mseat">6B</span><span class="gap"></span>
+          <span class="mseat" data-s="held">6C</span><span class="mseat" data-s="held">6D</span>
+          <span class="rowno">7</span>
+          <span class="mseat" data-s="mine">7A</span><span class="mseat" data-s="mine">7B</span><span class="gap"></span>
+          <span class="mseat">7C</span><span class="mseat">7D</span>
+        </div>
+        <div class="scrollhint">좌석 선택 일시 비활성</div>
+      </div>
+      <div style="border-top:1px solid var(--line-soft);padding:10px 12px;background:var(--fill)">
+        <button class="btn" data-disabled>불러오는 중…</button>
+      </div>
+    </div></div>
+    <div>
+      <div class="notes warn">
+        <h4>왜 이 화면이 필요한가</h4>
+        <ul>
+          <li>모바일 앱은 <b>홈 버튼 · 전화 수신 · 화면 잠금 · 다른 앱 전환</b>으로 수시로 백그라운드에 간다. 그때 <b>SSE 연결이 끊긴다.</b> 웹 브라우저 탭보다 훨씬 자주, 훨씬 공격적으로 끊긴다.</li>
+          <li>돌아왔을 때 화면에 남아 있는 좌석맵은 <b>끊긴 시점의 낡은 상태</b>다. 그걸 그대로 믿고 좌석을 누르면 선점이 계속 실패한다.</li>
+          <li>그래서 복귀 시 <b>좌석 선택을 잠시 비활성</b>하고 재조회가 끝난 뒤 푼다. 낡은 화면으로 조작하게 두는 것보다 잠깐 막는 게 낫다.</li>
+        </ul>
+      </div>
+      <div class="notes">
+        <h4>복귀 시 처리 순서</h4>
+        <table class="cmp">
+          <thead><tr><th>순서</th><th>처리</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><b>진행 중인 결제가 있는가</b> — 영속 저장한 멱등키로 결과 조회 (<code>E-03</code> 이어받기)</td></tr>
+            <tr><td>2</td><td><b>내 선점이 아직 살아있는가</b> — 서버 <code>expiresAt</code> 재확인. 죽었으면 <code>E-02</code></td></tr>
+            <tr><td>3</td><td><b>좌석맵 전체 재조회</b> — <code>Last-Event-ID</code> 재개만으로는 부족하다</td></tr>
+            <tr><td>4</td><td>SSE 재연결</td></tr>
+            <tr><td>5</td><td>타이머를 <code>expiresAt</code>에서 다시 역산</td></tr>
+          </tbody>
+        </table>
+        <ul style="margin-top:10px">
+          <li><b>3번이 중요하다.</b> <code>F-19</code>는 <code>Last-Event-ID</code>로 놓친 이벤트를 받는 설계인데, 백그라운드가 길면 서버가 보관하는 이벤트 범위를 넘어간다. 그때는 <b>재개가 아니라 전체 재조회</b>로 떨어져야 한다. 재개가 실패했는데 성공한 척하면 좌석맵에 구멍이 남는다.</li>
+          <li><b>1번을 2번보다 먼저 하는 이유</b> — 순서를 바꾸면 이미 승인된 결제를 "선점 만료"로 오판해 사용자에게 잘못된 안내를 한다.</li>
+          <li>타이머(5번)를 인터벌 카운트로 만들면 안 되는 이유가 여기 있다. 백그라운드에서 인터벌은 멈추거나 늦게 돈다.</li>
+          <li>이 처리는 <b><code>M-03</code> · <code>M-04</code> · <code>M-05</code> 셋 다에 필요하다.</b> 화면별로 흩어 짜지 말고 앱 생명주기 훅 한 곳에 모은다.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<footer>
+  <div><b>기준 문서</b> — <code>docs/features.md</code> (25건) · <code>docs/wireframes/web.html</code> (웹 대조군)</div>
+  <table>
+    <thead><tr><th>다음 단계 · 확정 필요</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td>✅ 키오스크 채널 철회</td><td>2026-09-04. <b><code>M-11</code> 예약번호 조회 화면 제거</b>(비로그인 조회 소멸) · 조회 PIN 체계 제거 · 화면 11 + 예외 4</td></tr>
+      <tr><td><b>확정 필요 — 좌석 주소 체계</b></td><td>호차-행-알파벳 vs 일련번호. <b>모바일이 웹보다 크게 갈린다</b> — 일련번호면 <code>M-03</code>의 호차 세그먼트가 통째로 사라진다</td></tr>
+      <tr><td>✅ 예약번호 형식</td><td><b>8자리 숫자 무작위</b> (<code>1234 5678</code>). <b>조회 열쇠가 아니라 식별 번호</b>다 — 조회는 로그인으로만 한다</td></tr>
+      <tr><td>api.md 반영</td><td><code>409</code> 응답에 실패 좌석 목록 포함 (<code>E-01</code> 문구 생성용)</td></tr>
+      <tr><td><b>api.md 반영</b></td><td><b>SSE 재개 실패를 클라이언트가 구분할 수 있어야 한다</b> — <code>Last-Event-ID</code>가 보관 범위를 벗어났을 때 서버가 "전체 재조회하라"고 알리는 신호가 필요하다 (<code>E-04</code> 3번)</td></tr>
+      <tr><td>프론트 설계</td><td>토큰 저장 위치 — 모바일은 Expo SecureStore 선택지가 추가된다. 멱등키는 <b>반드시 영속 저장</b></td></tr>
+    </tbody>
+  </table>
+</footer>
+
+</div>
+</body>
+</html>

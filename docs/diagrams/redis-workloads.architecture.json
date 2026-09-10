@@ -1,0 +1,264 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Redis 워크로드 4개 — 무엇이 캐시이고 무엇이 진실인가",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1200,
+      510
+    ],
+    "views": [
+      {
+        "id": "cache",
+        "label": "좌석맵 캐시",
+        "focus": [
+          "app",
+          "seatmap",
+          "postgres"
+        ],
+        "note": "캐시가 틀려도 판정은 PostgreSQL이 한다. 그래서 안전하다."
+      },
+      {
+        "id": "fanout",
+        "label": "SSE 팬아웃",
+        "focus": [
+          "app",
+          "stream",
+          "app2"
+        ],
+        "note": "선점을 처리한 서버와 SSE 연결을 든 서버가 다르다."
+      },
+      {
+        "id": "truth",
+        "label": "진실의 출처",
+        "focus": [
+          "app",
+          "refresh",
+          "ratelimit"
+        ],
+        "note": "PostgreSQL에 사본이 없다. 날아가면 복구 수단이 없다."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "app",
+      "type": "backend",
+      "label": "앱 서버 A",
+      "sublabel": "선점 · 확정 트랜잭션",
+      "tag": "커밋 후 발행",
+      "pos": [
+        60,
+        176
+      ],
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL 17",
+      "sublabel": "좌석 · 예약 원장",
+      "tag": "판정은 여기서만",
+      "brand": "postgresql",
+      "pos": [
+        60,
+        352
+      ],
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
+      "id": "seatmap",
+      "type": "database",
+      "label": "seatmap:{tripId}",
+      "sublabel": "Hash · 좌석 800필드",
+      "tag": "TTL 5분 · 사본",
+      "pos": [
+        470,
+        40
+      ],
+      "size": [
+        250,
+        74
+      ]
+    },
+    {
+      "id": "stream",
+      "type": "messagebus",
+      "label": "trip:{id}:events",
+      "sublabel": "Stream · 팬아웃 + 재개",
+      "tag": "MAXLEN 1000",
+      "pos": [
+        470,
+        150
+      ],
+      "size": [
+        250,
+        74
+      ]
+    },
+    {
+      "id": "refresh",
+      "type": "security",
+      "label": "refresh:{jti}",
+      "sublabel": "String + 회원별 Set",
+      "tag": "TTL 14일 · 진실",
+      "pos": [
+        470,
+        282
+      ],
+      "size": [
+        250,
+        74
+      ]
+    },
+    {
+      "id": "ratelimit",
+      "type": "security",
+      "label": "login:fail:{email}",
+      "sublabel": "String · INCR",
+      "tag": "TTL 5분 · 진실",
+      "pos": [
+        470,
+        392
+      ],
+      "size": [
+        250,
+        74
+      ]
+    },
+    {
+      "id": "app2",
+      "type": "backend",
+      "label": "앱 서버 B",
+      "sublabel": "다른 사용자의 SSE 연결",
+      "tag": "XREAD 구독",
+      "pos": [
+        900,
+        150
+      ],
+      "size": [
+        220,
+        74
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "휘발해도 복구된다",
+      "wraps": [
+        "seatmap",
+        "stream"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "진실의 출처 — PostgreSQL에 사본이 없다",
+      "wraps": [
+        "refresh",
+        "ratelimit"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "app-pg",
+      "from": "app",
+      "to": "postgres",
+      "label": "좌석 판정",
+      "variant": "emphasis",
+      "labelAt": [
+        160,
+        307
+      ]
+    },
+    {
+      "id": "app-seatmap",
+      "from": "app",
+      "to": "seatmap",
+      "label": "HSET 델타",
+      "labelAt": [
+        415,
+        67
+      ]
+    },
+    {
+      "id": "app-stream",
+      "from": "app",
+      "to": "stream",
+      "label": "XADD",
+      "labelAt": [
+        415,
+        177
+      ]
+    },
+    {
+      "id": "app-refresh",
+      "from": "app",
+      "to": "refresh",
+      "label": "회전 · 폐기",
+      "labelAt": [
+        415,
+        309
+      ]
+    },
+    {
+      "id": "app-ratelimit",
+      "from": "app",
+      "to": "ratelimit",
+      "label": "INCR",
+      "labelAt": [
+        415,
+        419
+      ]
+    },
+    {
+      "id": "stream-app2",
+      "from": "stream",
+      "to": "app2",
+      "label": "XREAD BLOCK",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Redis의 두 얼굴",
+      "items": [
+        "워크로드 4개 중 아래 둘은 캐시가 아니라 진실이다 — PostgreSQL에 사본이 없다",
+        "그래서 maxmemory-policy 를 allkeys-lru 로 두면 안 된다. 토큰이 evict 된다"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "좌석맵 캐시",
+      "items": [
+        "바뀐 좌석만 HSET 한다 — 갱신 단위가 SSE 델타와 같다",
+        "미스면 원장에서 다시 채운다. 틀려도 판정은 원장이 하므로 안전하다"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Stream 하나가 둘을 한다",
+      "items": [
+        "앱 서버가 여러 대라 선점을 처리한 서버와 SSE 연결을 든 서버가 다르다",
+        "XADD 한 번으로 서버 간 팬아웃과 재개용 보관을 동시에 해결한다"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Redis가 죽으면",
+      "items": [
+        "좌석맵과 SSE는 fail-open — 느려지고 실시간만 끊긴다. 예매는 계속된다",
+        "Refresh 토큰은 fail-closed — 15분 뒤 전원 로그아웃된다"
+      ]
+    }
+  ]
+}

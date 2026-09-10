@@ -1,0 +1,987 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>웹 와이어프레임 — pi-reservation-system</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --mid:#666; --faint:#9a9a9a;
+    --line:#b8b8b8; --line-soft:#dcdcdc;
+    --paper:#fff; --bg:#ececeb; --fill:#f4f4f3;
+    --note:#0f5c8c; --note-bg:#eaf3f9; --note-line:#b6d4e6;
+    --warn:#8c3a0f; --warn-bg:#fbf0e9; --warn-line:#e6c3ac;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","맑은 고딕",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans)}
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 20px 96px}
+
+  /* ---------- doc header ---------- */
+  .doc-head{margin-bottom:28px}
+  .doc-head h1{font-size:22px;margin:0 0 6px;letter-spacing:-.01em}
+  .doc-head .sub{color:var(--mid);font-size:13px}
+  .meta{margin-top:14px;display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font:11px var(--mono);border:1px solid var(--line);background:var(--paper);
+        padding:3px 8px;border-radius:2px;color:var(--mid)}
+
+  /* ---------- toc ---------- */
+  .toc{background:var(--paper);border:1px solid var(--line);padding:14px 16px;margin-bottom:34px}
+  .toc h2{font-size:12px;margin:0 0 10px;letter-spacing:.08em;text-transform:uppercase;color:var(--mid)}
+  .toc ol{margin:0;padding:0;list-style:none;display:grid;
+          grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 18px}
+  .toc a{color:var(--ink);text-decoration:none;font-size:13px;display:block;padding:2px 0}
+  .toc a:hover{text-decoration:underline}
+  .toc code{font:11px var(--mono);color:var(--faint);margin-right:7px}
+
+  /* ---------- screen frame ---------- */
+  .screen{margin-bottom:44px;scroll-margin-top:16px}
+  .screen > h2{font-size:15px;margin:0 0 3px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+  .screen > h2 .id{font:11px var(--mono);color:var(--paper);background:var(--ink);
+                   padding:2px 6px;border-radius:2px;letter-spacing:.04em}
+  .screen > h2 .fids{font:11px var(--mono);color:var(--faint);font-weight:400}
+  .screen > .purpose{color:var(--mid);font-size:13px;margin:0 0 12px}
+
+  .frame{border:1px solid var(--line);background:var(--paper)}
+  .chrome{border-bottom:1px solid var(--line-soft);background:var(--fill);
+          padding:7px 12px;display:flex;align-items:center;gap:9px}
+  .dots{display:flex;gap:4px}
+  .dots i{width:8px;height:8px;border-radius:50%;border:1px solid var(--line);display:block}
+  .url{flex:1;font:11px var(--mono);color:var(--mid);background:var(--paper);
+       border:1px solid var(--line-soft);padding:3px 9px;border-radius:2px}
+  .canvas{padding:18px}
+
+  /* ---------- app shell inside wireframe ---------- */
+  .appbar{display:flex;align-items:center;justify-content:space-between;
+          border:1px solid var(--line);padding:10px 14px;margin-bottom:16px;background:var(--fill)}
+  .brand{font-weight:700;font-size:13px;letter-spacing:-.01em}
+  .navlinks{display:flex;gap:14px;font-size:12px;color:var(--mid)}
+  .userbox{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--mid)}
+
+  /* ---------- generic wireframe atoms ---------- */
+  .box{border:1px solid var(--line);padding:14px;background:var(--paper)}
+  .box + .box{margin-top:12px}
+  .label{font-size:11px;color:var(--mid);margin-bottom:5px;display:block}
+  .field{border:1px solid var(--line);background:var(--paper);padding:9px 11px;
+         font-size:13px;color:var(--faint);display:flex;justify-content:space-between;align-items:center}
+  .field.filled{color:var(--ink)}
+  .field .caret{color:var(--line);font-size:10px}
+  .row{display:flex;gap:12px}
+  .row > *{flex:1;min-width:0}
+  .btn{display:inline-flex;align-items:center;justify-content:center;
+       border:1px solid var(--ink);background:var(--ink);color:var(--paper);
+       padding:10px 18px;font-size:13px;font-weight:600}
+  .btn.ghost{background:var(--paper);color:var(--ink)}
+  .btn.quiet{background:var(--paper);color:var(--mid);border-color:var(--line)}
+  .btn.block{width:100%}
+  .btn.sm{padding:6px 12px;font-size:12px;font-weight:500}
+  .btn[data-disabled]{border-color:var(--line-soft);background:var(--fill);color:var(--faint)}
+  .stack{display:flex;flex-direction:column;gap:12px}
+  .hr{height:1px;background:var(--line-soft);margin:14px 0}
+  .sec-title{font-size:12px;font-weight:700;letter-spacing:.04em;margin:0 0 10px;text-transform:uppercase;color:var(--mid)}
+
+  table.wf{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.wf th,table.wf td{border:1px solid var(--line-soft);padding:9px 10px;text-align:left}
+  table.wf th{background:var(--fill);font-weight:600;font-size:11px;color:var(--mid);
+              letter-spacing:.04em;text-transform:uppercase}
+  table.wf td.num{text-align:right;font-family:var(--mono);font-size:12px}
+  table.wf tr[data-soldout] td{color:var(--faint);background:#fafafa}
+
+  .kv{display:grid;grid-template-columns:104px 1fr;gap:7px 14px;font-size:13px}
+  .kv dt{color:var(--mid);font-size:12px}
+  .kv dd{margin:0}
+
+  /* ---------- seat map ---------- */
+  .seatpane{display:grid;grid-template-columns:1fr 268px;gap:16px}
+  .cartabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+  .cartab{border:1px solid var(--line);padding:5px 11px;font:11px var(--mono);color:var(--mid);background:var(--paper)}
+  .cartab[data-on]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .deck{border:1px solid var(--line);padding:16px;background:var(--fill)}
+  .deck-dir{font:10px var(--mono);color:var(--faint);text-align:center;margin-bottom:10px;letter-spacing:.1em}
+  .seatgrid{display:grid;grid-template-columns:14px repeat(9,1fr);gap:5px;align-items:center}
+  .rowlab{font:10px var(--mono);color:var(--faint);text-align:center}
+  .aisle{height:6px}
+  .seat{aspect-ratio:1/.82;border:1px solid var(--line);background:var(--paper);
+        display:flex;align-items:center;justify-content:center;font:10px var(--mono);color:var(--mid)}
+  .seat[data-s="mine"]{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+  .seat[data-s="held"]{background:repeating-linear-gradient(45deg,#e4e4e4 0 4px,#f6f6f6 4px 8px);
+                       border-color:var(--line);color:var(--faint)}
+  .seat[data-s="sold"]{background:#9d9d9d;border-color:#8a8a8a;color:#f0f0f0}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--mid)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .sw{width:14px;height:12px;border:1px solid var(--line);background:var(--paper);display:block}
+  .sw[data-s="mine"]{background:var(--ink);border-color:var(--ink)}
+  .sw[data-s="held"]{background:repeating-linear-gradient(45deg,#e4e4e4 0 4px,#f6f6f6 4px 8px)}
+  .sw[data-s="sold"]{background:#9d9d9d;border-color:#8a8a8a}
+
+  .live{display:inline-flex;align-items:center;gap:6px;font:11px var(--mono);color:var(--mid);
+        border:1px solid var(--line-soft);padding:3px 8px;background:var(--fill)}
+  .live i{width:6px;height:6px;border-radius:50%;background:#2f7d32;display:block}
+  .live[data-off] i{background:#b33}
+
+  .timer{border:1px solid var(--ink);padding:10px 14px;display:flex;
+         justify-content:space-between;align-items:center;font-size:13px}
+  .timer b{font:17px var(--mono);letter-spacing:.02em}
+
+  .picklist{display:flex;flex-direction:column;gap:6px}
+  .pick{display:flex;justify-content:space-between;align-items:center;
+        border:1px solid var(--line-soft);padding:7px 10px;font:12px var(--mono)}
+  .pick .x{color:var(--faint);cursor:default}
+  .empty{border:1px dashed var(--line);padding:20px;text-align:center;color:var(--faint);font-size:12px}
+
+  /* ---------- modal ---------- */
+  .modalstage{background:var(--fill);border:1px solid var(--line-soft);
+              padding:34px 20px;display:flex;justify-content:center}
+  .modal{background:var(--paper);border:1px solid var(--ink);max-width:420px;width:100%;padding:20px}
+  .modal h3{margin:0 0 8px;font-size:15px}
+  .modal p{margin:0 0 14px;font-size:13px;color:var(--mid)}
+
+  /* ---------- annotations ---------- */
+  .notes{border:1px solid var(--note-line);background:var(--note-bg);
+         border-top:none;padding:13px 16px}
+  .notes h4{margin:0 0 8px;font:11px var(--mono);letter-spacing:.06em;
+            text-transform:uppercase;color:var(--note)}
+  .notes ul{margin:0;padding-left:17px}
+  .notes li{font-size:12.5px;margin-bottom:5px;color:#1f3d4f}
+  .notes li:last-child{margin-bottom:0}
+  .notes code{font:11.5px var(--mono);background:#dbeaf3;padding:1px 5px;border-radius:2px}
+  .notes.warn{border-color:var(--warn-line);background:var(--warn-bg)}
+  .notes.warn h4{color:var(--warn)}
+  .notes.warn li{color:#5c2d12}
+  .notes.warn code{background:#f2ddcd}
+
+  .divider{margin:52px 0 34px;border-top:1px solid var(--line);padding-top:14px}
+  .divider h2{font-size:13px;margin:0;letter-spacing:.1em;text-transform:uppercase;color:var(--mid)}
+  .divider p{margin:5px 0 0;font-size:13px;color:var(--mid)}
+
+  footer{margin-top:56px;border-top:1px solid var(--line);padding-top:16px;
+         font-size:12px;color:var(--mid)}
+  footer table{border-collapse:collapse;font-size:12px;margin-top:10px}
+  footer td,footer th{border:1px solid var(--line-soft);padding:6px 10px;text-align:left}
+  footer th{background:var(--paper);font-size:11px;color:var(--mid)}
+
+  @media (max-width:820px){
+    .seatpane{grid-template-columns:1fr}
+    .row{flex-direction:column}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc-head">
+  <h1>웹 채널 와이어프레임</h1>
+  <div class="sub">pi-reservation-system · React 19 + Vite SPA · 저충실도(low-fidelity) 설계안</div>
+  <div class="meta">
+    <span class="chip">2026-09-04</span>
+    <span class="chip">화면 11 + 예외 3</span>
+    <span class="chip">기준: docs/features.md</span>
+    <span class="chip">인증: JWT</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>화면 목록</h2>
+  <ol>
+    <li><a href="#w01"><code>W-01</code>홈 · 열차 조회</a></li>
+    <li><a href="#w02"><code>W-02</code>운행 목록</a></li>
+    <li><a href="#w03"><code>W-03</code>좌석 선택</a></li>
+    <li><a href="#w04"><code>W-04</code>선점 완료 · 승객 정보</a></li>
+    <li><a href="#w05"><code>W-05</code>결제</a></li>
+    <li><a href="#w06"><code>W-06</code>예약 완료</a></li>
+    <li><a href="#w07"><code>W-07</code>로그인</a></li>
+    <li><a href="#w08"><code>W-08</code>회원가입</a></li>
+    <li><a href="#w09"><code>W-09</code>예약 목록</a></li>
+    <li><a href="#w10"><code>W-10</code>예약 상세 · 취소</a></li>
+    <li><a href="#w12"><code>W-12</code>마이페이지</a></li>
+    <li><a href="#e01"><code>E-01</code>선점 충돌</a></li>
+    <li><a href="#e02"><code>E-02</code>선점 만료</a></li>
+    <li><a href="#e03"><code>E-03</code>결제 타임아웃</a></li>
+  </ol>
+</nav>
+
+
+<!-- ═══════════════════ W-01 ═══════════════════ -->
+<section class="screen" id="w01">
+  <h2><span class="id">W-01</span> 홈 · 열차 조회 <span class="fids">F-01 · F-02</span></h2>
+  <p class="purpose">진입 화면. 구간과 날짜를 정해 운행을 검색한다.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/</div>
+    </div>
+    <div class="canvas">
+      <div class="appbar">
+        <span class="brand">예매 시스템</span>
+        <nav class="navlinks"><span>예약 조회</span></nav>
+        <div class="userbox"><span>로그인</span><span>|</span><span>회원가입</span></div>
+      </div>
+
+      <div class="box">
+        <div class="sec-title">열차 조회</div>
+        <div class="stack">
+          <div class="row">
+            <div>
+              <span class="label">출발역</span>
+              <div class="field filled">서울 <span class="caret">▼</span></div>
+            </div>
+            <div>
+              <span class="label">도착역</span>
+              <div class="field filled">부산 <span class="caret">▼</span></div>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <span class="label">출발일</span>
+              <div class="field filled">2026-09-11 (금) <span class="caret">▼</span></div>
+            </div>
+            <div>
+              <span class="label">인원 (최대 6명)</span>
+              <div class="field filled">1명 <span class="caret">▼</span></div>
+            </div>
+          </div>
+          <button class="btn block">열차 조회</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h4>주석</h4>
+    <ul>
+      <li>역 목록은 <code>F-01</code>. 고정 목록이라 최초 1회 조회 후 클라이언트 캐시.</li>
+      <li>인원 상한 6은 <b>좌석 선점 상한(6석)에서 역산</b>한 값이다. 여기서 막아두면 <code>W-03</code>에서 7번째 선택을 막을 일이 줄어든다.</li>
+      <li>출발역 = 도착역이면 조회 버튼 비활성.</li>
+      <li>비로그인 상태에서도 조회는 가능하다. 로그인은 <code>W-03</code> 선점 시점에 요구한다.</li>
+    </ul>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ W-02 ═══════════════════ -->
+<section class="screen" id="w02">
+  <h2><span class="id">W-02</span> 운행 목록 <span class="fids">F-02</span></h2>
+  <p class="purpose">검색 결과. 잔여석을 보고 운행을 고른다.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/trips?from=SEO&amp;to=BSN&amp;date=2026-09-11</div>
+    </div>
+    <div class="canvas">
+      <div class="appbar">
+        <span class="brand">예매 시스템</span>
+        <nav class="navlinks"><span>예약 조회</span></nav>
+        <div class="userbox"><span>로그인</span><span>|</span><span>회원가입</span></div>
+      </div>
+
+      <div class="box" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="font-size:13px"><b>서울 → 부산</b> &nbsp;·&nbsp; 2026-09-11 (금) &nbsp;·&nbsp; 1명</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn sm quiet">◀ 이전날</button>
+          <button class="btn sm quiet">다음날 ▶</button>
+          <button class="btn sm ghost">조건 변경</button>
+        </div>
+      </div>
+
+      <div class="box" style="padding:0">
+        <table class="wf">
+          <thead>
+            <tr><th>열차</th><th>출발</th><th>도착</th><th>소요</th><th style="text-align:right">잔여석</th><th style="width:96px"></th></tr>
+          </thead>
+          <tbody>
+            <tr><td>KTX 101</td><td>06:00</td><td>08:17</td><td>2시간 17분</td><td class="num">312</td><td><button class="btn sm">선택</button></td></tr>
+            <tr><td>KTX 103</td><td>06:30</td><td>08:49</td><td>2시간 19분</td><td class="num">88</td><td><button class="btn sm">선택</button></td></tr>
+            <tr data-soldout><td>KTX 105</td><td>07:00</td><td>09:18</td><td>2시간 18분</td><td class="num">매진</td><td><button class="btn sm" data-disabled>선택</button></td></tr>
+            <tr><td>KTX 107</td><td>07:30</td><td>09:47</td><td>2시간 17분</td><td class="num">641</td><td><button class="btn sm">선택</button></td></tr>
+            <tr><td>KTX 109</td><td>08:00</td><td>10:20</td><td>2시간 20분</td><td class="num">903</td><td><button class="btn sm">선택</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h4>주석</h4>
+    <ul>
+      <li><b>잔여석은 Redis 캐시에서 온다.</b> 근사값이며 판정 근거가 아니다 — 잔여 1석을 보고 들어가도 <code>W-03</code>에서 밀릴 수 있다.</li>
+      <li>이 화면은 SSE를 붙이지 않는다. 목록 전체를 실시간 갱신하면 연결 비용 대비 이득이 적다. 실시간은 <code>W-03</code>부터.</li>
+      <li>매진 행은 비활성 처리하되 목록에서 지우지 않는다 — 취소분이 돌아올 수 있다.</li>
+      <li>열차번호·소요시간은 시드 데이터에 따라 달라진다. <b>시드 규모는 데이터 설계 단계 미확정.</b></li>
+    </ul>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ W-03 ═══════════════════ -->
+<section class="screen" id="w03">
+  <h2><span class="id">W-03</span> 좌석 선택 <span class="fids">F-03 · F-04 · F-16 · F-17</span></h2>
+  <p class="purpose">이 프로젝트의 중심 화면. 실시간 좌석 상태를 보면서 최대 6석을 고르고 선점을 건다.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/trips/KTX-101/seats</div>
+    </div>
+    <div class="canvas">
+      <div class="appbar">
+        <span class="brand">예매 시스템</span>
+        <nav class="navlinks"><span>KTX 101 · 서울→부산 · 09-11 06:00</span></nav>
+        <div class="userbox"><span class="live"><i></i>실시간 연결됨</span></div>
+      </div>
+
+      <div class="seatpane">
+        <div>
+          <div class="cartabs">
+            <span class="cartab">1호차</span>
+            <span class="cartab">2호차</span>
+            <span class="cartab">3호차</span>
+            <span class="cartab" data-on>4호차</span>
+            <span class="cartab">5호차</span>
+            <span class="cartab">…</span>
+            <span class="cartab">18호차</span>
+          </div>
+
+          <div class="deck">
+            <div class="deck-dir">◀ 진 행 방 향</div>
+            <div class="seatgrid">
+              <span class="rowlab">A</span>
+              <span class="seat">1A</span><span class="seat">2A</span><span class="seat" data-s="sold">3A</span>
+              <span class="seat">4A</span><span class="seat" data-s="held">5A</span><span class="seat">6A</span>
+              <span class="seat" data-s="mine">7A</span><span class="seat">8A</span><span class="seat">9A</span>
+
+              <span class="rowlab">B</span>
+              <span class="seat">1B</span><span class="seat">2B</span><span class="seat" data-s="sold">3B</span>
+              <span class="seat">4B</span><span class="seat" data-s="held">5B</span><span class="seat">6B</span>
+              <span class="seat" data-s="mine">7B</span><span class="seat">8B</span><span class="seat">9B</span>
+
+              <span class="rowlab"></span><span class="aisle" style="grid-column:2/-1"></span>
+
+              <span class="rowlab">C</span>
+              <span class="seat" data-s="sold">1C</span><span class="seat">2C</span><span class="seat">3C</span>
+              <span class="seat">4C</span><span class="seat">5C</span><span class="seat" data-s="held">6C</span>
+              <span class="seat">7C</span><span class="seat">8C</span><span class="seat">9C</span>
+
+              <span class="rowlab">D</span>
+              <span class="seat" data-s="sold">1D</span><span class="seat">2D</span><span class="seat">3D</span>
+              <span class="seat">4D</span><span class="seat">5D</span><span class="seat" data-s="held">6D</span>
+              <span class="seat">7D</span><span class="seat">8D</span><span class="seat">9D</span>
+            </div>
+            <div class="legend">
+              <span><i class="sw"></i>선택 가능</span>
+              <span><i class="sw" data-s="mine"></i>내가 선택</span>
+              <span><i class="sw" data-s="held"></i>다른 사람이 선점 중</span>
+              <span><i class="sw" data-s="sold"></i>판매 완료</span>
+            </div>
+          </div>
+        </div>
+
+        <aside>
+          <div class="box">
+            <div class="sec-title">선택한 좌석 <span style="float:right;font-family:var(--mono)">2 / 6</span></div>
+            <div class="picklist">
+              <div class="pick"><span>4호차 7A</span><span class="x">✕</span></div>
+              <div class="pick"><span>4호차 7B</span><span class="x">✕</span></div>
+            </div>
+            <div class="hr"></div>
+            <dl class="kv">
+              <dt>인원</dt><dd>2명</dd>
+              <dt>운임</dt><dd>119,600원</dd>
+            </dl>
+            <div class="hr"></div>
+            <button class="btn block">좌석 선점하기</button>
+            <p style="font-size:11px;color:var(--mid);margin:9px 0 0;line-height:1.5">
+              선점 후 <b>10분</b> 안에 결제해야 합니다.<br>선택한 좌석은 전부 함께 잡히거나 전부 실패합니다.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h4>주석</h4>
+    <ul>
+      <li><b>좌석 주소 체계는 미확정이다.</b> 여기서는 실물 KTX 방식(호차 + 행 + <code>A/B/C/D</code>, 창측 A·D)으로 그렸다. 일련번호 방식으로 정해지면 호차 탭이 사라지고 격자 하나가 된다.</li>
+      <li>격자는 4×9로 축약해 그렸다. 실제 KTX-1은 20량 935석이라 호차당 좌석 수와 배열은 시드 데이터를 따른다.</li>
+      <li><b>SSE 연결 상태를 항상 노출한다</b>(<code>F-16</code>). 끊긴 채로 옛 좌석맵을 보고 있으면 선점이 계속 실패하는데 사용자는 이유를 모른다. 끊기면 배지가 빨강 + "재연결 중"으로 바뀐다.</li>
+      <li>하트비트 15초(<code>F-17</code>)는 UI에 안 보이지만, 끊김 감지 근거다.</li>
+      <li>다른 사람이 선점한 좌석은 <b>빗금</b>으로 표시한다 — 판매 완료(회색)와 구분해야 한다. 선점은 10분 뒤 풀릴 수 있는 임시 상태다.</li>
+      <li>6석 도달 시 나머지 좌석은 클릭해도 무시. 카운터를 <code>2 / 6</code>으로 상시 노출한다.</li>
+      <li>비로그인 상태에서 "좌석 선점하기"를 누르면 <code>W-07</code> 로그인으로 보낸 뒤 이 화면으로 복귀한다. <b>예매는 로그인 회원만 가능하다</b> — 비회원 예매는 2026-09-04 철회됐다.</li>
+    </ul>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ W-04 ═══════════════════ -->
+<section class="screen" id="w04">
+  <h2><span class="id">W-04</span> 선점 완료 · 승객 정보 <span class="fids">F-05 · F-06</span></h2>
+  <p class="purpose">좌석을 잡은 상태. 남은 시간을 보며 승객 정보를 채운다.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/holds/h_8f3a21</div>
+    </div>
+    <div class="canvas">
+      <div class="appbar">
+        <span class="brand">예매 시스템</span>
+        <nav class="navlinks"><span>KTX 101 · 서울→부산 · 09-11 06:00</span></nav>
+        <div class="userbox"><span>홍길동 님</span><span>|</span><span>로그아웃</span></div>
+      </div>
+
+      <div class="timer">
+        <span>결제까지 남은 시간</span>
+        <b>09:47</b>
+      </div>
+
+      <div class="box">
+        <div class="sec-title">선점한 좌석</div>
+        <table class="wf">
+          <thead><tr><th>좌석</th><th>구분</th><th style="text-align:right">운임</th></tr></thead>
+          <tbody>
+            <tr><td>4호차 7A</td><td>어른</td><td class="num">59,800</td></tr>
+            <tr><td>4호차 7B</td><td>어른</td><td class="num">59,800</td></tr>
+            <tr><td colspan="2" style="text-align:right;font-weight:700">합계</td><td class="num" style="font-weight:700">119,600</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="box">
+        <div class="sec-title">예매자 정보</div>
+        <div class="stack">
+          <div class="row">
+            <div><span class="label">이름</span><div class="field filled">홍길동</div></div>
+            <div><span class="label">연락처</span><div class="field filled">010-0000-0000</div></div>
+          </div>
+          <span style="font-size:11px;color:var(--mid)">회원 정보에서 자동으로 채워집니다.</span>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <button class="btn quiet" style="flex:0 0 auto">선점 취소</button>
+        <button class="btn">결제하기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h4>주석</h4>
+    <ul>
+      <li><b>타이머는 서버가 준 <code>expiresAt</code>에서 역산한다.</b> 클라이언트가 10분을 자체 카운트하면 탭 절전·시계 오차로 어긋난다.</li>
+      <li>타이머 3분 미만에서 색·굵기를 바꿔 경고. 0이 되면 <code>E-02</code>로 전환.</li>
+      <li>"선점 취소"(<code>F-06</code>)는 만료를 기다리지 않고 즉시 좌석을 반환한다. <b>이게 있어야 다른 채널의 대기 시간이 줄어든다</b> — 다채널 경합 시연에서 체감 차이가 크다.</li>
+      <li>새로고침·뒤로가기로 이 화면에 다시 와도 선점은 살아있다(<code>F-05</code>로 조회). 선점은 서버 상태이지 화면 상태가 아니다.</li>
+      <li>이 화면에서도 SSE는 유지한다 — 내 선점이 만료되면 서버가 알려준다.</li>
+    </ul>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ W-05 ═══════════════════ -->
+<section class="screen" id="w05">
+  <h2><span class="id">W-05</span> 결제 <span class="fids">F-08 · F-10</span></h2>
+  <p class="purpose">토스페이먼츠 승인 요청 직전. 최종 확인.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/holds/h_8f3a21/payment</div>
+    </div>
+    <div class="canvas">
+      <div class="appbar">
+        <span class="brand">예매 시스템</span>
+        <nav class="navlinks"><span>KTX 101 · 서울→부산</span></nav>
+        <div class="userbox"><span>홍길동 님</span></div>
+      </div>
+
+      <div class="timer"><span>결제까지 남은 시간</span><b>07:12</b></div>
+
+      <div class="box">
+        <div class="sec-title">결제 내역</div>
+        <dl class="kv">
+          <dt>열차</dt><dd>KTX 101 · 서울 → 부산</dd>
+          <dt>일시</dt><dd>2026-09-11 (금) 06:00</dd>
+          <dt>좌석</dt><dd>4호차 7A, 7B</dd>
+          <dt>결제 금액</dt><dd><b>119,600원</b></dd>
+        </dl>
+      </div>
+
+      <div class="box">
+        <div class="sec-title">결제 수단</div>
+        <div class="stack">
+          <div class="field filled">토스페이먼츠 — 카드 <span class="caret">▼</span></div>
+          <span style="font-size:11px;color:var(--mid)">결제창은 토스페이먼츠가 제공합니다.</span>
+        </div>
+      </div>
+
+      <button class="btn block" style="margin-top:14px">119,600원 결제하기</button>
+      <p style="font-size:11px;color:var(--mid);margin:10px 0 0;text-align:center">
+        결제 승인 후 예약이 확정됩니다. 승인이 실패해도 선점은 유지됩니다.
+      </p>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h4>주석</h4>
+    <ul>
+      <li>"결제하기" 요청에 <code>Idempotency-Key</code>를 실어 보낸다(<code>F-10</code>). <b>키는 이 화면 진입 시 1회 생성하고 재시도에도 같은 값을 쓴다</b> — 버튼을 누를 때마다 새로 만들면 멱등성이 무의미하다.</li>
+      <li>버튼은 클릭 즉시 비활성 + 진행 표시. 이중 제출 방지는 UI에서도 막고 서버에서도 막는다.</li>
+      <li><b>승인 거절과 승인 타임아웃은 다르게 다룬다.</b> 거절은 이 화면에 머물며 재시도(선점 유지), 타임아웃은 <code>E-03</code>로 간다.</li>
+      <li>타이머가 결제 진행 중 만료되는 경우가 실제로 생긴다. 서버 판정을 따르고 클라이언트가 임의로 중단하지 않는다.</li>
+    </ul>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ W-06 ═══════════════════ -->
+<section class="screen" id="w06">
+  <h2><span class="id">W-06</span> 예약 완료 <span class="fids">F-09</span></h2>
+  <p class="purpose">확정 결과. 예약번호를 준다.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/reservations/48207315</div>
+    </div>
+    <div class="canvas">
+      <div class="appbar">
+        <span class="brand">예매 시스템</span>
+        <div class="userbox"><span>홍길동 님</span></div>
+      </div>
+
+      <div class="box" style="text-align:center;padding:24px 14px">
+        <div style="font-size:17px;font-weight:700;margin-bottom:12px">예약이 확정되었습니다</div>
+        <div style="border:1px solid var(--ink);padding:12px;max-width:280px;margin:0 auto">
+          <div style="font-size:11px;color:var(--mid)">예약번호</div>
+          <div style="font:22px var(--mono);margin-top:4px;letter-spacing:.03em">4820 7315</div>
+        </div>
+        <p style="font-size:11.5px;color:var(--mid);margin:12px 0 0;line-height:1.55">
+          예약 상세에서 언제든 다시 확인할 수 있습니다.
+        </p>
+      </div>
+
+      <div class="box">
+        <dl class="kv">
+          <dt>열차</dt><dd>KTX 101 · 서울 → 부산</dd>
+          <dt>일시</dt><dd>2026-09-11 (금) 06:00 → 08:17</dd>
+          <dt>좌석</dt><dd>4호차 7A, 7B</dd>
+          <dt>결제</dt><dd>119,600원 · 토스페이먼츠</dd>
+          <dt>상태</dt><dd><b>CONFIRMED</b></dd>
+        </dl>
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <button class="btn ghost">예약 목록으로</button>
+        <button class="btn quiet">홈으로</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h4>주석</h4>
+    <ul>
+      <li><b>예약번호는 조회 열쇠가 아니다.</b> 조회는 로그인(<code>F-12</code>)으로만 한다 — 사용자가 자기 예약을 식별하거나 문의할 때 쓰는 번호다.</li>
+      <li>크게, 복사 가능하게 노출한다. <b>외우라고 하지 않는다</b> — <code>W-10</code> 예약 상세에서 언제든 다시 볼 수 있다.</li>
+      <li><b>8자리 숫자 무작위</b>다(<code>1234 5678</code>). 순번이면 누적 예약 건수가 그대로 노출된다.</li>
+      <li>이 화면 도달 시 SSE 구독을 해제한다. 안 끊으면 예매를 마친 사용자가 <b>연결을 계속 붙잡아 서버 연결 수가 새어나간다.</b></li>
+    </ul>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ W-07 ═══════════════════ -->
+<section class="screen" id="w07">
+  <h2><span class="id">W-07</span> 로그인 <span class="fids">F-24 · F-36</span></h2>
+  <p class="purpose">이메일 + 비밀번호로 Access·Refresh 토큰을 받는다.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/login?redirect=/trips/KTX-101/seats</div>
+    </div>
+    <div class="canvas">
+      <div class="appbar"><span class="brand">예매 시스템</span></div>
+      <div style="max-width:400px;margin:26px auto">
+        <div class="box">
+          <div class="sec-title">로그인</div>
+          <div class="stack">
+            <div><span class="label">이메일</span><div class="field">you@example.com</div></div>
+            <div><span class="label">비밀번호</span><div class="field">••••••••</div></div>
+            <button class="btn block">로그인</button>
+          </div>
+          <div class="box" style="margin-top:12px;padding:10px 12px;border-color:var(--warn-line);background:var(--warn-bg)">
+            <div style="font-size:11.5px;color:#5c2d12;line-height:1.55">
+              <b>실패 상태 (F-36)</b><br>
+              이메일 또는 비밀번호가 올바르지 않습니다. <b>(3 / 5회)</b><br>
+              5회 실패하면 5분 동안 로그인할 수 없습니다.
+            </div>
+          </div>
+          <div class="hr"></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mid)">
+            <span>회원가입</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes warn">
+    <h4>주의 — 범위 밖 링크를 넣지 말 것</h4>
+    <ul>
+      <li><b>"비밀번호를 잊으셨나요?" 링크가 없다.</b> 비밀번호 재설정은 초기 범위 밖이다(폐쇄망 SMTP 회피). 관습적으로 넣기 쉬운 자리라 명시해둔다.</li>
+      <li><code>redirect</code> 파라미터로 원래 화면(대개 <code>W-03</code>)에 복귀한다. <b>선점 직전에 로그인으로 튕겼다가 좌석 선택을 잃으면 안 된다</b> — 선택 좌석은 세션 스토리지에 보존.</li>
+      <li>Access 15분 / Refresh 14일. 토큰 저장 위치(메모리 vs 쿠키)는 프론트 설계 단계에서 정한다.</li>
+      <li><b><code>F-36</code> 시도 제한은 잠금이 아니라 5분 일시 차단이다.</b> 비밀번호 재설정이 없으므로 영구 잠금이면 계정이 그대로 죽는다. 그래서 안내 문구도 "계정이 잠겼습니다"가 아니라 <b>"5분 뒤 다시 시도하세요"</b>여야 한다.</li>
+      <li>남은 횟수(<code>3 / 5회</code>)를 노출할지는 판단이 갈린다. 노출하면 사용자가 예측 가능하고, 숨기면 공격자에게 정보를 덜 준다. <b>여기서는 노출로 그렸다</b> — 재설정 수단이 없는 상태에서 경고 없이 차단되면 사용자가 손쓸 방법이 없다.</li>
+    </ul>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ W-08 ═══════════════════ -->
+<section class="screen" id="w08">
+  <h2><span class="id">W-08</span> 회원가입 <span class="fids">F-20 · F-21</span></h2>
+  <p class="purpose">가입 즉시 활성. 이메일 소유 증명 절차가 없다.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/signup</div>
+    </div>
+    <div class="canvas">
+      <div class="appbar"><span class="brand">예매 시스템</span></div>
+      <div style="max-width:440px;margin:22px auto">
+        <div class="box">
+          <div class="sec-title">회원가입</div>
+          <div class="stack">
+            <div>
+              <span class="label">이메일</span>
+              <div style="display:flex;gap:8px">
+                <div class="field" style="flex:1">you@example.com</div>
+                <button class="btn sm ghost" style="flex:0 0 auto">중복확인</button>
+              </div>
+              <span style="font-size:11px;color:#2f7d32;display:block;margin-top:5px">사용 가능한 이메일입니다.</span>
+            </div>
+            <div><span class="label">비밀번호</span><div class="field">••••••••</div></div>
+            <div><span class="label">비밀번호 확인</span><div class="field">••••••••</div></div>
+            <div class="row">
+              <div><span class="label">이름</span><div class="field">홍길동</div></div>
+              <div><span class="label">연락처</span><div class="field">010-0000-0000</div></div>
+            </div>
+            <button class="btn block">가입하기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h4>주석</h4>
+    <ul>
+      <li>중복확인(<code>F-21</code>)은 선검증용 편의다. <b>최종 판정은 가입 요청 시 DB unique 제약</b>이 한다 — 확인과 가입 사이에 남이 채갈 수 있다.</li>
+      <li><b>이메일 인증 단계가 없다.</b> 가입 즉시 활성. 이메일은 식별자로만 쓴다.</li>
+      <li>비밀번호는 BCrypt(cost 10~12). 정책(길이·문자 조합)은 프론트 설계 단계에서 정한다.</li>
+      <li>연락처는 예매 시 <code>reservation.passenger_phone</code> 으로 <b>스냅샷 복사</b>된다. 나중에 회원이 번호를 바꿔도 과거 예약의 승객 정보는 그대로 남는다.</li>
+    </ul>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ W-09 ═══════════════════ -->
+<section class="screen" id="w09">
+  <h2><span class="id">W-09</span> 예약 목록 <span class="fids">F-12</span></h2>
+  <p class="purpose">회원 본인의 예약 이력. 취소분도 남는다.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/reservations</div>
+    </div>
+    <div class="canvas">
+      <div class="appbar">
+        <span class="brand">예매 시스템</span>
+        <nav class="navlinks"><span>예약 조회</span><span>마이페이지</span></nav>
+        <div class="userbox"><span>홍길동 님</span><span>|</span><span>로그아웃</span></div>
+      </div>
+
+      <div class="box" style="padding:0">
+        <table class="wf">
+          <thead>
+            <tr><th>예약번호</th><th>열차</th><th>일시</th><th>좌석</th><th>상태</th><th style="width:82px"></th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-family:var(--mono);font-size:11.5px">4820 7315</td>
+              <td>KTX 101</td><td>09-11 06:00</td><td>4호차 7A,7B</td>
+              <td><b>CONFIRMED</b></td>
+              <td><button class="btn sm ghost">상세</button></td>
+            </tr>
+            <tr data-soldout>
+              <td style="font-family:var(--mono);font-size:11.5px">9174 2608</td>
+              <td>KTX 107</td><td>08-28 07:30</td><td>2호차 3D</td>
+              <td>CANCELLED</td>
+              <td><button class="btn sm quiet">상세</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h4>주석</h4>
+    <ul>
+      <li><b>취소된 예약도 목록에 남는다</b>(<code>F-14</code>는 삭제가 아니라 <code>CANCELLED</code> 전이). 이력 보존이 설계 의도다.</li>
+      <li>진행 중인 선점은 이 목록에 없다 — 선점은 예약이 아니다. 진행 중 선점이 있으면 상단에 별도 배너로 <code>W-04</code>로 유도한다.</li>
+      <li>출발이 지난 예약은 <code>COMPLETED</code>로 구분. 상태 값 집합은 데이터 설계에서 확정한다.</li>
+    </ul>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ W-10 ═══════════════════ -->
+<section class="screen" id="w10">
+  <h2><span class="id">W-10</span> 예약 상세 · 취소 <span class="fids">F-14 · F-15</span></h2>
+  <p class="purpose">예약 하나의 전체. 여기서 취소하면 좌석이 즉시 돌아간다.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/reservations/48207315</div>
+    </div>
+    <div class="canvas">
+      <div class="appbar">
+        <span class="brand">예매 시스템</span>
+        <div class="userbox"><span>홍길동 님</span></div>
+      </div>
+
+      <div class="box">
+        <div class="sec-title">예약 정보</div>
+        <dl class="kv">
+          <dt>예약번호</dt><dd style="font-family:var(--mono)">4820 7315</dd>
+          <dt>열차</dt><dd>KTX 101 · 서울 → 부산</dd>
+          <dt>일시</dt><dd>2026-09-11 (금) 06:00 → 08:17</dd>
+          <dt>좌석</dt><dd>4호차 7A, 7B</dd>
+          <dt>예매자</dt><dd>홍길동 · 010-0000-0000</dd>
+          <dt>상태</dt><dd><b>CONFIRMED</b></dd>
+        </dl>
+      </div>
+
+      <div class="box">
+        <div class="sec-title">결제 정보</div>
+        <dl class="kv">
+          <dt>결제 수단</dt><dd>토스페이먼츠 — 카드</dd>
+          <dt>결제 금액</dt><dd>119,600원</dd>
+          <dt>결제 일시</dt><dd>2026-09-04 14:22</dd>
+        </dl>
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <button class="btn quiet" style="flex:0 0 auto">목록으로</button>
+        <button class="btn ghost">예약 취소</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h4>주석</h4>
+    <ul>
+      <li>취소 버튼은 <b>출발 시각 이전에만</b> 활성. 이후에는 비활성 + 사유 표기.</li>
+      <li>취소 확인 모달이 필요하다 — 되돌릴 수 없는 동작이다. 모달 문구에 <b>환불 처리 여부를 명시</b>한다.</li>
+      <li><b>환불(<code>F-15</code>)은 P1이다.</b> P0 단계에서는 좌석만 반환되고 결제는 그대로 남는다. 이 시기의 UI는 "좌석이 반환되었습니다. 환불은 별도 처리됩니다"로 솔직하게 적는다.</li>
+      <li>취소 즉시 해당 운행을 보고 있는 <b>모든 채널에 SSE로 좌석 복귀가 전파</b>된다. 4채널 동시 시연에서 가장 보여주기 좋은 장면이다.</li>
+    </ul>
+  </div>
+</section>
+
+
+
+
+<!-- ═══════════════════ W-12 ═══════════════════ -->
+<section class="screen" id="w12">
+  <h2><span class="id">W-12</span> 마이페이지 <span class="fids">F-22 <b style="color:var(--warn)">(P1)</b></span></h2>
+  <p class="purpose">이름 · 연락처 수정만. 초기 릴리스 후순위.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/my</div>
+    </div>
+    <div class="canvas">
+      <div class="appbar">
+        <span class="brand">예매 시스템</span>
+        <nav class="navlinks"><span>예약 조회</span><span>마이페이지</span></nav>
+        <div class="userbox"><span>홍길동 님</span><span>|</span><span>로그아웃</span></div>
+      </div>
+
+      <div class="box">
+        <div class="sec-title">내 정보</div>
+        <div class="stack">
+          <div><span class="label">이메일 (변경 불가)</span><div class="field filled" style="background:var(--fill)">you@example.com</div></div>
+          <div class="row">
+            <div><span class="label">이름</span><div class="field filled">홍길동</div></div>
+            <div><span class="label">연락처</span><div class="field filled">010-0000-0000</div></div>
+          </div>
+          <div><button class="btn sm">정보 수정</button></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="notes warn">
+    <h4>주석 — 비밀번호를 바꿀 방법이 없다</h4>
+    <ul>
+      <li><b>이메일은 변경 불가</b>다. 소유 증명 수단(이메일 인증)이 없는데 변경을 허용하면 계정이 남의 것이 될 수 있다.</li>
+      <li><b>비밀번호 변경도 범위 밖으로 뺐다.</b> 재설정(메일 발송 필요)에 이어 변경까지 빠지면서, 가입 시 정한 비밀번호를 <b>사용자가 바꿀 수단이 전혀 없는 상태</b>가 된다. 의도된 축소이지 누락이 아니다 — 인증은 최소형으로 시작해 점차 추가한다.</li>
+      <li>이 화면에 남는 건 이름·연락처 수정뿐이다. 그래서 <code>W-12</code>는 P1 중에서도 가장 뒤로 밀어도 된다.</li>
+      <li>회원 탈퇴도 범위 밖.</li>
+    </ul>
+  </div>
+</section>
+
+
+<div class="divider">
+  <h2>예외 상태</h2>
+  <p>이 시스템에서 실제로 자주 발생하는 3가지. 정상 흐름보다 이쪽이 설계 난이도가 높다.</p>
+</div>
+
+
+<!-- ═══════════════════ E-01 ═══════════════════ -->
+<section class="screen" id="e01">
+  <h2><span class="id">E-01</span> 선점 충돌 <span class="fids">F-04 → 409</span></h2>
+  <p class="purpose"><code>W-03</code>에서 선점을 눌렀는데 그 사이 다른 채널이 좌석을 가져간 경우.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/trips/KTX-101/seats</div>
+    </div>
+    <div class="modalstage">
+      <div class="modal">
+        <h3>좌석을 잡지 못했습니다</h3>
+        <p><b>4호차 7B</b> 좌석을 다른 고객이 먼저 선택했습니다.<br>
+           함께 선택한 <b>7A</b>도 선점되지 않았습니다.</p>
+        <div class="box" style="padding:11px;margin-bottom:14px;background:var(--fill)">
+          <div style="font-size:11.5px;color:var(--mid);line-height:1.6">
+            선택한 좌석은 <b>전부 함께 잡히거나 전부 실패</b>합니다.<br>
+            일부만 잡힌 상태로 남지 않습니다.
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn ghost">다른 좌석 선택</button>
+          <button class="btn">같은 좌석 다시 시도</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes warn">
+    <h4>주석 — 전부 성공 또는 전부 실패</h4>
+    <ul>
+      <li><b>이 화면이 <code>F-04</code>의 원자성을 사용자에게 설명하는 자리다.</b> "7B는 실패, 7A는 성공"이 없다는 걸 명시적으로 말해야 한다. 안 그러면 사용자는 7A가 잡혔다고 착각하고 다시 시도해 중복 선점을 만든다.</li>
+      <li>서버 응답에 <b>어느 좌석이 왜 실패했는지</b>가 들어와야 이 문구를 만들 수 있다. <code>409</code> 본문에 실패 좌석 목록을 담는 계약이 필요하다 — <code>api.md</code> 작성 시 반영.</li>
+      <li>모달을 닫으면 좌석맵이 최신 상태로 갱신되어 있다(SSE가 이미 반영). <b>실패 직후 화면이 옛 상태면 사용자는 같은 좌석을 또 누른다.</b></li>
+      <li>"같은 좌석 다시 시도"는 상대 선점이 10분 뒤 풀릴 수 있으므로 의미가 있다. 다만 즉시 재시도는 거의 실패하므로 연타 방지 필요.</li>
+    </ul>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ E-02 ═══════════════════ -->
+<section class="screen" id="e02">
+  <h2><span class="id">E-02</span> 선점 만료 <span class="fids">F-07 → 410</span></h2>
+  <p class="purpose">10분이 지나 좌석이 회수된 경우.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/holds/h_8f3a21</div>
+    </div>
+    <div class="modalstage">
+      <div class="modal">
+        <h3>선점 시간이 만료되었습니다</h3>
+        <p>10분 안에 결제가 완료되지 않아 <b>4호차 7A, 7B</b> 좌석이 반환되었습니다.<br>
+           결제는 진행되지 않았습니다.</p>
+        <div class="row">
+          <button class="btn quiet">홈으로</button>
+          <button class="btn">좌석 다시 선택</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h4>주석</h4>
+    <ul>
+      <li>만료 판정은 <b>스케줄러(30초 주기)와 요청 시점 lazy 판정 둘 다</b>가 한다. 화면에서 타이머가 0이 되는 순간과 서버가 실제로 회수하는 순간에 최대 30초 차이가 날 수 있다.</li>
+      <li>그래서 <b>타이머가 0이 되어도 클라이언트가 단정하지 않는다.</b> 서버에 확인을 요청하고 <code>410</code>을 받은 뒤 이 모달을 띄운다. 아직 살아있으면 그대로 진행시킨다.</li>
+      <li>"결제는 진행되지 않았습니다"를 반드시 명시한다. 돈이 걸린 화면에서 침묵은 불안을 만든다.</li>
+      <li>다시 선택으로 돌아가면 <b>같은 좌석이 이미 남에게 갔을 수 있다.</b> 좌석맵을 새로 받아온다.</li>
+    </ul>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ E-03 ═══════════════════ -->
+<section class="screen" id="e03">
+  <h2><span class="id">E-03</span> 결제 타임아웃 <span class="fids">F-08 5단계 · F-10</span></h2>
+  <p class="purpose">토스페이먼츠 응답이 오지 않은 경우. 승인됐는지 안 됐는지 모르는 상태.</p>
+
+  <div class="frame">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="url">/holds/h_8f3a21/payment</div>
+    </div>
+    <div class="modalstage">
+      <div class="modal">
+        <h3>결제 결과를 확인하고 있습니다</h3>
+        <p>결제사 응답이 지연되고 있습니다. 결과를 확인하는 중입니다.<br>
+           <b>이 창을 닫거나 다시 결제하지 마세요.</b></p>
+        <div class="box" style="padding:11px;margin-bottom:14px;background:var(--fill)">
+          <div style="font-size:11.5px;color:var(--mid);line-height:1.6;font-family:var(--mono)">
+            확인 중… (3 / 10회)
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn quiet" data-disabled>다시 결제</button>
+          <button class="btn ghost">예약 목록에서 확인</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes warn">
+    <h4>주석 — 이 시스템에서 가장 어려운 화면</h4>
+    <ul>
+      <li><b>승인 성공인지 실패인지 모르는 구간이다.</b> 외부 결제와 내부 DB 사이에 분산 트랜잭션이 없어서 생기는 필연적 상태다.</li>
+      <li>클라이언트는 <b>같은 <code>Idempotency-Key</code>로 상태를 폴링</b>한다. 새 결제 요청이 아니라 기존 요청의 결과 조회다. 이 구분이 무너지면 이중 결제가 난다.</li>
+      <li>"다시 결제" 버튼을 <b>비활성으로 잠근다.</b> 불안한 사용자가 누르는 것이 이중 결제의 가장 흔한 원인이다.</li>
+      <li>폴링 상한(예: 10회) 도달 시 "예약 목록에서 확인해주세요"로 빠진다. 그 뒤 서버가 보상 취소(<code>F-08</code> 6단계)를 수행하면 선점이 반환된다.</li>
+      <li>이 화면은 <b>멱등성 검증의 대상이다</b> — 강제 타임아웃을 주입해 이중 결제가 없음을 확인하는 것이 비기능 요구다.</li>
+    </ul>
+  </div>
+</section>
+
+
+<footer>
+  <div><b>기준 문서</b> — <code>docs/features.md</code> (25건) · <code>docs/data.md</code> (ERD · 테이블 11개)</div>
+  <table>
+    <thead><tr><th>다음 단계 · 확정 상태</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td>✅ 키오스크 채널 철회</td><td>2026-09-04. <b><code>W-11</code> 예약번호 조회 화면 제거</b>(비로그인 조회 소멸) · 조회 PIN 체계 제거 · 화면 11 + 예외 3</td></tr>
+      <tr><td>✅ 예약번호 형식</td><td><b>8자리 숫자 무작위</b> (<code>1234 5678</code>). <b>조회 열쇠가 아니라 식별 번호</b>다 — 조회는 로그인으로만 |</td></tr>
+      <tr><td>✅ 좌석 주소 체계</td><td><b>호차-행-열</b> 확정. 10호차 × 20행 × 4열 = 800석 (<code>4호차 7A</code>)</td></tr>
+      <tr><td>api.md 반영</td><td><code>409</code> 응답에 <b>실패 좌석 목록</b> 포함 (<code>E-01</code> 문구 생성용)</td></tr>
+      <tr><td>api.md 반영</td><td><b>SSE 재개 실패를 클라이언트가 구분</b>할 수 있어야 한다 — <code>Last-Event-ID</code>가 보관 범위를 벗어났을 때</td></tr>
+    </tbody>
+  </table>
+</footer>
+
+</div>
+</body>
+</html>

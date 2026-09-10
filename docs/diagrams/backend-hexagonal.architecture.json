@@ -1,0 +1,295 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "백엔드 헥사고날 구조 — 포트 · 어댑터 경계",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1360,
+      400
+    ],
+    "views": [
+      {
+        "id": "reserve-path",
+        "label": "예매 호출 경로",
+        "focus": [
+          "webApi",
+          "inPorts",
+          "domain",
+          "outPorts",
+          "pgAdapter"
+        ],
+        "note": "웹 요청이 어댑터 → 포트 → 도메인 → 포트 → DB 어댑터로 흐른다."
+      },
+      {
+        "id": "realtime",
+        "label": "실시간 · 만료 회수",
+        "focus": [
+          "sseApi",
+          "scheduler",
+          "outPorts",
+          "redisAdapter"
+        ],
+        "note": "스케줄러도 HTTP와 동등한 인바운드 어댑터다."
+      },
+      {
+        "id": "payment-out",
+        "label": "결제 아웃바운드",
+        "focus": [
+          "domain",
+          "outPorts",
+          "payAdapter"
+        ],
+        "note": "도메인은 토스가 아니라 결제 포트만 안다."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "webApi",
+      "type": "frontend",
+      "label": "REST 어댑터",
+      "sublabel": "웹 · 모바일",
+      "tag": "JWT",
+      "pos": [
+        50,
+        80
+      ],
+      "size": [
+        160,
+        66
+      ]
+    },
+    {
+      "id": "sseApi",
+      "type": "frontend",
+      "label": "SSE 어댑터",
+      "sublabel": "좌석 변경 푸시",
+      "tag": "하트비트",
+      "pos": [
+        50,
+        175
+      ],
+      "size": [
+        160,
+        66
+      ]
+    },
+    {
+      "id": "scheduler",
+      "type": "frontend",
+      "label": "스케줄러 어댑터",
+      "sublabel": "선점 만료 회수",
+      "tag": "30초 주기",
+      "pos": [
+        50,
+        270
+      ],
+      "size": [
+        160,
+        66
+      ]
+    },
+    {
+      "id": "inPorts",
+      "type": "security",
+      "label": "인바운드 포트",
+      "sublabel": "유스케이스 인터페이스",
+      "tag": "예매 · 조회 · 취소",
+      "pos": [
+        330,
+        170
+      ],
+      "size": [
+        145,
+        76
+      ]
+    },
+    {
+      "id": "domain",
+      "type": "backend",
+      "label": "도메인 코어",
+      "sublabel": "좌석 · 선점 · 예약",
+      "tag": "프레임워크 의존 0",
+      "pos": [
+        595,
+        165
+      ],
+      "size": [
+        170,
+        86
+      ]
+    },
+    {
+      "id": "outPorts",
+      "type": "security",
+      "label": "아웃바운드 포트",
+      "sublabel": "SPI 인터페이스",
+      "tag": "새 포트는 여기 추가",
+      "pos": [
+        880,
+        170
+      ],
+      "size": [
+        145,
+        76
+      ]
+    },
+    {
+      "id": "pgAdapter",
+      "type": "database",
+      "label": "PostgreSQL 어댑터",
+      "sublabel": "JPA · 비관적 락",
+      "tag": "좌석의 진실",
+      "brand": "postgresql",
+      "pos": [
+        1140,
+        80
+      ],
+      "size": [
+        160,
+        66
+      ]
+    },
+    {
+      "id": "redisAdapter",
+      "type": "messagebus",
+      "label": "Redis 어댑터",
+      "sublabel": "캐시 · Stream",
+      "tag": "SSE 팬아웃",
+      "brand": "redis",
+      "pos": [
+        1140,
+        175
+      ],
+      "size": [
+        160,
+        66
+      ]
+    },
+    {
+      "id": "payAdapter",
+      "type": "external",
+      "label": "토스페이먼츠 어댑터",
+      "sublabel": "결제 승인 · 프록시 경유",
+      "tag": "멱등 키",
+      "pos": [
+        1140,
+        270
+      ],
+      "size": [
+        160,
+        66
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "인바운드 어댑터 — 시스템을 부르는 쪽",
+      "wraps": [
+        "webApi",
+        "sseApi",
+        "scheduler"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "애플리케이션 코어 — 바깥을 모른다",
+      "wraps": [
+        "inPorts",
+        "domain",
+        "outPorts"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "아웃바운드 어댑터 — 시스템이 부르는 쪽",
+      "wraps": [
+        "pgAdapter",
+        "redisAdapter",
+        "payAdapter"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "web-in",
+      "from": "webApi",
+      "to": "inPorts"
+    },
+    {
+      "id": "sse-in",
+      "from": "sseApi",
+      "to": "inPorts"
+    },
+    {
+      "id": "sched-in",
+      "from": "scheduler",
+      "to": "inPorts"
+    },
+    {
+      "id": "in-domain",
+      "from": "inPorts",
+      "to": "domain",
+      "label": "유스케이스 실행",
+      "variant": "emphasis"
+    },
+    {
+      "id": "domain-out",
+      "from": "domain",
+      "to": "outPorts",
+      "label": "인터페이스 의존",
+      "variant": "emphasis"
+    },
+    {
+      "id": "out-pg",
+      "from": "outPorts",
+      "to": "pgAdapter"
+    },
+    {
+      "id": "out-redis",
+      "from": "outPorts",
+      "to": "redisAdapter"
+    },
+    {
+      "id": "out-pay",
+      "from": "outPorts",
+      "to": "payAdapter"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "왜 헥사고날인가",
+      "items": [
+        "진입 경로가 늘어도 어댑터만 추가하고 코어는 그대로 둔다",
+        "화살표는 호출 방향이다. 의존 방향은 항상 안쪽을 향한다"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "도메인 코어가 지키는 규칙",
+      "items": [
+        "6석 전부 성공 또는 전부 실패 · TTL 10분 — Spring도 JPA도 모르는 순수 규칙",
+        "코어 테스트에 DB도 컨테이너도 필요 없다"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "지금 붙어 있는 어댑터",
+      "items": [
+        "PostgreSQL이 좌석을 판정하고 Redis가 캐시와 SSE 팬아웃을 맡는다",
+        "결제는 토스페이먼츠 한 곳. net:dmz 의 아웃바운드 프록시를 거쳐 나간다"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "키오스크 어댑터를 떼어낸 자리",
+      "items": [
+        "2026-09-04 철회. 코어와 다른 어댑터는 한 줄도 안 바뀌었다",
+        "경계가 제대로 그어졌다는 증거다"
+      ]
+    }
+  ]
+}

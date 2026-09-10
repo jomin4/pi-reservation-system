@@ -1,0 +1,37 @@
+# ── 빌드 산출물 ───────────────────────────────
+node_modules/
+dist/
+build/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# ── 모바일 (Expo prebuild 생성물) ─────────────
+mobile/.expo/
+mobile/android/
+mobile/ios/
+*.apk
+*.aab
+
+# ── 시크릿 ────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.age
+*.key
+*.pem
+secrets.yml
+vault-password
+
+# ── archify 검증 산출물 (재실행 가능) ─────────
+*.visual-check.*
+
+# ── OS · 에디터 ───────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ── 로그 · 임시 ───────────────────────────────
+*.log
+tmp/

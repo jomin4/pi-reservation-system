@@ -1,0 +1,303 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "백엔드 Gradle 멀티모듈 — 의존 방향은 한쪽뿐",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1300,
+      500
+    ],
+    "views": [
+      {
+        "id": "core",
+        "label": "코어 경계",
+        "focus": [
+          "application",
+          "domain"
+        ],
+        "note": "이 두 모듈에는 Spring도 JPA도 들어오지 못한다."
+      },
+      {
+        "id": "inbound",
+        "label": "인바운드 어댑터",
+        "focus": [
+          "web",
+          "sched",
+          "application"
+        ],
+        "note": "진입 방식이 달라도 같은 유스케이스 포트를 의존한다."
+      },
+      {
+        "id": "outbound",
+        "label": "아웃바운드 어댑터",
+        "focus": [
+          "persist",
+          "cache",
+          "pay",
+          "application"
+        ],
+        "note": "호출은 바깥으로 나가지만 의존은 안쪽을 향한다."
+      },
+      {
+        "id": "assembly",
+        "label": "조립 지점",
+        "focus": [
+          "bootstrap",
+          "web",
+          "persist"
+        ],
+        "note": "실행 가능한 모듈은 bootstrap 하나뿐이다."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "bootstrap",
+      "type": "cloud",
+      "label": ":bootstrap",
+      "sublabel": "Spring Boot 실행 · 빈 조립",
+      "tag": "유일한 실행 모듈",
+      "brand": "spring",
+      "pos": [
+        50,
+        207
+      ],
+      "size": [
+        180,
+        86
+      ]
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": ":adapter-web",
+      "sublabel": "REST · SSE",
+      "tag": "웹 · 모바일",
+      "pos": [
+        380,
+        60
+      ],
+      "size": [
+        210,
+        60
+      ]
+    },
+    {
+      "id": "sched",
+      "type": "frontend",
+      "label": ":adapter-scheduling",
+      "sublabel": "선점 만료 회수",
+      "tag": "30초 주기",
+      "pos": [
+        380,
+        140
+      ],
+      "size": [
+        210,
+        60
+      ]
+    },
+    {
+      "id": "persist",
+      "type": "database",
+      "label": ":adapter-persistence",
+      "sublabel": "JPA 엔티티 · 매퍼",
+      "tag": "비관적 락",
+      "pos": [
+        380,
+        220
+      ],
+      "size": [
+        210,
+        60
+      ]
+    },
+    {
+      "id": "cache",
+      "type": "messagebus",
+      "label": ":adapter-cache",
+      "sublabel": "Redis 캐시 · Stream",
+      "tag": "SSE 팬아웃",
+      "pos": [
+        380,
+        300
+      ],
+      "size": [
+        210,
+        60
+      ]
+    },
+    {
+      "id": "pay",
+      "type": "external",
+      "label": ":adapter-payment",
+      "sublabel": "토스페이먼츠 클라이언트",
+      "tag": "멱등 키",
+      "pos": [
+        380,
+        380
+      ],
+      "size": [
+        210,
+        60
+      ]
+    },
+    {
+      "id": "application",
+      "type": "security",
+      "label": ":application",
+      "sublabel": "포트 선언 · 유스케이스",
+      "tag": "Spring 의존 0",
+      "pos": [
+        760,
+        207
+      ],
+      "size": [
+        180,
+        86
+      ]
+    },
+    {
+      "id": "domain",
+      "type": "backend",
+      "label": ":domain",
+      "sublabel": "좌석 · 선점 · 예약 규칙",
+      "tag": "의존성 0",
+      "pos": [
+        1060,
+        207
+      ],
+      "size": [
+        180,
+        86
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "실행 계층",
+      "wraps": [
+        "bootstrap"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "어댑터 모듈 — 프레임워크가 사는 곳",
+      "wraps": [
+        "web",
+        "sched",
+        "persist",
+        "cache",
+        "pay"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "코어 모듈 — 바깥을 컴파일 타임에 모른다",
+      "wraps": [
+        "application",
+        "domain"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "boot-web",
+      "from": "bootstrap",
+      "to": "web",
+      "variant": "dashed"
+    },
+    {
+      "id": "boot-sched",
+      "from": "bootstrap",
+      "to": "sched",
+      "variant": "dashed"
+    },
+    {
+      "id": "boot-persist",
+      "from": "bootstrap",
+      "to": "persist",
+      "variant": "dashed"
+    },
+    {
+      "id": "boot-cache",
+      "from": "bootstrap",
+      "to": "cache",
+      "variant": "dashed"
+    },
+    {
+      "id": "boot-pay",
+      "from": "bootstrap",
+      "to": "pay",
+      "variant": "dashed"
+    },
+    {
+      "id": "web-app",
+      "from": "web",
+      "to": "application"
+    },
+    {
+      "id": "sched-app",
+      "from": "sched",
+      "to": "application"
+    },
+    {
+      "id": "persist-app",
+      "from": "persist",
+      "to": "application"
+    },
+    {
+      "id": "cache-app",
+      "from": "cache",
+      "to": "application"
+    },
+    {
+      "id": "pay-app",
+      "from": "pay",
+      "to": "application"
+    },
+    {
+      "id": "app-domain",
+      "from": "application",
+      "to": "domain",
+      "label": "도메인만 의존",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "모듈 8개, 의존은 한 방향",
+      "items": [
+        "화살표가 전부 오른쪽을 향한다 — 왼쪽이 오른쪽을 알고 반대는 없다",
+        "순환 의존이 생기면 Gradle이 빌드를 거부한다"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": ":domain 이 지키는 것",
+      "items": [
+        "build.gradle.kts 에 의존성이 없다 — Spring도 JPA도 못 들어온다",
+        "6석 전부 성공 또는 전부 실패 · TTL 10분이 여기 산다"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": ":application 의 역할",
+      "items": [
+        "인바운드 포트와 아웃바운드 포트를 여기서 선언한다",
+        "어댑터는 이 인터페이스만 보고 구현한다"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": ":bootstrap 만 실행된다",
+      "items": [
+        "나머지 7개는 라이브러리다. 빈 조립은 여기서만 한다",
+        ":adapter-kiosk 제거는 bootstrap 의존 한 줄 삭제로 끝났다"
+      ]
+    }
+  ]
+}

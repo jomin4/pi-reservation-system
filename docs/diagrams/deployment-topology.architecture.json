@@ -1,0 +1,349 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "배포와 외부 연결 — 세 트랙이 각자 다른 길로 간다",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      450
+    ],
+    "views": [
+      {
+        "id": "web",
+        "label": "웹 트랙",
+        "focus": [
+          "repo",
+          "pages",
+          "edge",
+          "browser"
+        ],
+        "note": "웹은 Cloudflare 안에서 빌드되고 배포된다. 내 PC를 거치지 않는다."
+      },
+      {
+        "id": "mobile",
+        "label": "모바일 트랙",
+        "focus": [
+          "actions",
+          "eas",
+          "releases",
+          "phone"
+        ],
+        "note": "클라우드에서 빌드해 APK 파일로 배포한다. 스토어 심사가 없다."
+      },
+      {
+        "id": "server",
+        "label": "서버 트랙",
+        "focus": [
+          "actions",
+          "runner",
+          "host"
+        ],
+        "note": "폐쇄망 안에서 밖으로 나가 작업과 이미지를 당겨온다."
+      },
+      {
+        "id": "tunnel",
+        "label": "런타임 연결",
+        "focus": [
+          "host",
+          "edge",
+          "browser"
+        ],
+        "note": "터널을 거는 방향과 요청이 흐르는 방향은 반대다."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "repo",
+      "type": "external",
+      "label": "GitHub 모노레포",
+      "sublabel": "back · front · mobile · infra",
+      "tag": "단일 저장소",
+      "pos": [
+        40,
+        180
+      ],
+      "size": [
+        190,
+        70
+      ]
+    },
+    {
+      "id": "pages",
+      "type": "cloud",
+      "label": "Cloudflare Pages",
+      "sublabel": "Vite 빌드 · 프리뷰 배포",
+      "tag": "웹 트랙",
+      "pos": [
+        310,
+        46
+      ],
+      "size": [
+        185,
+        62
+      ]
+    },
+    {
+      "id": "actions",
+      "type": "cloud",
+      "label": "GitHub Actions",
+      "sublabel": "테스트 · 이미지 빌드",
+      "tag": "CI",
+      "pos": [
+        310,
+        180
+      ],
+      "size": [
+        185,
+        62
+      ]
+    },
+    {
+      "id": "eas",
+      "type": "external",
+      "label": "EAS Build",
+      "sublabel": "Expo 클라우드 빌드",
+      "tag": "모바일 트랙",
+      "pos": [
+        310,
+        312
+      ],
+      "size": [
+        185,
+        62
+      ]
+    },
+    {
+      "id": "edge",
+      "type": "cloud",
+      "label": "Cloudflare 엣지",
+      "sublabel": "DNS · Access · WAF",
+      "tag": "jomin4.cloud",
+      "pos": [
+        620,
+        46
+      ],
+      "size": [
+        185,
+        62
+      ]
+    },
+    {
+      "id": "runner",
+      "type": "security",
+      "label": "self-hosted runner",
+      "sublabel": "작업 · 이미지 수령",
+      "tag": "아웃바운드만",
+      "pos": [
+        620,
+        180
+      ],
+      "size": [
+        185,
+        62
+      ]
+    },
+    {
+      "id": "releases",
+      "type": "external",
+      "label": "GitHub Releases",
+      "sublabel": "APK 산출물",
+      "tag": "심사 없음",
+      "pos": [
+        620,
+        312
+      ],
+      "size": [
+        185,
+        62
+      ]
+    },
+    {
+      "id": "host",
+      "type": "backend",
+      "label": "Ubuntu 호스트",
+      "sublabel": "Docker Compose 스택",
+      "tag": "cloudflared 포함",
+      "pos": [
+        900,
+        180
+      ],
+      "size": [
+        190,
+        62
+      ]
+    },
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "브라우저",
+      "sublabel": "웹 사용자",
+      "tag": "www",
+      "pos": [
+        920,
+        46
+      ],
+      "size": [
+        175,
+        62
+      ]
+    },
+    {
+      "id": "phone",
+      "type": "frontend",
+      "label": "안드로이드 기기",
+      "sublabel": "APK 설치",
+      "tag": "LTE 또는 LAN",
+      "pos": [
+        920,
+        312
+      ],
+      "size": [
+        175,
+        62
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "빌드 · 배포 — 전부 외부 서비스",
+      "wraps": [
+        "pages",
+        "actions",
+        "eas"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "온프레미스 — 인바운드 포트가 없다",
+      "wraps": [
+        "runner",
+        "host"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "repo-pages",
+      "from": "repo",
+      "to": "pages",
+      "label": "웹 자동 배포",
+      "labelAt": [
+        266,
+        128
+      ]
+    },
+    {
+      "id": "repo-actions",
+      "from": "repo",
+      "to": "actions",
+      "label": "push",
+      "labelAt": [
+        270,
+        232
+      ]
+    },
+    {
+      "id": "actions-eas",
+      "from": "actions",
+      "to": "eas",
+      "label": "모바일 빌드",
+      "labelAt": [
+        402,
+        277
+      ]
+    },
+    {
+      "id": "pages-edge",
+      "from": "pages",
+      "to": "edge",
+      "label": "정적 자산"
+    },
+    {
+      "id": "edge-browser",
+      "from": "edge",
+      "to": "browser",
+      "label": "www · api"
+    },
+    {
+      "id": "eas-releases",
+      "from": "eas",
+      "to": "releases",
+      "label": "APK 업로드"
+    },
+    {
+      "id": "releases-phone",
+      "from": "releases",
+      "to": "phone",
+      "label": "직접 설치"
+    },
+    {
+      "id": "runner-actions",
+      "from": "runner",
+      "to": "actions",
+      "label": "작업 · 이미지 pull",
+      "variant": "emphasis",
+      "labelAt": [
+        557,
+        240
+      ]
+    },
+    {
+      "id": "runner-host",
+      "from": "runner",
+      "to": "host",
+      "label": "compose up",
+      "labelAt": [
+        852,
+        232
+      ]
+    },
+    {
+      "id": "host-edge",
+      "from": "host",
+      "to": "edge",
+      "label": "아웃바운드 터널",
+      "variant": "emphasis",
+      "labelAt": [
+        720,
+        142
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "세 트랙이 각자 다른 길로 간다",
+      "items": [
+        "웹은 Cloudflare 안에서 빌드되고 배포된다 — 내 PC를 한 번도 거치지 않는다",
+        "모바일은 파일로 배포되고, 서버만 폐쇄망으로 당겨 들어온다"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "폐쇄망에서 나가는 화살표는 둘뿐",
+      "items": [
+        "runner 가 작업과 이미지를 당겨오고, cloudflared 가 터널을 건다",
+        "둘 다 아웃바운드라 인바운드 포트가 0이다 — 포트포워딩도 공인 IP도 필요 없다"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "요청은 열린 통로로 되내려온다",
+      "items": [
+        "터널 화살표는 연결을 거는 방향이지 요청이 흐르는 방향이 아니다",
+        "api.jomin4.cloud 로 온 요청은 이미 열려 있는 그 통로를 타고 반대로 내려온다"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "벤더는 셋으로 정리됐다",
+      "items": [
+        "Cloudflare 한 계정이 DNS · Pages · Access · Tunnel · R2 를 전부 맡는다",
+        "GitHub 이 소스와 CI와 APK 배포처를, Expo 가 모바일 빌드만 맡는다"
+      ]
+    }
+  ]
+}
