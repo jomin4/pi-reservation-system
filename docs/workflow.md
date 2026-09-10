@@ -259,10 +259,39 @@ features.md  F-04
 
 | 전이 | 방법 |
 |---|---|
-| → **Todo** | Projects 내장 (항목 추가 시) |
-| → In Progress | 수동 또는 세션이 `gh project item-edit` |
-| → In Review | Actions — PR `ready_for_review` 시 연결 이슈 이동 |
-| → **Done** | Projects 내장 (이슈 closed — PR 머지가 닫는다) |
+| → **Todo** | **Projects 내장** — `Item added to project` |
+| → In Progress | **세션이** `gh project item-edit` |
+| → In Review | **세션이** `gh project item-edit` |
+| → **Done** | **Projects 내장** — `Item closed` |
+
+**켜는 워크플로 3개**
+
+| 워크플로 | 설정 |
+|---|---|
+| `Item added to project` | Status = **Todo** |
+| `Item closed` | Status = **Done** |
+| `Auto-add to project` | 저장소 필터 · **`is:issue`** |
+| ~~`Pull request merged`~~ | ❌ **안 켠다** — 보드에 PR을 안 올린다(§5.2) |
+
+### ⚠️ `Closes #`는 `develop` 머지에서 이슈를 안 닫는다
+
+**GitHub은 기본 브랜치(`main`)에 머지될 때만** 연결된 이슈를 자동으로 닫는다. 우리 흐름은 `feat/* → develop → main`이라 **`develop` 머지로는 안 닫힌다.**
+
+| 방치하면 | 카드가 In Review에 쌓여 **릴리스 때 한꺼번에** Done으로 간다 |
+|---|---|
+| 결과 | §5.9의 **"In Review 4장 = 통합 위험 신호"가 상시 켜진다** |
+
+**결정 — 세션이 닫는다.**
+
+```
+1. PR 머지 (develop)
+2. gh issue close <번호>     ← 카드가 Done 으로 (Item closed 가 받는다)
+3. worktree 정리 / 다음 이슈
+```
+
+> **In Progress · In Review를 이미 세션이 옮기고 있으니 `gh issue close`도 같은 손에서 나온다** — 새로 배울 게 없다.
+>
+> **CI를 만들 때 자동화로 올릴 수 있다** — `push` to `develop`에서 커밋의 `Closes #N`을 파싱해 닫는 워크플로. `_notify.yml`을 만드는 김에 넣으면 부품이 사실상 안 는다.
 
 > **양 끝은 자동, 가운데 둘이 수동이다.** 4세션이 병렬로 도는데 사람이 옮기면 놓친다 — **세션이 `gh`로 옮기거나 Actions로** 처리한다.
 >
@@ -273,7 +302,12 @@ features.md  F-04
 | 뷰 | 필터 |
 |---|---|
 | 전체 칸반 | — |
-| back · front · mobile · infra | `label:track:<트랙>` |
+| back | `label:"track:back"` |
+| front | `label:"track:front"` |
+| mobile | `label:"track:mobile"` |
+| infra | `label:"track:infra"` |
+
+> ⚠️ **따옴표가 필요하다.** 라벨 이름 안에 `:`가 있어서 파서가 헷갈릴 수 있다 — **`축:값` 명명(§5.3)의 대가**다. 라벨 목록이 축별로 묶여 보이는 이득과 맞바꾼 것이다.
 
 > **worktree가 파일을 격리했다면 보드 뷰가 작업 목록을 격리한다.** 각 세션이 자기 트랙 뷰만 본다.
 

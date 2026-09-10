@@ -99,6 +99,7 @@ scripts/    check-forbidden.sh 등
 | 상황 | 남기는 곳 |
 |---|---|
 | 작업 시작 | **이슈** + 보드 `In Progress` |
+| **작업 끝** | PR 머지 후 ⚠️ **`gh issue close <번호>`** — `develop` 머지로는 이슈가 안 닫힌다 |
 | 왜 그렇게 짰나 | **커밋 본문** (Conventional + 트랙 스코프) |
 | **되돌리기 비싼 결정** | **[ADR](docs/adr/)** — 기준 3개를 다 만족할 때만 |
 | **원인이 자명하지 않은 문제** | **[트러블슈팅](docs/troubleshooting/)** — 에러 메시지 원문 · **「막다른 길」을 비우지 말 것** |
