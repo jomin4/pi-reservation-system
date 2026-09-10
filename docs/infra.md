@@ -42,8 +42,9 @@ Ubuntu 24.04 단일 호스트 · 확정일 2026-09-10
 | nginx · cloudflared · tinyproxy | 0.13 GB | |
 | Prometheus · Grafana | 0.6 GB | |
 | Loki · Promtail | 0.5 GB | |
-| **합계** | **≈ 4.1 GB** | **여유 3.9 GB** |
-| 앱 2대 시 | ≈ 5.0 GB | 여유 3.0 GB |
+| **Actions self-hosted runner** | **0.25 GB** | `deploy.md` §5.3 — pull·compose만 |
+| **합계** | **≈ 4.35 GB** | **여유 3.65 GB** |
+| 앱 2대 시 | ≈ 5.25 GB | 여유 2.75 GB |
 
 > **여유가 필요한 이유는 PostgreSQL의 OS 페이지 캐시다.** `trip_seat` 48만 행이 인덱스 포함 **100MB 안쪽**이라 통째로 캐시에 올라간다 — **데이터가 작아서 8GB로 되는 것**이지 8GB가 넉넉해서가 아니다.
 
@@ -218,12 +219,13 @@ cloudflared ──아웃바운드 HTTPS/QUIC──▶ Cloudflare 엣지
 
 ---
 
-## §5 아웃바운드 — 나가는 길은 둘뿐
+## §5 아웃바운드 — 나가는 길은 셋뿐
 
-| 목적지 | 용도 |
-|---|---|
-| 토스페이먼츠 | 결제 승인 |
-| `*.r2.cloudflarestorage.com` | **암호화 백업 업로드** |
+| 목적지 | 용도 | 주체 |
+|---|---|---|
+| 토스페이먼츠 | 결제 승인 | 앱 |
+| `*.r2.cloudflarestorage.com` | **암호화 백업 업로드** | 백업 크론 |
+| **`discord.com`** | **운영 경보** | **Alertmanager** (`operate.md` §7) |
 
 `tinyproxy` 화이트리스트로 강제하고, `net:app`은 **프록시 외 경로로 인터넷에 못 나간다.**
 
@@ -231,10 +233,10 @@ cloudflared ──아웃바운드 HTTPS/QUIC──▶ Cloudflare 엣지
 
 | 주체 | 나가는 곳 | 통제 |
 |---|---|---|
-| **컨테이너** | 위 2곳 | **tinyproxy 화이트리스트** |
-| **호스트** | NTP · `apt` · `ghcr.io`(runner) | `ufw` outgoing 허용 |
+| **컨테이너** | 위 3곳 | **tinyproxy 화이트리스트** |
+| **호스트** | NTP · `apt` · **`github.com`(runner 폴링)** · `ghcr.io` | `ufw` outgoing 허용 |
 
-> **"외부 출구 2곳"은 컨테이너 기준이다.** 호스트 자체는 시각 동기화와 패키지 업데이트, 그리고 self-hosted runner의 이미지 수령을 위해 나간다. **이 구분을 흐리면 문서가 거짓말이 된다.**
+> **"외부 출구 3곳"은 컨테이너 기준이다.** 호스트 자체는 시각 동기화와 패키지 업데이트, 그리고 **self-hosted runner의 폴링·이미지 수령**을 위해 나간다. **이 구분을 흐리면 문서가 거짓말이 된다.**
 
 ---
 

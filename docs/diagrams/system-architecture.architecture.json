@@ -32,14 +32,14 @@
       },
       {
         "id": "outbound",
-        "label": "외부로 나가는 두 갈래",
+        "label": "외부로 나가는 세 갈래",
         "focus": [
           "app",
           "egress",
           "payment",
           "r2"
         ],
-        "note": "결제 승인과 암호화 백업. 화이트리스트에 오른 두 곳뿐이다."
+        "note": "결제 승인 · 암호화 백업 · 운영 경보. 화이트리스트에 오른 세 곳뿐이다."
       }
     ]
   },
@@ -109,7 +109,7 @@
       "type": "security",
       "label": "tinyproxy",
       "sublabel": "아웃바운드 프록시",
-      "tag": "화이트리스트 2곳",
+      "tag": "화이트리스트 3곳",
       "pos": [
         520,
         300
@@ -184,8 +184,8 @@
     {
       "id": "r2",
       "type": "external",
-      "label": "Cloudflare R2",
-      "sublabel": "백업 버킷",
+      "label": "Cloudflare R2 · Discord",
+      "sublabel": "백업 버킷 · 경보",
       "tag": "age 암호화",
       "pos": [
         1120,
@@ -277,7 +277,7 @@
       "id": "egress-r2",
       "from": "egress",
       "to": "r2",
-      "label": "암호화 백업"
+      "label": "백업 · 경보"
     }
   ],
   "cards": [
@@ -310,7 +310,7 @@
       "title": "백업은 오프사이트 한 벌뿐",
       "items": [
         "외장 USB RAID를 철회하고 R2 하나로 간다 — 원본과 운명을 공유하지 않는 사본이 목적이다",
-        "pg_dump 를 age 로 암호화한 뒤 올린다. 복호화 키는 호스트에 두지 않는다"
+        "pg_dump 를 age 로 암호화한 뒤 올린다. 경보도 같은 프록시로 나간다"
       ]
     }
   ]

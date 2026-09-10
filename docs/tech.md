@@ -66,7 +66,7 @@
 | **네트워크 격리** | **Docker 네트워크 3분리** — `net:dmz` · `net:app` · `net:data` |
 | 호스트 방화벽 | **`ufw`** |
 | 리버스 프록시 · LB | **nginx** |
-| 아웃바운드 프록시 | **tinyproxy** — 화이트리스트 2곳 |
+| 아웃바운드 프록시 | **tinyproxy** — 화이트리스트 **3곳** |
 | **백업** | **Cloudflare R2** — `pg_dump` → `age` 암호화 → `rclone` |
 | 구성 관리 | **Ansible** — **호스트 준비까지만** (Docker 설치 · `ufw` · 디렉터리) |
 | 관측 | Prometheus · Grafana · Loki |
@@ -85,8 +85,9 @@
 | nginx · cloudflared · tinyproxy | 0.13 GB |
 | Prometheus · Grafana | 0.6 GB |
 | Loki · Promtail | 0.5 GB |
-| **합계** | **≈ 4.1 GB** (여유 3.9) |
-| 앱 2대로 올리면 | ≈ 5.0 GB (여유 3.0) |
+| **Actions self-hosted runner** | **0.25 GB** |
+| **합계** | **≈ 4.35 GB** (여유 3.65) |
+| 앱 2대로 올리면 | ≈ 5.25 GB (여유 2.75) |
 
 > ⚠️ **데스크톱 환경이 최대 변수다.** GNOME이 1.5~2GB를 먹는다. **SSH로만 접속하는 헤드리스 운영**이 전제다.
 
@@ -157,12 +158,13 @@
 | 결제창 | 웹 · 모바일 인앱 · 인브라우저 |
 | 외부 경로 | 앱 → **tinyproxy**(`net:dmz`) → 토스 |
 
-**아웃바운드 화이트리스트 — 딱 두 곳**
+**아웃바운드 화이트리스트 — 3곳**
 
 | 목적지 | 용도 |
 |---|---|
 | 토스페이먼츠 | 결제 승인 |
 | **`*.r2.cloudflarestorage.com`** | **암호화 백업 업로드** |
+| **`discord.com`** | **운영 경보** (Alertmanager) |
 
 ## 하드웨어
 

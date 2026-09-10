@@ -17,6 +17,7 @@
 | [docs/operate.md](docs/operate.md) | **관측 · 로그 · 모니터링.** §0~§7 완료 |
 | [docs/infra.md](docs/infra.md) | **인프라 §0~§10** — 호스트 · 네트워크 · 컨테이너 · 백업 · 보안 · 한계 |
 | [docs/workflow.md](docs/workflow.md) | **개발 워크플로우 §0~§9** — worktree · 브랜치 · 커밋 · **이슈·칸반** · PR · 금지사항 CI · Gemini |
+| [docs/deploy.md](docs/deploy.md) | **배포 설계 §0~§13** — CI/CD 7워크플로 · 네임스페이스 · Discord · **롤백** |
 | [docs/tech.md](docs/tech.md) | 확정된 기술 스택 |
 | [docs/research.md](docs/research.md) | 코레일 · 타사 조사 결과 (재조사 불필요) |
 | **[docs/adr/](docs/adr/)** | **아키텍처 결정 기록 6건.** 되돌리기 비싼 결정만. **불변 — 바뀌면 새 ADR** |
@@ -28,7 +29,7 @@
 
 | 파일 | 내용 |
 |---|---|
-| `system-architecture` | **시스템 전체 아키텍처** — 단일 호스트 · **Docker 네트워크 3분리** · 외부 출구 2곳. 기준 그림 |
+| `system-architecture` | **시스템 전체 아키텍처** — 단일 호스트 · **Docker 네트워크 3분리** · 외부 출구 3곳. 기준 그림 |
 | `backend-hexagonal` | 백엔드 헥사고날 — 포트 · 어댑터 경계 |
 | `backend-gradle-modules` | Gradle 멀티모듈 8개 · 의존 방향 |
 | **`redis-workloads`** | **Redis 워크로드 4개 — 캐시 vs 진실의 출처** |
@@ -84,7 +85,7 @@
 | **결제 PG** | **토스페이먼츠** 단일 · 웹·모바일 인앱 결제창 |
 | 네트워크 | **`net:dmz` 만 인터넷 노출.** `net:app` · `net:data` 는 폐쇄 · **PG·Redis 호스트 포트 미노출** |
 | 앱 서버 | **평시 1대 · 실증 시 2대**(`--scale app=2`). **nginx는 1대일 때도 앞에 둔다** |
-| 외부 출구 | **tinyproxy 화이트리스트 2곳** — 토스페이먼츠 · `*.r2.cloudflarestorage.com` |
+| 외부 출구 | **tinyproxy 화이트리스트 3곳** — 토스페이먼츠 · `*.r2.cloudflarestorage.com` · **`discord.com`**(경보) |
 | 실시간 전파 | **SSE** (코레일 폴링 → 개선). Cloudflare Tunnel 때문에 **하트비트 필수** |
 | 좌석 선점 | 최대 6석 · **전부 성공 또는 전부 실패** · TTL 10분 |
 
@@ -108,6 +109,31 @@ pi-reservation-system/
 | Gradle | `back/settings.gradle.kts` — **루트에 두지 않는다** (pnpm과 안 부딪히게) |
 | CI | Actions **`paths:` 필터**로 트랙별 분리 |
 | 빌드 루트 지정 | Cloudflare Pages → `front/` · EAS → `mobile/` |
+
+### 배포 (확정 — `deploy.md`)
+
+| 항목 | 결정 |
+|---|---|
+| **저장소 공개** | **public** — Actions 분 무제한 |
+| ⚠️ **public + self-hosted** | **`pull_request`는 GitHub-hosted만.** self-hosted는 **`push`에만** — 남의 PR 코드가 내 PC에서 돌면 안 된다 |
+| | `pull_request_target` **금지** |
+| 워크플로 | **7 + `_notify` 1.** `front-cd.yml`은 **없다** — Pages가 한다 |
+| **이미지 태그** | **`sha-<short>` 불변으로 배포** · `develop`·`v0.1.0`은 사람용 · **`latest` 금지** |
+| 트랙별 태그 | ❌ **안 만든다** — 세 트랙이 같은 계약 위에 있다. `v0.1.0` 하나 |
+| back CD | **빌드는 GitHub-hosted · 배포만 self-hosted** — 8GB에서 Gradle을 돌리지 않는다 |
+| front CI | ⚠️ **`tsc --noEmit` 필수** — `vite build`는 타입 체크를 안 한다 |
+| | **생성 타입 최신성 `diff` 검사** = 계약 선행 규칙의 집행 장치 |
+| mobile CD | **`develop`=EAS Update(OTA) · 태그=EAS Build→APK→Release** |
+| | CI는 정적 검사만 (`expo-doctor`) · EAS 큐 대기 **타임아웃 45분** |
+| infra CD | self-hosted `pi-host` · ansible + compose |
+| ⚠️ **concurrency** | **`group: deploy-host` 공유** — back CD·infra CD가 같은 호스트를 만진다 · `cancel-in-progress: false` |
+| runner | **systemd 서비스** (컨테이너면 docker socket = root) · 라벨 `pi-host` · **+0.25GB** |
+| 시크릿 | **Actions vs 호스트 분리.** `infra-cd`는 시크릿을 나르지 않는다 · `age` 개인키는 어디에도 안 둔다 |
+| Discord | **채널 4개** · **성공은 안 알림**(CD만 예외) · **`_notify.yml`이 형식 독점** |
+| **롤백** | **옛 `sha-` 태그로 `compose up` 다시.** 별도 기능이 아니다 |
+| | ⚠️ **`--no-deps` 필수** — 없으면 PG·Redis 재생성 |
+| | ⚠️ **마이그레이션 포함 배포는 롤백 불가** — Flyway `validate`가 먼저 막는다 |
+| 함정 | **`paths` 필터 + 필수 체크 = pending 교착** · concurrency 누락 · EAS 큐 |
 
 ### 개발 워크플로우 (확정 — `workflow.md`)
 
@@ -272,8 +298,9 @@ pi-reservation-system/
 | Spring Boot ×1 (heap 512MB) | 0.9 GB |
 | nginx · cloudflared · tinyproxy | 0.13 GB |
 | Prometheus · Grafana · Loki · Promtail | 1.1 GB |
-| **합계** | **≈ 4.1 GB** (여유 3.9) |
-| 앱 2대 시 | ≈ 5.0 GB |
+| **Actions self-hosted runner** | **0.25 GB** |
+| **합계** | **≈ 4.35 GB** (여유 3.65) |
+| 앱 2대 시 | ≈ 5.25 GB |
 
 > ⚠️ **GNOME이 1.5~2GB를 먹는다.** 데스크톱을 끄지 않으면 예산이 무너진다.
 > **우선순위: 앱 2대 > Loki.** 둘 다 못 넣으면 Loki를 먼저 뺀다.
@@ -316,8 +343,8 @@ pi-reservation-system/
 
 | 우선순위 | 문서 | 내용 |
 |---|---|---|
-| **1** | `docs/deploy.md` | **CI/CD 파이프라인 · self-hosted runner · 릴리스** |
-| 2 | `docs/api.md` §7 · 부록 | Mock 서버 · `openapi.yaml` |
+| **1** | `docs/api.md` §7 · 부록 | **Mock 서버 · `openapi.yaml`** |
+| 2 | — | **설계 완료. 세팅·구현 착수** |
 
 ### API 에러 규약 (확정 — `api.md` §4)
 
@@ -384,6 +411,7 @@ pi-reservation-system/
 | `docs/data.md` | ✅ **§0~§9 전체 완료** — ERD 12개 · 동시성 · 상태 전이 · Redis · 시드 · 쿼리 계획 · Flyway |
 | **`docs/infra.md`** | ✅ **§0~§10** — 호스트 · Docker 네트워크 3분리 · 백업 · 보안 · 한계 |
 | **`docs/workflow.md`** | ✅ **§0~§9 + 부록 5** — 설정 파일 원본 포함 (실제 생성은 세팅 때) |
+| **`docs/deploy.md`** | ✅ **§0~§13** — 워크플로 7+1 · 네임스페이스 · 시크릿 경계 · Discord · 롤백 |
 | `docs/tech.md` | ✅ 임베디드 스택 제거 |
 | `docs/search/korail-auth.md` | ✅ 코레일 인증 · 인가 조사 |
 | `docs/search/korail-trip-data.md` | ✅ 코레일 운행정보 조사 — **공공데이터 미채택 근거 포함** |
