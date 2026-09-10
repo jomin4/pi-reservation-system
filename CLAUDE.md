@@ -20,7 +20,8 @@
 | [docs/deploy.md](docs/deploy.md) | **배포 설계 §0~§13** — CI/CD 7워크플로 · 네임스페이스 · Discord · **롤백** |
 | [docs/tech.md](docs/tech.md) | 확정된 기술 스택 |
 | [docs/research.md](docs/research.md) | 코레일 · 타사 조사 결과 (재조사 불필요) |
-| **[docs/adr/](docs/adr/)** | **아키텍처 결정 기록 6건.** 되돌리기 비싼 결정만. **불변 — 바뀌면 새 ADR** |
+| **[docs/adr/](docs/adr/)** | **아키텍처 결정 기록 7건.** 되돌리기 비싼 결정만. **불변 — 바뀌면 새 ADR** |
+| **[docs/troubleshooting/](docs/troubleshooting/)** | **겪은 문제 기록.** 세션 간에 문제가 닿는 유일한 통로 |
 | [docs/search/](docs/search/) | 조사 문서. `korail-auth.md` 인증·인가 · `korail-trip-data.md` 운행정보 |
 | [docs/diagrams/](docs/diagrams/) | 아키텍처 다이어그램 (archify · 독립 HTML) |
 | [docs/wireframes/](docs/wireframes/) | 웹 · 모바일 화면 |
@@ -46,6 +47,7 @@
 | **설계 의도** | `> **의도**` 블록으로 남길 것 — 왜 그렇게 했는지가 스펙보다 오래 간다 |
 | 확정 전 | 문서를 먼저 쓰지 말고 구조안을 보여준 뒤 승인받을 것 |
 | **ADR** | 되돌리기 비싼 결정은 [docs/adr/](docs/adr/)에 기록. **기준 3개를 다 만족할 때만** (`adr/README.md`) |
+| **트러블슈팅** | **원인이 자명하지 않았고 다시 만날 것 같으면** [docs/troubleshooting/](docs/troubleshooting/)에 기록. **에러 메시지는 원문 그대로** · **「막다른 길」 절을 비우지 말 것** |
 | 사용자 배경 | 백엔드 · 프론트 · 보안 · 인프라 · DevOps 전반 지식 보유. 기초 설명 생략 가능 |
 
 ## 확정된 것
@@ -447,6 +449,7 @@ pi-reservation-system/
 | `docs/api.md` | ✅ **§0~§7 + 부록** — 계약 원칙 · DTO 경계 · 에러 · 엔드포인트 · SSE · **선행 개발** · **`openapi.yaml` 규약** |
 | `docs/operate.md` | ✅ §0~§7 — **레벨 정책** · 상관관계 · 마스킹 · 메트릭 · 수집 · **대시보드 4계층** · **경보 10건** |
 | **`docs/adr/`** | ✅ **ADR 7건 + 템플릿 + 색인** (0001~0007) |
+| **`docs/troubleshooting/`** | ✅ **템플릿 + 색인** — 기록은 겪을 때마다 |
 | `docs/diagrams/` × 5 | ✅ 전체 아키텍처 · 헥사고날 · Gradle 모듈 · Redis 워크로드 · **배포 토폴로지** |
 
 ## 작업 트랙 (병렬)
