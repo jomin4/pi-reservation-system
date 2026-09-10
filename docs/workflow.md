@@ -472,7 +472,7 @@ scripts/check-forbidden.sh      ← 봇이 리뷰한다 · 로컬에서도 돌�
 | 6 | `409`를 `ERROR`로 로깅 | `operate.md` §1 |
 | 7 | `trip_seat`에 `CONCURRENTLY` 없는 `CREATE INDEX` | `data.md` §9.4 |
 
-스크립트 원본은 **부록 C**.
+**구현은 [`scripts/check-forbidden.sh`](../scripts/check-forbidden.sh)** — 세부는 부록 C.
 
 > **이 7개가 우리가 문서에 박아둔 금지 사항 중 기계로 판정 가능한 전부다.** 나머지(설계 의도 위반·가독성)는 봇의 몫이다.
 >
@@ -579,51 +579,68 @@ ignore_patterns:
 - [ ] 설계 문서와 어긋나면 문서도 함께 고쳤다
 ```
 
-## 부록 C — `scripts/check-forbidden.sh` (초안)
+## 부록 C — `scripts/check-forbidden.sh`
 
-> **세팅 시 실제 경로에 맞춰 검증할 것.** 아래는 규칙을 코드로 옮긴 초안이다.
+> **초안이 아니라 동작하는 스크립트다** (2026-09-10 작성 · 자기검증 통과).
+> **본문을 여기 복사하지 않는다** — 두 곳이 어긋난다. [파일이 진실이다](../scripts/check-forbidden.sh).
+
+### C.1 실행
 
 ```bash
-#!/usr/bin/env bash
-set -uo pipefail
-fail=0
-violate() { echo "❌ $1"; fail=1; }
-
-# 1) :domain 은 의존성 0 (ADR-0001)
-if [ -f back/domain/build.gradle.kts ]; then
-  grep -nE '^\s*(implementation|api|compileOnly|runtimeOnly)\s*[("]' \
-    back/domain/build.gradle.kts \
-    && violate ":domain 에 의존성이 추가됐다 — ADR-0001"
-fi
-
-# 2) api(project(":domain")) 금지 — implementation 이어야 한다 (ADR-0001)
-grep -rn 'api(project(":domain"))' back/ \
-  && violate 'api(project(":domain")) — implementation 이어야 한다'
-
-# 3) SKIP LOCKED 금지 — 부분 성공이 생긴다 (ADR-0002)
-grep -rniE 'skip[[:space:]_]+locked' back/ \
-  && violate "SKIP LOCKED — 6석 원자성이 깨진다 (ADR-0002)"
-
-# 4) compose 포트 공개 금지 (infra.md §2.1)
-grep -rnE '^[[:space:]]*ports:' infra/ \
-  && violate "compose 에 ports: — Docker 는 ufw 를 우회한다 (infra.md §2.1)"
-
-# 5) 전역 lock_timeout 금지 — SET LOCAL 로만 (infra.md §3.2)
-grep -rn 'lock_timeout' infra/ | grep -vi 'set local' \
-  && violate "전역 lock_timeout — 선점 200ms vs 마이그레이션 3s"
-
-# 6) 409 를 ERROR 로 로깅 금지 (operate.md §1)
-grep -rniE 'log\.error.*(conflict|409|seat_already_held)' back/ \
-  && violate "409 를 ERROR 로 — 경합은 정상 결과다 (operate.md §1)"
-
-# 7) trip_seat 인덱스는 CONCURRENTLY (data.md §9.4)
-grep -rn --include='V*.sql' -iE 'create[[:space:]]+index' back/ \
-  | grep -i 'trip_seat' | grep -vi 'concurrently' \
-  && violate "trip_seat 인덱스에 CONCURRENTLY 누락 (data.md §9.4)"
-
-[ $fail -eq 0 ] && echo "✅ 금지 사항 위반 없음"
-exit $fail
+./scripts/check-forbidden.sh      # 어느 디렉터리에서든 (스크립트가 루트를 찾는다)
 ```
+
+| 종료 코드 | 뜻 |
+|---|---|
+| `0` | 위반 없음 |
+| `1` | **위반 있음** — CI 가 여기서 멈춘다 |
+
+출력은 `OK` · `FAIL` · **`SKIP`** 세 가지다. `SKIP` 은 **대상 코드가 아직 없다**는 뜻이며, 트랙이 시작되면 저절로 켜진다.
+
+### C.2 ⚠️ 초안에서 고친 것 — 넷 다 CI 를 못 쓰게 만들 문제였다
+
+| # | 초안의 문제 | 왜 치명적인가 | 고침 |
+|---|---|---|---|
+| 1 | **문서를 스캔한다** | `back/CLAUDE.md` 가 `` `api(project(":domain"))` `` 를 **금지 사항으로 적어놨다.** 규칙을 설명하는 문서가 규칙에 걸린다 | `--exclude='*.md'` |
+| 2 | **주석을 스캔한다** | `// SKIP LOCKED 를 쓰지 말 것` 주석이 위반이 된다 | 주석 줄 제외 |
+| 3 | **디렉터리가 없으면 에러** | `back/` 이 비어 있는 지금 `grep` 이 stderr 를 뱉는다 | `SKIP` 처리 |
+| 4 | **`testImplementation` 도 막는다** | ADR-0001 이 얻으려던 게 **"코어 테스트에 DB 불필요"** 인데 JUnit 을 못 넣는다 | `test*` 는 통과 |
+
+> **1·2 는 첫 PR 부터 CI 를 빨갛게 만든다.** 그 상태로 브랜치 보호를 켰다면 **아무 PR 도 못 머지한다.**
+
+### C.3 ⚠️ 7번은 `grep` 으로 판정할 수 없다
+
+```sql
+CREATE INDEX idx_trip_seat_hold
+    ON trip_seat (hold_id);
+```
+
+`CREATE INDEX` 줄에 `trip_seat` 이 없고, `trip_seat` 줄에 `CREATE INDEX` 가 없다. **줄 단위 `grep` 은 이걸 못 잡는다** — 그리고 실제 마이그레이션은 대부분 이렇게 줄바꿈한다.
+
+> **`awk` 로 세미콜론까지 이어 붙여 문장 단위로 판정한다.** 초안대로 뒀으면 **7번은 사실상 항상 통과**했을 것이다.
+
+### C.4 예외 마커
+
+```sql
+SET lock_timeout = '3s';  -- check-forbidden:allow 트랜잭션 밖 마이그레이션
+```
+
+| 규칙 | |
+|---|---|
+| 형식 | 그 줄 안에 `check-forbidden:allow` |
+| **의무** | **왜인지 함께 적는다.** 마커만 있는 줄은 리뷰에서 막는다 |
+| ⚠️ 신호 | **마커가 늘어나면 규칙이 틀린 것이다** — 문서를 고치는 PR 을 먼저 |
+
+### C.5 자기검증
+
+**7개를 실제로 잡는지, 그리고 정상 코드를 잘못 잡지 않는지**를 픽스처로 확인했다.
+
+| | 결과 |
+|---|---|
+| 위반 7종 | **7/7 검출** · `exit 1` |
+| 오탐 후보 (주석 · 문서 · `test*` · `SET LOCAL` · 여러 줄 `CONCURRENTLY` · 마커) | **0건** · `exit 0` |
+
+> **검사 스크립트야말로 검증이 필요하다.** 잘못 잡으면 CI 가 멈추고, 못 잡으면 있으나 마나다.
 
 ---
 
