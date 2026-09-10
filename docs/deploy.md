@@ -17,22 +17,65 @@
 
 ## §1 워크플로 지도
 
-| 파일 | 트랙 | 트리거 | **러너** |
-|---|---|---|---|
-| `back-ci.yml` | back | `pull_request` | GitHub-hosted |
-| **`back-cd.yml`** | back | `push` develop · 태그 | **혼합** (§6) |
-| `front-ci.yml` | front | `pull_request` | GitHub-hosted |
-| ~~`front-cd.yml`~~ | — | — | **없다. Cloudflare Pages가 한다** |
-| `mobile-ci.yml` | mobile | `pull_request` | GitHub-hosted |
-| `mobile-cd.yml` | mobile | `push` develop · 태그 | GitHub-hosted |
-| `infra-ci.yml` | infra | `pull_request` | GitHub-hosted |
-| **`infra-cd.yml`** | infra | `push` develop | **self-hosted** |
-| `release.yml` | 전체 | 태그 `v*` | GitHub-hosted |
-| **`_notify.yml`** | — | `workflow_call` | GitHub-hosted |
+| 파일 | 트랙 | 트리거 | **러너** | 상태 |
+|---|---|---|---|---|
+| **`_changes.yml`** | — | `workflow_call` | GitHub-hosted | ✅ |
+| **`forbidden.yml`** | 전체 | `pull_request` · `push` | GitHub-hosted | ✅ |
+| **`docs-ci.yml`** | docs | `pull_request` · `push` | GitHub-hosted | ✅ |
+| `back-ci.yml` | back | `pull_request` · `push` | GitHub-hosted | ✅ |
+| **`back-cd.yml`** | back | `push` develop · 태그 | **혼합** (§6) | ⬜ |
+| `front-ci.yml` | front | `pull_request` · `push` | GitHub-hosted | ✅ |
+| ~~`front-cd.yml`~~ | — | — | **없다. Cloudflare Pages가 한다** | — |
+| `mobile-ci.yml` | mobile | `pull_request` · `push` | GitHub-hosted | ✅ |
+| `mobile-cd.yml` | mobile | `push` develop · 태그 | GitHub-hosted | ⬜ |
+| `infra-ci.yml` | infra | `pull_request` · `push` | GitHub-hosted | ✅ |
+| **`infra-cd.yml`** | infra | `push` develop | **self-hosted** | ⬜ |
+| `release.yml` | 전체 | 태그 `v*` | GitHub-hosted | ⬜ |
+| **`_notify.yml`** | — | `workflow_call` | GitHub-hosted | ✅ |
+
+> **✅ = 2026-09-10 작성됨.** CD 는 self-hosted runner · Cloudflare · EAS 가 준비된 뒤에 붙인다.
 
 > **`front-cd.yml`이 없는 게 경계를 가장 명확히 드러낸다.** "front CD는 우리가 안 한다"가 **파일 부재로** 표현된다. 빈 파일을 두는 것보다 낫다.
 
 > **`_` 접두는 재사용 워크플로 표시다.** 정렬에서 앞에 오고, 직접 트리거되지 않는다는 게 이름에 드러난다.
+
+### 1.1 ⚠️ `paths:` 필터를 쓰지 않는다 — 필수 체크가 영영 대기한다
+
+**처음 설계는 `on.pull_request.paths` 로 트랙을 갈랐다. 그러면 브랜치 보호를 켤 수 없다.**
+
+| | |
+|---|---|
+| 문제 | `paths` 에 안 걸리는 PR 은 **워크플로가 아예 안 돈다** |
+| 그러면 | 그 체크를 **필수(required)로 지정한 브랜치 보호가 보고를 기다린다** |
+| 결과 | **`docs/` 만 고친 PR 이 `back-ci` 를 기다리며 영영 머지 안 된다** |
+
+**대신 워크플로는 항상 돌리고 job 을 `if:` 로 건너뛴다.**
+
+```yaml
+jobs:
+  changes:
+    uses: ./.github/workflows/_changes.yml
+  build:
+    needs: changes
+    if: needs.changes.outputs.back == 'true'
+```
+
+> **건너뛴 job 은 GitHub 이 성공으로 보고한다.** 안 돈 워크플로는 아무것도 보고하지 않는다. **그 차이가 브랜치 보호를 켤 수 있느냐를 가른다.**
+
+**`_changes.yml`** 이 `git diff` 로 트랙 5개(`back` · `front` · `mobile` · `infra` · **`contract`**)를 판별한다.
+
+> **`contract` 가 따로 있는 이유** — `docs/api/**` 만 바뀐 PR 에서도 **front · mobile CI 가 돌아야 한다.** 계약이 바뀌었는데 생성 타입을 재생성 안 한 걸 잡는 게 그 CI 의 일이기 때문이다(§7.2).
+
+### 1.2 `docs-ci.yml` — 지도에 없던 파일
+
+`api.md` 부록 A.4 가 **"스펙 문법·스타일은 `docs/api-*` PR CI 에서"** 라고 정해뒀는데 §1 지도에 그 파일이 없었다. **계약이 실재하는 파일이 된 이상 검사할 곳이 필요하다.**
+
+| 검사 | 명령 |
+|---|---|
+| 문법 · 스타일 | `redocly lint docs/api/openapi.yaml` |
+| **타입 생성 가능 여부** | `openapi-typescript` 로 실제로 뽑아 본다 |
+
+> **lint 를 통과해도 타입 생성이 깨질 수 있다.** 계약이 타입으로 안 뽑히면 front · mobile 이 착수를 못 하므로, **뽑히는지까지가 계약의 통과 조건이다.**
 
 ---
 
@@ -160,8 +203,15 @@ runs-on: [self-hosted, pi-host]
 
 ```bash
 ./gradlew generateOpenApiDocs        # 앱을 띄워 구현 스펙을 뽑는다
-diff docs/api/openapi.yaml build/generated-openapi.yaml || exit 1
+
+# ⚠️ 그냥 diff 하면 키 순서만 달라도 실패한다.
+#    한 파일로 펼치고(bundle) JSON 으로 바꾼 뒤 키를 정렬해서 비교한다.
+redocly bundle docs/api/openapi.yaml     --ext json -o /tmp/contract.json
+redocly bundle build/generated-openapi.yaml --ext json -o /tmp/implemented.json
+diff <(jq -S . /tmp/contract.json) <(jq -S . /tmp/implemented.json) || exit 1
 ```
+
+> **`bundle` 이 꼭 필요하다.** 계약은 `components/*.yaml` 6개로 나뉘어 있고(`api.md` A.2-1) SpringDoc 산출물은 한 파일이다. **펼치지 않으면 `$ref` 문자열끼리 비교하게 된다.**
 
 > **Flyway의 `validate-on-migrate`와 같은 역할이다.** 스키마 이력과 파일 목록을 대조해 어긋나면 기동을 거부하듯, **계약과 구현을 대조해 어긋나면 CI가 막는다.**
 >

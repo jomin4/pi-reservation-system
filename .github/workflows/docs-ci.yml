@@ -1,0 +1,53 @@
+# docs CI — API 계약 검사
+#
+#   근거   docs/api.md 부록 A.4
+#   러너   GitHub-hosted
+#
+# 계약을 손으로 쓰는 대가는 "구현이 어겼는지 사람이 봐야 한다" 인데
+# CI 가 그걸 대신한다. 여기서는 계약 자체의 문법·스타일을 본다.
+# 계약 ↔ 구현 대조는 back CI 가, 계약 ↔ 클라이언트 대조는 front · mobile CI 가 한다.
+
+name: docs-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    uses: ./.github/workflows/_changes.yml
+
+  contract:
+    name: docs · openapi.yaml 검사
+    needs: changes
+    if: needs.changes.outputs.contract == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # ⚠️ redocly 는 설정을 실행 디렉터리에서 위로 찾는다.
+      #    루트에서 돌려야 redocly.yaml 의 끈 규칙이 적용된다.
+      #    (docs/troubleshooting/2026-09-10-redocly-config-hijacks-openapi-typescript.md)
+      - name: redocly lint
+        run: npx --yes @redocly/cli@2 lint docs/api/openapi.yaml
+
+      # 계약이 타입으로 뽑히지 않으면 front · mobile 이 착수를 못 한다.
+      # lint 를 통과해도 생성이 깨질 수 있어 따로 확인한다.
+      - name: 타입 생성 가능 여부
+        run: |
+          npx --yes openapi-typescript@7 docs/api/openapi.yaml -o /tmp/schema.d.ts
+          lines=$(wc -l < /tmp/schema.d.ts)
+          echo "생성된 타입 ${lines}줄"
+          test "${lines}" -gt 100

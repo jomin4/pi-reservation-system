@@ -5,6 +5,7 @@ CI 검사 스크립트가 들어간다.
 | 파일 | 용도 |
 |---|---|
 | `check-forbidden.sh` | 금지사항 7종 검사 (`docs/workflow.md` §8 · 부록 C) · ✅ 2026-09-10 |
+| `discord-payload.mjs` | Discord 알림 페이로드 생성 (`docs/deploy.md` §11.3) · ✅ 2026-09-10 |
 
 ```bash
 ./scripts/check-forbidden.sh      # 0 = 통과 · 1 = 위반

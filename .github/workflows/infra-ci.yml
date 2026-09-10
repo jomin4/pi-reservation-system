@@ -1,0 +1,79 @@
+# infra CI
+#
+#   근거   docs/deploy.md §9.1
+#   러너   ⚠️ GitHub-hosted 고정.
+#          infra CD 만 self-hosted 이고, 그건 push 트리거다 (docs/deploy.md §2).
+
+name: infra-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    uses: ./.github/workflows/_changes.yml
+
+  check:
+    name: infra · compose · ansible · yaml
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ⚠️ -s(strict) 를 쓰지 않는다. 설정 파일 없이 strict 로 돌리면
+      #    line-length 같은 기본 규칙에 compose 가 그대로 걸린다.
+      #    infra/.yamllint 가 생기면 그게 우선한다.
+      - name: yamllint
+        run: |
+          pipx install yamllint
+          if [ -f infra/.yamllint ]; then
+            yamllint infra/
+          else
+            yamllint -d relaxed infra/
+          fi
+
+      # ⚠️ config -q 는 변수 치환까지 한다. 값이 없으면 경고가 나므로
+      #    CI 에서는 더미 값을 넣는다. 값의 내용이 아니라 문법을 보는 검사다.
+      - name: docker compose config
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          found=0
+          for f in infra/**/*compose*.y*ml infra/*compose*.y*ml; do
+            echo "── ${f}"
+            IMAGE_TAG=sha-0000000 docker compose -f "${f}" config -q
+            found=1
+          done
+          [ "${found}" -eq 1 ] || { echo 'compose 파일을 못 찾았다'; exit 1; }
+
+      - name: ansible --check
+        run: |
+          set -euo pipefail
+          if [ ! -f infra/ansible/site.yml ]; then
+            echo 'ansible/site.yml 이 아직 없다. 건너뛴다.'
+            exit 0
+          fi
+          pipx install --include-deps ansible
+          ansible-playbook infra/ansible/site.yml --syntax-check
+          ansible-lint infra/ansible/ || true
+
+  notify:
+    needs: check
+    if: failure() && github.event_name == 'push'
+    uses: ./.github/workflows/_notify.yml
+    with:
+      track: infra
+      phase: CI
+      result: failure
+    secrets:
+      webhook: ${{ secrets.DISCORD_WEBHOOK_CI }}

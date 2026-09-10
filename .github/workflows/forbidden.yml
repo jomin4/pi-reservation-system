@@ -1,0 +1,45 @@
+# 금지 사항 검사 — 모든 PR
+#
+#   근거   docs/workflow.md §8 · CLAUDE.md "절대 금지"
+#   러너   ⚠️ GitHub-hosted 고정. public 저장소라 남의 코드가 여기서 돈다
+#          (docs/deploy.md §2)
+#
+# 검사 로직은 scripts/check-forbidden.sh 에 있고 이 파일은 부르기만 한다.
+# Gemini Code Assist 가 .github/workflows 를 리뷰에서 제외하기 때문이다 —
+# 로직이 여기 있으면 그 로직이 틀려도 봇이 못 잡는다 (workflow.md §8.1).
+
+name: forbidden
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forbidden-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: 금지 사항 검사
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: scripts/check-forbidden.sh
+        run: ./scripts/check-forbidden.sh
+
+  notify:
+    needs: check
+    if: failure() && github.event_name == 'push'
+    uses: ./.github/workflows/_notify.yml
+    with:
+      track: all
+      phase: CI
+      result: warning
+      failed_step: 금지 사항 검사
+    secrets:
+      webhook: ${{ secrets.DISCORD_WEBHOOK_CI }}

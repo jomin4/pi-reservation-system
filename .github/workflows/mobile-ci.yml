@@ -1,0 +1,84 @@
+# mobile CI — 정적 검사만
+#
+#   근거   docs/deploy.md §8.1
+#   러너   GitHub-hosted
+#
+# ⚠️ CI 에서 앱을 빌드하지 않는다.
+#    eas build --local 이나 expo prebuild 는 Android SDK + Gradle 이 필요해
+#    10분 이상 걸리고 PR 마다 돌릴 값이 없다.
+#    expo-doctor 가 설정 불일치를 대신 잡는다.
+
+name: mobile-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    uses: ./.github/workflows/_changes.yml
+
+  check:
+    name: mobile · 타입 · 린트 · expo-doctor
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true' || needs.changes.outputs.contract == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: mobile/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: tsc --noEmit
+        run: pnpm exec tsc --noEmit
+
+      - name: lint
+        run: pnpm run lint
+
+      - name: test
+        run: pnpm run --if-present test
+
+      - name: expo-doctor
+        run: npx --yes expo-doctor@latest
+
+      - name: 생성 타입 최신성
+        run: |
+          set -euo pipefail
+          npx --yes openapi-typescript@7 ../docs/api/openapi.yaml -o /tmp/api.d.ts
+          if ! diff -u /tmp/api.d.ts src/api/schema.d.ts; then
+            echo
+            echo '계약이 바뀌었는데 생성 타입이 낡았다. 아래를 돌리고 커밋한다.'
+            echo '  npx openapi-typescript ../docs/api/openapi.yaml -o src/api/schema.d.ts'
+            exit 1
+          fi
+
+  notify:
+    needs: check
+    if: failure() && github.event_name == 'push'
+    uses: ./.github/workflows/_notify.yml
+    with:
+      track: mobile
+      phase: CI
+      result: failure
+    secrets:
+      webhook: ${{ secrets.DISCORD_WEBHOOK_CI }}

@@ -1,0 +1,87 @@
+# front CI
+#
+#   근거   docs/deploy.md §7
+#   러너   GitHub-hosted
+#
+# ⚠️ front CD 는 없다. Cloudflare Pages 가 한다.
+#    그래서 이 파일은 "Pages 가 안 하는 것" 만 한다.
+#
+#    Pages 는 vite build 를 돌리는데 vite build 는 타입 체크를 하지 않는다.
+#    Pages 빌드가 통과해도 타입 에러가 프로덕션에 나갈 수 있다 —
+#    tsc --noEmit 이 이 워크플로의 존재 이유다.
+
+name: front-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: front-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    uses: ./.github/workflows/_changes.yml
+
+  check:
+    name: front · 타입 · 린트 · 테스트
+    needs: changes
+    if: needs.changes.outputs.front == 'true' || needs.changes.outputs.contract == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: front/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      # ⚠️ 이 워크플로의 존재 이유. vite build 는 여기를 통과시킨다.
+      - name: tsc --noEmit
+        run: pnpm exec tsc --noEmit
+
+      - name: lint
+        run: pnpm run lint
+
+      - name: test
+        run: pnpm run --if-present test
+
+      # ⚠️ 계약 선행 규칙(workflow.md §3)의 집행 장치다.
+      #    계약이 바뀌었는데 타입을 재생성 안 했으면 여기서 잡힌다.
+      #    contract 가 바뀌기만 해도 이 job 이 도는 이유가 이것이다.
+      - name: 생성 타입 최신성
+        run: |
+          set -euo pipefail
+          npx --yes openapi-typescript@7 ../docs/api/openapi.yaml -o /tmp/api.d.ts
+          if ! diff -u /tmp/api.d.ts src/api/schema.d.ts; then
+            echo
+            echo '계약이 바뀌었는데 생성 타입이 낡았다. 아래를 돌리고 커밋한다.'
+            echo '  npx openapi-typescript ../docs/api/openapi.yaml -o src/api/schema.d.ts'
+            exit 1
+          fi
+
+  notify:
+    needs: check
+    if: failure() && github.event_name == 'push'
+    uses: ./.github/workflows/_notify.yml
+    with:
+      track: front
+      phase: CI
+      result: failure
+    secrets:
+      webhook: ${{ secrets.DISCORD_WEBHOOK_CI }}

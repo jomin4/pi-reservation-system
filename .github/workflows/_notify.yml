@@ -1,0 +1,84 @@
+# 재사용 워크플로 — Discord 알림 형식을 여기서 독점한다
+#
+#   근거   docs/deploy.md §11
+#
+# 7개 워크플로가 각자 페이로드를 만들면 형식이 7가지로 갈린다.
+# 호출부는 값만 넘기고 생김새는 이 파일만 안다.
+
+name: _notify
+
+on:
+  workflow_call:
+    inputs:
+      track:
+        description: back · front · mobile · infra · docs · all
+        required: true
+        type: string
+      phase:
+        description: CI · CD · Release
+        required: true
+        type: string
+      result:
+        description: success · failure · warning · release
+        required: true
+        type: string
+      failed_step:
+        description: 실패한 단계 이름 (실패일 때만)
+        required: false
+        type: string
+        default: ''
+      image_tag:
+        description: 배포된 이미지 태그 (CD 만)
+        required: false
+        type: string
+        default: ''
+    secrets:
+      webhook:
+        description: DISCORD_WEBHOOK_CI · _CD · _RELEASE 중 하나
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    name: Discord 알림
+    runs-on: ubuntu-latest
+    steps:
+      # ⚠️ 웹훅이 없어도 CI 가 빨개지면 안 된다.
+      #    알림은 CI 의 결과가 아니라 곁다리다.
+      #    시크릿을 아직 안 넣은 지금 상태에서도 워크플로가 온전해야 한다.
+      - name: 웹훅 유무 확인
+        id: gate
+        env:
+          WEBHOOK: ${{ secrets.webhook }}
+        run: |
+          if [ -z "${WEBHOOK}" ]; then
+            echo '웹훅 시크릿이 없다. 알림을 건너뛴다.'
+            echo 'send=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'send=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      # 페이로드를 node 로 만든다. 러너에 기본 설치돼 있고,
+      # 로컬에서 같은 스크립트를 그대로 돌려 검증할 수 있다.
+      - name: 페이로드 전송
+        if: steps.gate.outputs.send == 'true'
+        env:
+          WEBHOOK: ${{ secrets.webhook }}
+          TRACK: ${{ inputs.track }}
+          PHASE: ${{ inputs.phase }}
+          RESULT: ${{ inputs.result }}
+          FAILED_STEP: ${{ inputs.failed_step }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          SERVER: ${{ github.server_url }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          node "${GITHUB_WORKSPACE}/scripts/discord-payload.mjs" > /tmp/payload.json
+          cat /tmp/payload.json
+          curl -sS --fail-with-body -X POST \
+            -H 'Content-Type: application/json' \
+            -d @/tmp/payload.json "${WEBHOOK}"

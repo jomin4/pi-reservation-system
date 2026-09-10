@@ -1,0 +1,91 @@
+# back CI
+#
+#   근거   docs/deploy.md §6.1
+#   러너   ⚠️ GitHub-hosted 고정 (docs/deploy.md §2)
+#          8GB 호스트에서 Gradle 을 돌리지 않는다. 그 PC 는 이미 PG 와 Redis 를 안고 있다.
+
+name: back-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: back-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    uses: ./.github/workflows/_changes.yml
+
+  build:
+    name: back · 빌드 · 테스트
+    needs: changes
+    if: needs.changes.outputs.back == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # 여기서 Testcontainers PostgreSQL 에 Flyway 가 적용된다.
+      # 마이그레이션 검증을 별도 단계로 두지 않는 이유는
+      # 테스트가 이미 컨테이너를 띄우기 때문이다.
+      - name: gradlew build
+        working-directory: back
+        run: ./gradlew build --no-daemon
+
+      # ⚠️ ADR-0007 의 집행 장치다.
+      #    SpringDoc 이 구현에서 뽑은 스펙과 손으로 쓴 계약을 대조한다.
+      #    Flyway 의 validate-on-migrate 와 같은 역할이고,
+      #    어긋나면 계약을 먼저 고치는 PR 이 있어야 한다 (workflow.md §3).
+      - name: 계약 ↔ 구현 대조
+        working-directory: back
+        run: |
+          set -euo pipefail
+          ./gradlew generateOpenApiDocs --no-daemon
+
+          # ⚠️ 그냥 diff 하면 키 순서만 달라도 실패한다.
+          #    한 파일로 펼친 뒤 JSON 으로 바꾸고 키를 정렬해서 비교한다.
+          bundle() {
+            npx --yes @redocly/cli@2 bundle "$1" --ext json -o "$2"
+            jq -S . "$2" > "$2.sorted"
+          }
+          bundle ../docs/api/openapi.yaml /tmp/contract.json
+          bundle build/generated-openapi.yaml /tmp/implemented.json
+
+          if ! diff -u /tmp/contract.json.sorted /tmp/implemented.json.sorted; then
+            echo
+            echo '계약과 구현이 다르다.'
+            echo '구현을 바꿨다면 docs/api/openapi.yaml 을 고치는 PR 이 먼저다 (workflow.md §3).'
+            exit 1
+          fi
+
+      - name: 테스트 결과 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: back-test-results
+          path: back/**/build/reports/tests/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  notify:
+    needs: build
+    if: failure() && github.event_name == 'push'
+    uses: ./.github/workflows/_notify.yml
+    with:
+      track: back
+      phase: CI
+      result: failure
+    secrets:
+      webhook: ${{ secrets.DISCORD_WEBHOOK_CI }}

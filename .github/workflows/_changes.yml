@@ -1,0 +1,75 @@
+# 재사용 워크플로 — 이 PR 이 어느 트랙을 건드렸나
+#
+#   근거   docs/deploy.md §1 · §6.1 (⚠️ 필수 체크 함정)
+#
+# ⚠️ 워크플로 단위 `paths:` 필터를 쓰지 않는 이유
+#
+#   `on.pull_request.paths` 로 거르면 해당하지 않는 PR 에서는
+#   워크플로가 아예 안 돈다. 그 체크를 브랜치 보호의 "필수" 로
+#   지정해두면 체크가 영영 보고되지 않아 PR 이 계속 대기 상태로 막힌다.
+#
+#   대신 워크플로는 항상 돌리고 job 을 `if:` 로 건너뛴다.
+#   건너뛴 job 은 GitHub 이 성공으로 친다 — 그래서 필수 체크로 안전하다.
+
+name: _changes
+
+on:
+  workflow_call:
+    outputs:
+      back:
+        value: ${{ jobs.detect.outputs.back }}
+      front:
+        value: ${{ jobs.detect.outputs.front }}
+      mobile:
+        value: ${{ jobs.detect.outputs.mobile }}
+      infra:
+        value: ${{ jobs.detect.outputs.infra }}
+      contract:
+        description: docs/api/** · redocly.yaml — 계약이 바뀌었나
+        value: ${{ jobs.detect.outputs.contract }}
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    name: 변경 트랙 판별
+    runs-on: ubuntu-latest
+    outputs:
+      back: ${{ steps.f.outputs.back }}
+      front: ${{ steps.f.outputs.front }}
+      mobile: ${{ steps.f.outputs.mobile }}
+      infra: ${{ steps.f.outputs.infra }}
+      contract: ${{ steps.f.outputs.contract }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 변경 파일 목록
+        id: f
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${BASE:-}" ]; then
+            files=$(git diff --name-only "${BASE}" "${HEAD}")
+          else
+            # pull_request 가 아닌 트리거 — 전부 돈다
+            files=$(git ls-files)
+          fi
+
+          printf '변경 파일 %d개\n' "$(printf '%s\n' "${files}" | grep -c . || true)"
+          printf '%s\n' "${files}" | sed 's/^/  /'
+
+          has() { printf '%s\n' "${files}" | grep -qE "$1" && echo true || echo false; }
+
+          {
+            echo "back=$(has '^back/')"
+            echo "front=$(has '^front/')"
+            echo "mobile=$(has '^mobile/')"
+            echo "infra=$(has '^infra/')"
+            echo "contract=$(has '^(docs/api/|redocly\.yaml$)')"
+          } | tee -a "$GITHUB_OUTPUT"
