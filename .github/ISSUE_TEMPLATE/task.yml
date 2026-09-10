@@ -1,0 +1,41 @@
+name: 작업
+description: 기능 구현 · 조사 · 잡일 · 리팩터링
+title: "<type>(<track>): "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        제목 형식 — `feat(back): 좌석 선점 API [F-04]`
+        라벨은 `track:` `type:` `prio:` 를 직접 붙인다.
+
+  - type: input
+    id: feature-id
+    attributes:
+      label: F-번호
+      description: >-
+        features.md 에 있으면 적는다.
+        없는 새 기능이면 features.md 를 고치는 PR 이 먼저다.
+      placeholder: F-04
+
+  - type: textarea
+    id: what
+    attributes:
+      label: 무엇을
+      description: 한두 줄로
+    validations:
+      required: true
+
+  - type: input
+    id: source
+    attributes:
+      label: 근거 문서
+      description: 어느 설계 문서의 어느 절을 구현하나
+      placeholder: data.md §4.5 · ADR-0002
+
+  - type: textarea
+    id: done
+    attributes:
+      label: 완료 조건
+      description: 무엇이 되면 끝인가. 검증 방법까지
+    validations:
+      required: true

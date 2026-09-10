@@ -1,0 +1,51 @@
+name: 버그
+description: 동작이 설계와 다르다
+title: "fix(<track>): "
+labels: ["type:fix"]
+body:
+  - type: input
+    id: request-id
+    attributes:
+      label: requestId
+      description: >-
+        에러 응답 본문의 requestId 또는 응답 헤더 X-Request-Id.
+        이 값 하나로 로그 전체를 추적한다 (operate.md §2.2).
+      placeholder: 7f3a9c21
+
+  - type: input
+    id: image-tag
+    attributes:
+      label: imageTag
+      description: 로그에 찍힌 배포 태그. 언제부터 발생했는지 가른다
+      placeholder: sha-abc1234
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 절차
+      description: 1, 2, 3 으로
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대 vs 실제
+      description: 설계 문서의 어느 절과 어긋나는가
+      placeholder: |
+        기대: api.md §5.2 — 409 SEAT_ALREADY_HELD + failedSeats
+        실제: 500
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproducible
+    attributes:
+      label: 재현성
+      options:
+        - 항상
+        - 가끔
+        - 특정 조건에서만
+        - 한 번만 봤다
+    validations:
+      required: true

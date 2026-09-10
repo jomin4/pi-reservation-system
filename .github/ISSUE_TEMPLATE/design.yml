@@ -1,0 +1,50 @@
+name: 설계 변경
+description: 코드보다 문서를 먼저 고쳐야 하는 건
+title: "docs(<track>): "
+labels: ["type:docs", "status:needs-decision"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        설계를 문서로 먼저 정하는 프로젝트다.
+        **코드를 고치기 전에 이 이슈로 합의한다.**
+
+  - type: input
+    id: target
+    attributes:
+      label: 대상 문서 · 절
+      placeholder: data.md §6.8
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: 지금 결정이 왜 안 맞나
+      description: 전제가 바뀌었나, 처음부터 틀렸나
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 검토한 대안
+      description: 장단점과 함께
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: adr-criteria
+    attributes:
+      label: ADR 기준 — 셋 다 예면 ADR 을 쓴다
+      description: 하나라도 아니오면 문서 수정 PR 만으로 끝낸다 (docs/adr/README.md)
+      options:
+        - label: 되돌리기가 비싼가?
+        - label: 대안을 실제로 저울질했나?
+        - label: 6개월 뒤 "왜 이랬지?"를 물을 것 같나?
+
+  - type: textarea
+    id: ripple
+    attributes:
+      label: 파급
+      description: 이 변경이 건드리는 다른 문서 · 트랙

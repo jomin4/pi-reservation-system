@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 설계 문서
+    url: https://github.com/jomin4/pi-reservation-system/tree/main/docs
+    about: 결정된 내용은 여기 있다. 이슈를 열기 전에 확인할 것.
+  - name: ADR — 왜 그렇게 정했나
+    url: https://github.com/jomin4/pi-reservation-system/tree/main/docs/adr
+    about: 되돌리기 비싼 결정과 그 근거.
+  - name: 트러블슈팅 — 이 에러 전에 본 적 있나
+    url: https://github.com/jomin4/pi-reservation-system/tree/main/docs/troubleshooting
+    about: 겪은 문제와 막다른 길.
