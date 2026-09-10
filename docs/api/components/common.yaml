@@ -8,7 +8,46 @@ securitySchemes:
     bearerFormat: JWT
     description: Access JWT (15분). `api.md` §5.5
 
+headers:
+
+  XRequestId:
+    description: |
+      상관관계 ID (`api.md` §2). 요청의 `X-Request-Id` 를 에코하거나 서버가 생성한다.
+      **모든 응답에 붙는다** — 아래 에러 응답 컴포넌트에만 적은 건
+      OpenAPI 에 "전역 응답 헤더" 표현이 없어서다.
+    schema:
+      type: string
+    example: 7f3a9c21
+
 parameters:
+
+  XRequestIdHeader:
+    name: X-Request-Id
+    in: header
+    required: false
+    description: 없으면 서버가 생성한다. **응답에 그대로 에코된다**
+    schema:
+      type: string
+
+  IdempotencyKey:
+    name: Idempotency-Key
+    in: header
+    description: |
+      ⚠️ **화면 진입 시 1회 생성하고 재시도에도 같은 값을 쓴다.**
+      버튼을 누를 때마다 새로 만들면 멱등성이 무의미하다.
+      **모바일은 영속 저장해야 한다** — 앱이 죽으면 메모리 키가 사라진다 (`api.md` §2).
+    schema:
+      type: string
+      format: uuid
+
+  HoldIdPath:
+    name: holdId
+    in: path
+    required: true
+    description: 선점 식별자 (불투명 문자열)
+    schema:
+      $ref: './holds.yaml#/schemas/HoldId'
+
   TripId:
     name: tripId
     in: path
@@ -121,6 +160,9 @@ responses:
 
   ValidationFailed:
     description: '`400` — 요청이 올바르지 않다'
+    headers:
+      X-Request-Id:
+        $ref: '#/headers/XRequestId'
     content:
       application/problem+json:
         schema:
@@ -135,8 +177,29 @@ responses:
             - field: to
               reason: 출발역과 도착역이 같습니다
 
+  Unauthenticated:
+    description: |
+      `401` — 토큰이 없거나 만료됐다.
+      ⚠️ **화면은 로그인으로 보낸 뒤 원래 자리로 복원해야 한다** — 좌석 선택 중이었을 수 있다.
+    headers:
+      X-Request-Id:
+        $ref: '#/headers/XRequestId'
+    content:
+      application/problem+json:
+        schema:
+          $ref: '#/schemas/Problem'
+        example:
+          type: https://api.jomin4.cloud/problems/unauthenticated
+          title: 로그인이 필요합니다
+          status: 401
+          code: UNAUTHENTICATED
+          requestId: 7f3a9c21
+
   TripNotFound:
     description: '`404` — 운행이 없다'
+    headers:
+      X-Request-Id:
+        $ref: '#/headers/XRequestId'
     content:
       application/problem+json:
         schema:
@@ -152,6 +215,9 @@ responses:
     description: |
       `5xx` — **`detail` 이 없다.** 스택 트레이스 · SQL · 내부 경로가 새면 안 된다 (§4.5).
       `requestId` 만 준다.
+    headers:
+      X-Request-Id:
+        $ref: '#/headers/XRequestId'
     content:
       application/problem+json:
         schema:

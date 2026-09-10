@@ -21,6 +21,11 @@ servers:
 tags:
   - name: catalog
     description: 역 · 운행 · 좌석맵 조회 — 인증 불필요
+  - name: holds
+    description: |
+      좌석 선점 — **인증 필수.**
+      이 프로젝트가 증명하려는 것이 전부 여기 있다:
+      **N개 요청이 같은 좌석을 동시에 노릴 때 정확히 1건만 `201` 을 받는다.**
 
 paths:
   /stations:
@@ -100,6 +105,98 @@ paths:
                 $ref: './components/catalog.yaml#/schemas/SeatMapResponse'
         '404':
           $ref: './components/common.yaml#/responses/TripNotFound'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /holds:
+    post:
+      tags: [holds]
+      operationId: createHold
+      summary: 좌석 선점 — 전부 성공 또는 전부 실패
+      description: |
+        선택한 좌석을 10분간 잡는다 (`F-04`).
+
+        - **부분 성공이 없다.** 한 좌석이라도 실패하면 전부 실패하고, 실패한 좌석은
+          `409` 의 `failedSeats[]` 로 돌아온다 (`api.md` §4.7).
+        - 동시 요청은 `trip_seat.id` 오름차순 `FOR UPDATE` 로 직렬화되고
+          `lock_timeout` 200ms 를 넘으면 `SEAT_LOCK_TIMEOUT` 이다 (`data.md` §4 · ADR-0002).
+        - 전이 **`TS-1`** ×N + **`SH-1`**
+
+        멱등키는 **선택**이다. 재시도해도 좌석 상태가 진실이라 위험이 낮다 (`api.md` §2).
+      parameters:
+        - $ref: './components/common.yaml#/parameters/IdempotencyKey'
+        - $ref: './components/common.yaml#/parameters/XRequestIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/holds.yaml#/schemas/HoldRequest'
+      responses:
+        '201':
+          $ref: './components/holds.yaml#/responses/HoldCreated'
+        '400':
+          $ref: './components/holds.yaml#/responses/BadHoldRequest'
+        '401':
+          $ref: './components/common.yaml#/responses/Unauthenticated'
+        '404':
+          $ref: './components/common.yaml#/responses/TripNotFound'
+        '409':
+          $ref: './components/holds.yaml#/responses/SeatConflict'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+  /holds/{holdId}:
+    parameters:
+      - $ref: './components/common.yaml#/parameters/HoldIdPath'
+
+    get:
+      tags: [holds]
+      operationId: getHold
+      summary: 선점 조회
+      description: |
+        `POST /holds` 와 **같은 형태**를 준다 (`F-05`).
+
+        ⚠️ **`expires_at` 이 지났으면 DB 가 아직 `HELD` 여도 `410` 이다** — lazy 만료 판정.
+      responses:
+        '200':
+          description: 선점 정보
+          headers:
+            X-Request-Id:
+              $ref: './components/common.yaml#/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: './components/holds.yaml#/schemas/HoldResponse'
+        '401':
+          $ref: './components/common.yaml#/responses/Unauthenticated'
+        '403':
+          $ref: './components/holds.yaml#/responses/HoldNotOwned'
+        '410':
+          $ref: './components/holds.yaml#/responses/HoldExpired'
+        '500':
+          $ref: './components/common.yaml#/responses/InternalError'
+
+    delete:
+      tags: [holds]
+      operationId: releaseHold
+      summary: 선점 해제
+      description: |
+        좌석을 즉시 돌려놓는다 (`F-06`). 전이 **`TS-2`** ×N + **`SH-3`**
+
+        ⚠️ **이미 만료·해제된 선점이어도 `204` 다.** `410` 을 주지 않는다 —
+        "없애달라" 는 요청의 목적은 이미 달성됐다. **재시도가 에러가 되면
+        클라이언트가 불필요한 분기를 갖는다** (`api.md` §5.2).
+      responses:
+        '204':
+          description: '`204` — 해제됨. **멱등하다**'
+          headers:
+            X-Request-Id:
+              $ref: './components/common.yaml#/headers/XRequestId'
+        '401':
+          $ref: './components/common.yaml#/responses/Unauthenticated'
+        '403':
+          $ref: './components/holds.yaml#/responses/HoldNotOwned'
         '500':
           $ref: './components/common.yaml#/responses/InternalError'
 
