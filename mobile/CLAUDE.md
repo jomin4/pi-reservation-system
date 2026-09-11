@@ -6,16 +6,19 @@
 
 | 구분 | 값 |
 |---|---|
-| 언어 | TypeScript 5.x |
-| 프레임워크 | **React Native + Expo** |
+| 언어 | TypeScript **5.9.3** |
+| 프레임워크 | **React Native + Expo SDK 57** |
 | 대상 | **Android APK만** — iOS는 범위 밖 |
+| 라우터 | **`expo-router`** — 파일 기반 |
 | 서버 상태 | TanStack Query |
 | 타입 생성 | **`openapi-typescript`** ← `docs/api/openapi.yaml` |
 | SSE | **`react-native-sse`** (`EventSource` 아님) |
 | 토큰 저장 | **Expo SecureStore** |
-| 스타일 | NativeWind |
+| 스타일 | NativeWind + **Tailwind 3** ⚠️ **웹은 4다** (ADR-0008) |
 | 빌드 | **EAS Build** (클라우드) |
 | 배포 | **GitHub Releases** — APK 직접 |
+
+⚠️ **버전은 `tech.md` §프론트 계열 「버전 고정」 모바일 표가 진실이다.** `latest`로 깔지 않는다 — **`expo`의 `bundledNativeModules.json`이 `react-native`·`react`를 결정하고** 어긋나면 `expo-doctor`가 CI에서 잡는다.
 
 **`front`와 workspace로 묶지 않는다.** Expo metro resolver 이슈를 피한다 (`tech.md`).
 
@@ -46,6 +49,8 @@
 |---|---|
 | ⚠️ **함수 안에서 가짜 데이터 `return`** | `api.md` §7.2 — 로딩·에러 화면을 만들 계기가 없어진다 |
 | 타입을 손으로 고치기 | 생성물이다. `openapi.yaml`을 고치고 재생성 |
+| ⚠️ **Tailwind를 4로 올려 웹과 맞추기** | ADR-0008 — **엔진(`react-native-css-interop`)이 `~3`으로 막는다.** 갈린 건 의도다 |
+| `VITE_` 접두 환경변수 | **Expo는 `EXPO_PUBLIC_`만 번들에 주입한다** (`api.md` §7.2) |
 | **멱등키를 메모리에만** | 앱 종료 시 사라진다 (`api.md` §2) |
 | 인터벌로 TTL 카운트 | 백그라운드에서 멈춘다 |
 | 결제 결과 조회를 `POST`로 | **`GET`이다. 이중 결제** |

@@ -964,8 +964,12 @@ data: {"reason":"EVENT_ID_TOO_OLD","action":"REFETCH_SNAPSHOT"}
                           끌 때는 핸들러만 뺀다
 ```
 
-| 스위치 | `VITE_API_MODE=mock \| real` |
+| 트랙 | 스위치 |
 |---|---|
+| **웹** | `VITE_API_MODE=mock \| real` |
+| **모바일** | **`EXPO_PUBLIC_API_MODE=mock \| real`** |
+
+> **이름이 다른 건 취향이 아니다.** Vite는 `VITE_`, Expo는 **`EXPO_PUBLIC_`** 접두만 클라이언트 번들에 주입한다. 접두를 안 맞추면 **값이 `undefined`로 들어오고 조용히 `real`로 떨어진다** — 백엔드가 없는데 mock이 안 붙는다.
 
 ⚠️ **React Native에서 MSW 동작은 세팅 때 확인할 것.** 안 되면 mobile만 다른 방식으로 간다.
 
@@ -1021,7 +1025,7 @@ interface SeatEventSource {
 | 2 | — | 화면 개발 — **정상 + 예외 전부** |
 | 3 | **구현** | (계속) |
 | 4 | **SpringDoc 스펙 노출 → CI diff 통과** | — |
-| 5 | — | **MSW 끄기** (`VITE_API_MODE=real`) |
+| 5 | — | **MSW 끄기** (`VITE_API_MODE` · `EXPO_PUBLIC_API_MODE` = `real`) |
 | 6 | — | 통합 확인 |
 
 > **0번이 code-first와 갈리는 지점이다.** 계약을 손으로 썼으니 **백엔드가 한 줄도 없을 때부터 타입이 존재한다.** 프론트는 처음부터 진짜 타입 위에서 개발한다.
