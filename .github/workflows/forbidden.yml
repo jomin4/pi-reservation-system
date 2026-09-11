@@ -5,8 +5,7 @@
 #          (docs/deploy.md §2)
 #
 # 검사 로직은 scripts/check-forbidden.sh 에 있고 이 파일은 부르기만 한다.
-# Gemini Code Assist 가 .github/workflows 를 리뷰에서 제외하기 때문이다 —
-# 로직이 여기 있으면 그 로직이 틀려도 봇이 못 잡는다 (workflow.md §8.1).
+# 로컬에서 그대로 돌려 검증할 수 있어야 하기 때문이다 (workflow.md §8.1).
 
 name: forbidden
 
