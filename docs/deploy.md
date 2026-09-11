@@ -309,10 +309,12 @@ IMAGE_TAG=sha-abc1234 docker compose up -d --no-deps app
 
 ```bash
 npx openapi-typescript ../docs/api/openapi.yaml -o /tmp/api.d.ts
-diff /tmp/api.d.ts src/api/types.d.ts    # 다르면 실패
+diff /tmp/api.d.ts src/api/schema.d.ts    # 다르면 실패
 ```
 
 > **계약이 바뀌었는데 타입을 재생성 안 했으면 CI가 잡는다.** 문서에 규칙을 적는 것보다 확실하다. mobile CI도 같은 검사를 돈다.
+
+> ⚠️ **경로는 `src/api/schema.d.ts` 하나다.** 워크플로가 `diff` 로 이 경로를 직접 때리므로 **문서와 다르면 CI 가 매번 실패한다.** (2026-09-11 `types.d.ts` 오기를 바로잡았다)
 
 ### 7.3 Pages 설정
 

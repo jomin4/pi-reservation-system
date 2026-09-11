@@ -43,8 +43,63 @@
 | API 클라이언트 생성 | **`openapi-typescript`** — 입력은 `docs/api/openapi.yaml` |
 | SSE (웹) | 네이티브 `EventSource` |
 | SSE (React Native) | `react-native-sse` |
+| **라우터 (웹)** | **React Router 7** — 선언형 SPA 모드 |
+| **토큰 저장 (웹)** | **메모리 전용** — 새로고침은 Refresh 회전으로 복구 |
 | 토큰 저장 (모바일) | Expo SecureStore |
 | 스타일 | Tailwind · NativeWind |
+
+> **웹 토큰을 `localStorage`에 두지 않는다.** XSS 한 번이면 14일짜리 세션이 통째로 나간다. 메모리에 두면 새로고침마다 Refresh 회전(`F-26`)을 한 번 더 타는 대신 **노출면이 탭 수명으로 줄어든다.** httpOnly 쿠키로 가면 `openapi.yaml`이 바뀐다 — **계약을 안 건드리는 선택**이기도 하다.
+
+> **라우터는 TanStack Router가 아니다.** 타입 안전 라우팅이 더 낫지만 **이 프로젝트가 증명할 것은 동시성이다.** 학습 비용을 좌석 경합 쪽에 쓴다.
+
+### 버전 고정 — 2026-09-11 레지스트리 실측
+
+**런타임 · 패키지 매니저**
+
+| 항목 | 버전 | 근거 |
+|---|---|---|
+| **Node** | **24.21.0 LTS** (Krypton) | 2026-09-07 기준 **Active LTS**. 22(Jod)는 maintenance |
+| **pnpm** | **10.34.5** | v10 = 2025-01-07. **20개월 검증** |
+
+> ⚠️ **2026-09-11 현재 `front-ci.yml`만 이 값을 따른다.** `mobile-ci.yml` · `contract-ci.yml`은 아직 **Node 22 · pnpm 9**다. **각 트랙 PR에서 따라온다** — 여기 적어두지 않으면 다음 사람이 CI와 문서 중 어느 쪽이 맞는지 모른다.
+
+**웹 (`front/`)**
+
+| 구분 | 패키지 | 버전 |
+|---|---|---|
+| 언어 | `typescript` | **5.9.3** |
+| 프레임워크 | `react` · `react-dom` | 19.3.0 |
+| 번들러 | `vite` | 8.3.0 |
+| | `@vitejs/plugin-react` | 6.1.1 |
+| 라우터 | `react-router` | **7.18.3** |
+| 서버 상태 | `@tanstack/react-query` | 5.102.8 |
+| 스키마 검증 | `zod` | 4.6.2 |
+| Mock | `msw` | 2.15.0 |
+| 스타일 | `tailwindcss` · `@tailwindcss/vite` | 4.3.3 |
+| **타입 생성** | `openapi-typescript` | **7.13.0** |
+| 테스트 | `vitest` · `@vitest/coverage-v8` | **4.1.11** |
+| | `@testing-library/react` | 16.3.3 |
+| | `@testing-library/jest-dom` | 7.0.1 |
+| | `@testing-library/user-event` | 14.6.7 |
+| | `jsdom` | 30.0.1 |
+| 린트 | `eslint` | 10.10.0 |
+| | `typescript-eslint` | 8.70.0 |
+| 포맷 | `prettier` | 3.9.6 |
+
+> ⚠️ **`typescript`에 `latest`를 쓰면 트랙이 깨진다.** 2026-09-11 현재 `latest`는 **7.0.2**(네이티브 포트)인데 **생태계가 안 따라왔다.**
+>
+> | 패키지 | `typescript` peer |
+> |---|---|
+> | `typescript-eslint` 8.70.0 | **`>=4.8.4 <6.1.0`** |
+> | `openapi-typescript` 7.13.0 | **`^5.x`** |
+>
+> 올리면 **`pnpm run lint`(front CI 필수 단계)와 타입 생성이 동시에 범위를 벗어난다.** 5.x 마지막인 **`5.9.3`**(2025-09-30)에 고정한다.
+
+> **`vite`는 8이어야 한다.** `@vitejs/plugin-react@6`의 peer 가 **`vite: ^8.0.0` 단독**이다. 7로 내리면 플러그인도 5로 함께 내려야 하는데 **얻는 게 없다.**
+
+> **갓 나온 메이저는 피했다.** `vitest` 5.0.0(2026-09-03 · **8일**)과 `react-router` 8(2026-06-17 · 3개월)을 각각 **4.1.11 · 7.18.3**으로 내렸다. 둘 다 유지보수가 도는 현역이다. **트러블슈팅을 본질이 아닌 데서 쓰지 않는다.**
+
+> **`openapi-typescript`는 7.13.0에 고정한다.** [트러블슈팅 2026-09-10](troubleshooting/2026-09-10-redocly-config-hijacks-openapi-typescript.md)의 재현 조건이 이 버전이다. 올릴 때는 `redocly.yaml`의 `apis:` 금지가 여전히 필요한지 다시 본다.
 
 ## 부하 생성 — 초기 범위 밖
 
