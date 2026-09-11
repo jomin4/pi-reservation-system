@@ -25,25 +25,57 @@
 | `git add -A` | **남의 작업이 섞여 커밋된다** |
 | 브랜치 | 하나만 체크아웃된다 — 4트랙이 같은 브랜치에 얹힌다 |
 
-### 1.2 구성 — 저장소 1개 · 워킹 디렉터리 5개
+### 1.2 구성 — 저장소 1개 · 워킹 디렉터리 5개 (2026-09-11 세팅 완료)
 
 ```
-pi-reservation-system/   develop    ← 본체. 통합 확인 + 문서 작업
-../pi-back/              feat/back-*
-../pi-front/             feat/front-*
-../pi-mobile/            feat/mobile-*
-../pi-infra/             feat/infra-*
+Desktop/
+├─ pi-reservation-system/    ← 본체. 통합 확인 + 문서 작업
+└─ pi-worktrees/
+   ├─ back/                  feat/back-*
+   ├─ front/                 feat/front-*
+   ├─ mobile/                feat/mobile-*
+   └─ infra/                 feat/infra-*
 ```
+
+> **한 폴더에 묶는다.** 형제로 흩뿌리면(`../pi-back` …) 이미 폴더가 많은 작업 디렉터리에서 **본체가 파묻힌다.** 묶으면 `pi-` 접두도 필요 없다.
+
+**만들 때 — 한 번만 한다**
 
 ```bash
-git worktree add ../pi-back   -b feat/back-seat-hold
-git worktree add ../pi-front  -b feat/front-seat-map
-git worktree add ../pi-mobile -b feat/mobile-payment
-git worktree add ../pi-infra  -b chore/infra-compose
-
-git worktree list          # 현황
-git worktree remove ../pi-back   # 작업 끝나면
+git fetch origin
+for t in back front mobile infra; do
+  git worktree add --detach ../pi-worktrees/$t origin/develop
+done
 ```
+
+### ⚠️ 1.2.1 폴더는 상주하고 브랜치만 갈아탄다
+
+| | **상주 (채택)** | 일회용 |
+|---|---|---|
+| 폴더 수명 | **영구** | 이슈마다 만들고 지운다 |
+| 세션의 작업 위치 | **안 바뀐다** | **이슈마다 사라진다** |
+| 브랜치 | 세션이 `git switch -c` | `worktree add -b` |
+
+> **세션이 오래 살고 브랜치가 짧게 산다.** 일회용으로 하면 이슈를 닫을 때마다 세션의 `cwd` 가 없어진다.
+
+**그래서 `--detach` 로 만든다.** `origin/develop` 을 가리킨 채 브랜치가 없는 상태다. 세션 시작 프로토콜 4번이 첫 브랜치를 만든다.
+
+```bash
+# 세션이 이슈를 잡을 때
+git fetch origin && git switch -c feat/back-seat-hold origin/develop
+
+# PR 이 머지된 뒤 다음 이슈로
+git switch --detach origin/develop
+```
+
+**현황과 정리**
+
+```bash
+git worktree list
+git worktree prune            # 폴더를 손으로 지웠을 때 메타데이터 정리
+```
+
+> ⚠️ **폴더를 통째로 지워도 git 은 모른다.** `prune` 을 돌려야 목록에서 빠진다.
 
 | | **worktree** | 클론 4개 | 한 폴더 |
 |---|---|---|---|
@@ -52,6 +84,12 @@ git worktree remove ../pi-back   # 작업 끝나면
 | 디스크 | 워킹 카피만 | 저장소 4벌 | — |
 
 > **worktree의 "같은 브랜치를 두 곳에 못 연다"는 제약이 안전장치다.** 두 세션이 같은 브랜치를 만지는 사고가 **구조적으로 막힌다.**
+
+```
+fatal: 'feat/back-seat-hold' is already used by worktree at '.../pi-worktrees/back'
+```
+
+> ⚠️ **`--detach` 를 붙이면 이 보호가 안 걸린다.** 브랜치를 체크아웃하는 게 아니라 커밋을 가리키는 거라 충돌이 없다. **`--detach` 는 폴더를 처음 만들 때만 쓰고, 그 뒤로는 쓰지 않는다.**
 
 ### 1.3 세션 운영 규칙
 
