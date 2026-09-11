@@ -2,19 +2,17 @@
 
 > 루트 [CLAUDE.md](../CLAUDE.md)의 규칙이 먼저다. 여기는 이 트랙만의 것.
 
-## 스택
+## 스택 — ⚠️ 버전을 여기 적지 않는다
 
-| 구분 | 값 |
+> **[tech.md](../docs/tech.md) §프론트 계열 「버전 고정」이 진실이다.** 여기 복사하는 순간 두 곳이 어긋난다.
+
+| 이 질문 | 어디 |
 |---|---|
-| 언어 | TypeScript 5.x |
-| 프레임워크 | **React 19 + Vite** (SPA) |
-| 서버 상태 | TanStack Query |
-| 스키마 검증 | Zod |
-| 타입 생성 | **`openapi-typescript`** ← `docs/api/openapi.yaml` |
-| Mock | **MSW** |
-| SSE | 네이티브 `EventSource` |
-| 스타일 | Tailwind |
-| 배포 | **Cloudflare Pages** (루트 디렉터리 `front/`) |
+| 무슨 패키지를 **몇 버전**으로 | **[tech.md](../docs/tech.md)** — 2026-09-11 레지스트리 실측으로 고정 |
+| ⚠️ `typescript`를 왜 `latest`로 못 올리나 | 〃 — `typescript-eslint` peer 가 막는다 |
+| Node · pnpm | 〃 — `front-ci.yml`이 같은 값을 박는다 |
+| 라우터 · 웹 토큰 저장 위치 | 〃 |
+| 배포 (Cloudflare Pages · 루트 `front/`) | [deploy.md](../docs/deploy.md) §7 |
 
 **`mobile`과 workspace로 묶지 않는다.** 각자 독립 (`tech.md`).
 
@@ -27,7 +25,9 @@
 | 0 | **`openapi.yaml`에서 타입 생성** |
 | 1 | **MSW 핸들러 = `api.md` §5 · §4 JSON 예시 복사** |
 | 2 | 화면 개발 — **정상 + 예외 전부** |
+| ~~3·4~~ | back 이 구현 · SpringDoc 대조 — **이 트랙은 안 한다** |
 | 5 | **MSW 끄기** (`VITE_API_MODE=real`) |
+| 6 | 통합 확인 |
 
 > **타입이 백엔드보다 먼저 존재한다** (ADR-0007). 계약을 손으로 썼기 때문이다.
 
@@ -61,6 +61,22 @@
 | 시각을 KST로 받는다고 가정 | **서버는 UTC만 보낸다** (`api.md` §0) |
 | 예약 목록에서 `COMPLETED`를 저장값으로 | **파생값이다.** 그냥 표시하면 된다 |
 
-## Pages가 타입 체크를 안 한다
+## ⚠️ CI 5단계가 완료 조건이다
+
+`front-ci.yml`이 도는 순서. **하나라도 빠지면 실패한다.**
+
+| # | 단계 | 없으면 |
+|---|---|---|
+| 1 | `pnpm install --frozen-lockfile` | **`pnpm-lock.yaml`이 커밋돼 있어야** 한다 |
+| 2 | **`pnpm exec tsc --noEmit`** | 이 워크플로의 존재 이유 |
+| 3 | **`pnpm run lint`** | 스크립트가 없으면 **실패** |
+| 4 | `pnpm run --if-present test` | 없어도 통과 |
+| 5 | **생성 타입 최신성 `diff`** | `src/api/schema.d.ts`가 낡으면 실패 |
+
+> **5번 때문에 `schema.d.ts`를 커밋한다.** 생성물인데도 저장소에 들어가는 이유가 이것이다 — CI 가 재생성물과 `diff` 를 뜬다. 경로는 **`src/api/schema.d.ts` 하나**다.
+
+### Pages가 타입 체크를 안 한다
 
 ⚠️ **`vite build`는 타입 에러를 그냥 통과시킨다.** front CI의 **`tsc --noEmit`**이 유일한 방어다 (`deploy.md` §7.1).
+
+> **스캐폴드 전에는 2~5 가 건너뛰어진다.** `front/package.json` 이 생기는 순간부터 전부 돈다 (`deploy.md` §7.1).

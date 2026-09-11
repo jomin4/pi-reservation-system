@@ -35,21 +35,7 @@
 
 > **✅ = 2026-09-10 작성됨.** CD 는 self-hosted runner · Cloudflare · EAS 가 준비된 뒤에 붙인다.
 
-> ⚠️ **2026-09-10 현재 Actions 가 한 job 도 실행되지 않는다.**
->
-> ```
-> The job was not started because your account is locked due to a billing issue.
-> ```
->
-> **GitHub 계정 결제 잠금**이다. public 저장소라 Actions 분은 무료지만 **계정이 잠기면 무료분도 안 나간다.** 워크플로는 정상 등록·큐잉되고 **job 시작 직전에 거부**된다 — YAML 문제가 아니다.
->
-> | 그래서 | |
-> |---|---|
-> | 커밋마다 빨간 X | **결제 잠금 때문이지 코드 때문이 아니다** |
-> | **브랜치 보호** | ⚠️ **켜면 안 된다.** 필수 체크가 영영 실패해 **모든 PR 이 막힌다** |
-> | 검증 | GitHub 에서 못 했다. **로컬 검증만 있다** (`action-validator` · 트랙 판별 · 페이로드) |
->
-> **해제 경로** — GitHub Settings → Billing and licensing → 결제수단·미납 확인. 풀리면 다음 push 부터 그대로 돈다.
+> **2026-09-11 Actions 가 정상 동작한다.** 워크플로 8개 전부 실행을 확인했고, `develop` 브랜치 보호의 **필수 체크**로 걸려 있다 (`workflow.md` §7.2).
 
 > **`front-cd.yml`이 없는 게 경계를 가장 명확히 드러낸다.** "front CD는 우리가 안 한다"가 **파일 부재로** 표현된다. 빈 파일을 두는 것보다 낫다.
 
@@ -301,6 +287,8 @@ IMAGE_TAG=sha-abc1234 docker compose up -d --no-deps app
 | 린트 · 유닛 테스트 | ❌ | ✅ |
 | **생성 타입 최신성** | ❌ | ✅ |
 
+> ⚠️ **트랙이 스캐폴드되기 전에도 이 job 은 돈다.** `_changes` 는 `^front/` 로 판별하므로 **`front/CLAUDE.md` 한 줄만 고쳐도 `front=true`** 가 된다. `front/package.json` 이 없으면 `setup-node` 의 캐시 경로부터 깨지므로, 워크플로가 **스캐폴드 여부를 먼저 보고 이후 단계를 건너뛴다.**
+
 > ⚠️ **`vite build`는 타입 체크를 하지 않는다.** Pages 빌드가 통과해도 **타입 에러가 프로덕션에 나갈 수 있다** — `tsc --noEmit`이 front CI의 존재 이유다.
 
 ### 7.2 생성 타입 최신성 검사
@@ -309,10 +297,12 @@ IMAGE_TAG=sha-abc1234 docker compose up -d --no-deps app
 
 ```bash
 npx openapi-typescript ../docs/api/openapi.yaml -o /tmp/api.d.ts
-diff /tmp/api.d.ts src/api/types.d.ts    # 다르면 실패
+diff /tmp/api.d.ts src/api/schema.d.ts    # 다르면 실패
 ```
 
 > **계약이 바뀌었는데 타입을 재생성 안 했으면 CI가 잡는다.** 문서에 규칙을 적는 것보다 확실하다. mobile CI도 같은 검사를 돈다.
+
+> ⚠️ **경로는 `src/api/schema.d.ts` 하나다.** 워크플로가 `diff` 로 이 경로를 직접 때리므로 **문서와 다르면 CI 가 매번 실패한다.** (2026-09-11 `types.d.ts` 오기를 바로잡았다)
 
 ### 7.3 Pages 설정
 
