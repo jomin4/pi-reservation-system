@@ -115,4 +115,4 @@ contract=true → front-ci 실행 → 생성 타입 최신성
 | #62 · #63 을 한 PR 로 합침 | PR #72 | ✅ |
 | `.gitattributes` 에 front 줄바꿈 LF 고정 | 루트 `.gitattributes` | ✅ PR #72 |
 | **이슈를 쪼개는 기준을 「혼자 초록이 될 수 있는가」로** | `workflow.md` §5 | ⬜ **안 함** |
-| **계약 PR 이 생성 타입을 담는다는 규칙** | `workflow.md` §3 · §1.3 | ⬜ **안 함 — 본체 worktree 소관** |
+| **계약 PR 이 생성 타입을 담는다는 규칙** | `workflow.md` §3 | ⬜ **안 함 — 4트랙 공통 절이라 본체 소관** (§1.3.1) |

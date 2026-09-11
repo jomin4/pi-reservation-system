@@ -102,10 +102,20 @@ front=$(has '^front/')
 | `front-ci.yml` 스캐폴드 가드 | `.github/workflows/front-ci.yml` | ✅ PR #61 |
 | 가드의 존재 이유를 설계 문서에 | `deploy.md` §7.1 | ✅ PR #61 |
 | 확인 방법(소요 시간)을 트랙 문서에 | `front/CLAUDE.md` | ✅ PR #61 |
-| **`mobile-ci.yml` 가드** | `.github/workflows/mobile-ci.yml` | ⬜ **안 함** |
-| **`back-ci.yml` 가드** | 〃 | ⬜ **안 함** |
-| **`infra-ci.yml` 가드** | 〃 | ⬜ **안 함** |
+| **`mobile-ci.yml` 가드** | `.github/workflows/mobile-ci.yml` | 🔄 **mobile 세션이** |
+| **`back-ci.yml` 가드** | `.github/workflows/back-ci.yml` | 🔄 **back 세션이** |
+| **`infra-ci.yml` 가드** | `.github/workflows/infra-ci.yml` | 🔄 **infra 세션이** |
 
-> ⚠️ **front 세션이 다른 트랙의 CI 를 고치지 않았다.** 「자기 트랙 밖을 고치지 않는다」(루트 `CLAUDE.md`) 때문이기도 하지만, 더 큰 이유는 **가드의 판정 기준이 트랙마다 다르기 때문**이다 — front·mobile 은 `package.json`, back 은 `gradlew`, infra 는 compose 파일. **"그 트랙에서 스캐폴드란 무엇인가" 를 아는 세션이 써야 한다.**
->
+> ⚠️ **front 세션이 다른 트랙의 CI 를 대신 고치지 않는다.** **가드의 판정 기준이 트랙마다 다르기 때문**이다 — front·mobile 은 `package.json`, back 은 `gradlew`, infra 는 compose 파일 유무. **"그 트랙에서 스캐폴드란 무엇인가" 를 아는 세션이 써야 한다.**
+
+### 다른 트랙 세션이 할 일
+
+**2026-09-11 `docs/` 편집 제한이 풀렸다** (`workflow.md` §1.3.1). 각 트랙이 **자기 `<track>-ci.yml` 과 트러블슈팅을 직접 고친다.** 본체로 넘기지 않는다.
+
+| # | |
+|---|---|
+| 1 | 자기 워크플로에 **스캐폴드 가드**를 넣는다 — 판정 기준은 위 「원인」 표 |
+| 2 | 위 표의 **자기 줄을 ✅ 로** 바꾼다 |
+| 3 | 실제로 실패를 만났다면 **에러 원문을 「증상」에 채운다** — 지금은 front 것만 관측돼 있다 |
+
 > **세 트랙 모두 아직 `CLAUDE.md` 한 장뿐이다.** 그 세션이 트랙 문서를 처음 고치는 순간 이 문서에 도달하게 된다.
