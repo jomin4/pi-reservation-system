@@ -1,13 +1,17 @@
-# docs CI — API 계약 검사
+# contract CI — API 계약 검사
 #
 #   근거   docs/api.md 부록 A.4
 #   러너   GitHub-hosted
+#
+# ⚠️ 이름이 docs-ci 가 아니다. 이 워크플로는 docs/ 를 검사하지 않는다 —
+#    data.md 나 workflow.md 가 바뀌어도 안 돈다.
+#    오직 docs/api/** 와 redocly.yaml, 즉 "계약" 만 본다.
 #
 # 계약을 손으로 쓰는 대가는 "구현이 어겼는지 사람이 봐야 한다" 인데
 # CI 가 그걸 대신한다. 여기서는 계약 자체의 문법·스타일을 본다.
 # 계약 ↔ 구현 대조는 back CI 가, 계약 ↔ 클라이언트 대조는 front · mobile CI 가 한다.
 
-name: docs-ci
+name: contract-ci
 
 on:
   pull_request:
@@ -18,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: docs-ci-${{ github.ref }}
+  group: contract-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -26,12 +30,12 @@ jobs:
     uses: ./.github/workflows/_changes.yml
 
   contract:
-    name: docs · openapi.yaml 검사
+    name: contract · openapi.yaml 검사
     needs: changes
     if: needs.changes.outputs.contract == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-node@v4
         with:
@@ -51,3 +55,14 @@ jobs:
           lines=$(wc -l < /tmp/schema.d.ts)
           echo "생성된 타입 ${lines}줄"
           test "${lines}" -gt 100
+
+  notify:
+    needs: contract
+    if: failure() && github.event_name == 'push'
+    uses: ./.github/workflows/_notify.yml
+    with:
+      track: contract
+      phase: CI
+      result: failure
+    secrets:
+      webhook: ${{ secrets.DISCORD_WEBHOOK_CI }}
