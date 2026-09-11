@@ -1,0 +1,9 @@
+dist
+coverage
+pnpm-lock.yaml
+
+# 손으로 짠 표다. prettier 가 재배치하면 읽기 어려워진다
+*.md
+
+# 생성물이다. openapi.yaml 을 고치고 재생성한다 (api.md 부록 A.3)
+src/api/schema.d.ts

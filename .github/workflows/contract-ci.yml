@@ -43,7 +43,7 @@ jobs:
 
       # ⚠️ redocly 는 설정을 실행 디렉터리에서 위로 찾는다.
       #    루트에서 돌려야 redocly.yaml 의 끈 규칙이 적용된다.
-      #    (docs/troubleshooting/2026-09-10-redocly-config-hijacks-openapi-typescript.md)
+      #    (docs/troubleshooting/tooling/2026-09-10-redocly-config-hijacks-openapi-typescript.md)
       - name: redocly lint
         run: npx --yes @redocly/cli@2 lint docs/api/openapi.yaml
 

@@ -13,3 +13,17 @@ gradlew         text eol=lf
 docs/diagrams/*.html    linguist-generated=true -diff
 docs/wireframes/*.html  linguist-generated=true -diff
 *.lock                  -diff
+
+# ⚠️ front — prettier 의 기본값은 endOfLine: lf 다. Windows 에서
+#    CRLF 로 체크아웃되면 format:check 가 전부 빨개진다.
+#    docs/ 의 생성 HTML 을 건드리지 않으려고 트랙 범위로 못 박는다.
+front/**/*.ts     text eol=lf
+front/**/*.tsx    text eol=lf
+front/**/*.js     text eol=lf
+front/**/*.mjs    text eol=lf
+front/**/*.json   text eol=lf
+front/**/*.css    text eol=lf
+front/**/*.html   text eol=lf
+front/.env.example      text eol=lf
+front/.gitignore        text eol=lf
+front/.prettierignore   text eol=lf
