@@ -23,16 +23,16 @@
 |---|---|
 | `git status` | 세션 A가 **B의 변경까지 본다** |
 | `git add -A` | **남의 작업이 섞여 커밋된다** |
-| 브랜치 | 하나만 체크아웃된다 — 4트랙이 같은 브랜치에 얹힌다 |
+| 브랜치 | 하나만 체크아웃된다 — 트랙 넷이 같은 브랜치에 얹힌다 |
 
-### 1.2 구성 — 저장소 1개 · 워킹 디렉터리 5개 (2026-09-11 세팅 완료)
+### 1.2 구성 — 머신 2대 · 워킹 디렉터리 5개 (2026-09-11 세팅 완료)
 
 ```
-pi-reservation-system/          ← 본체. 통합 확인 + 문서 작업
-pi-reservation-system-back/     feat/back-*
-pi-reservation-system-front/    feat/front-*
-pi-reservation-system-mobile/   feat/mobile-*
-pi-reservation-system-infra/    feat/infra-*
+개발 PC (Windows)                         배포 PC (Ubuntu 24.04)
+├─ pi-reservation-system/     본체        └─ pi-reservation-system/   클론
+├─ pi-reservation-system-back/   worktree      feat/infra-*
+├─ pi-reservation-system-front/  worktree
+└─ pi-reservation-system-mobile/ worktree
 ```
 
 > **폴더 이름이 저장소 이름으로 시작한다.** 세션이 여러 개 떠 있을 때 **창 제목·터미널 프롬프트만 보고 어느 프로젝트의 어느 트랙인지** 알 수 있어야 한다. 이름을 줄이면(`back/`) 다른 프로젝트의 폴더와 구분이 안 된다.
@@ -41,12 +41,42 @@ pi-reservation-system-infra/    feat/infra-*
 
 ```bash
 git fetch origin
-for t in back front mobile infra; do
+for t in back front mobile; do
   git worktree add --detach ../pi-reservation-system-$t origin/develop
 done
 ```
 
-### ⚠️ 1.2.1 폴더는 상주하고 브랜치만 갈아탄다
+### ⚠️ 1.2.1 `infra` 만 worktree 가 아니다 (2026-09-11)
+
+**infra 세션은 배포 PC 에서 돈다.** 그 PC 에 `git clone` 하고 거기서 Claude 를 띄운다.
+
+| 왜 | |
+|---|---|
+| **작업 대상이 그 PC 다** | `systemctl` · `docker ps` · `free -h` · `journalctl` — **호스트 상태를 보는 게 인프라 작업의 절반**이다 |
+| 원격으로 하면 | SSH 로 한 줄씩 던지게 되고 **맥락이 끊긴다.** 파일 편집도 편법이 된다 |
+| worktree 로는 안 된다 | worktree 는 **같은 디스크의 `.git` 하나를 공유**하는 구조라 다른 머신으로 못 뻗는다 |
+
+> **격리 목적은 오히려 더 확실해진다.** 머신이 물리적으로 다르니 파일이 섞일 길이 없다.
+
+| | worktree 3개 | **infra 클론** |
+|---|---|---|
+| `.git` | 본체와 공유 | **자기 것** |
+| 같은 브랜치 중복 방지 | ✅ git 이 막는다 | ❌ **못 막는다** — 아래 |
+| `develop` 따라잡기 | `git merge origin/develop` | 동일 |
+
+> ⚠️ **클론이라 "같은 브랜치를 두 곳에 못 연다" 보호가 안 걸린다.** 개발 PC 에서 `feat/infra-*` 를 만들면 배포 PC 와 충돌할 수 있다.
+> **규칙으로 막는다 — `feat/infra-*` · `chore/infra-*` 브랜치는 배포 PC 에서만 만든다.**
+
+**⚠️ 배포 PC 에 Claude 를 올릴 때**
+
+| 항목 | |
+|---|---|
+| 전제 | SSH 접속이 먼저 열려 있어야 한다 |
+| 메모리 | 작업 중 **~0.3~0.5 GB**. 서비스가 아니라 세션이라 상시 점유가 아니다 |
+| **`sudo`** | ⚠️ **사용자가 직접 친다.** Claude 가 명령을 만들어 주고 사람이 복사·붙여넣기 |
+| **root 로 실행** | ❌ **안 한다.** 폐쇄망 보안을 주제로 한 프로젝트에서 에이전트에 root 를 상시로 주는 건 자기모순이다 |
+
+### ⚠️ 1.2.2 폴더는 상주하고 브랜치만 갈아탄다
 
 | | **상주 (채택)** | 일회용 |
 |---|---|---|
@@ -96,6 +126,7 @@ fatal: 'feat/back-seat-hold' is already used by worktree at '.../pi-worktrees/ba
 | 규칙 | 내용 |
 |---|---|
 | **자기 트랙 밖을 고치지 않는다** | `back` 세션은 `front/`를 건드리지 않는다 |
+| **`infra` 브랜치는 배포 PC 에서만** | 클론이라 git 이 중복 체크아웃을 못 막는다 (§1.2.1) |
 | **세션 간 직접 소통 없음** | **PR과 `develop`을 통해서만** |
 | 문서 변경 | **본체에서** `docs/*` 브랜치로 |
 | `develop` 따라잡기 | 작업 중 수시로 `git merge origin/develop` |
