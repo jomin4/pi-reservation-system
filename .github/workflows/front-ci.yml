@@ -39,32 +39,54 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # ⚠️ 트랙이 스캐폴드되기 전에도 이 job 은 돈다.
+      #    _changes 는 '^front/' 로 판별하므로 front/CLAUDE.md 한 줄만
+      #    고쳐도 front=true 가 된다. package.json 이 없으면 바로 아래
+      #    setup-node 의 cache-dependency-path 부터 깨진다.
+      #    건너뛴 단계는 성공으로 보고되므로 필수 체크로 두어도 안전하다.
+      - name: 스캐폴드 여부
+        id: scaffold
+        run: |
+          if [ -f package.json ]; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'front/package.json 이 없다. 아직 스캐폴드 전이므로 이후 단계를 건너뛴다.'
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: pnpm/action-setup@v4
+        if: steps.scaffold.outputs.ready == 'true'
         with:
           version: 10
 
       - uses: actions/setup-node@v4
+        if: steps.scaffold.outputs.ready == 'true'
         with:
           node-version: 24
           cache: pnpm
           cache-dependency-path: front/pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
+        if: steps.scaffold.outputs.ready == 'true'
 
       # ⚠️ 이 워크플로의 존재 이유. vite build 는 여기를 통과시킨다.
       - name: tsc --noEmit
+        if: steps.scaffold.outputs.ready == 'true'
         run: pnpm exec tsc --noEmit
 
       - name: lint
+        if: steps.scaffold.outputs.ready == 'true'
         run: pnpm run lint
 
       - name: test
+        if: steps.scaffold.outputs.ready == 'true'
         run: pnpm run --if-present test
 
       # ⚠️ 계약 선행 규칙(workflow.md §3)의 집행 장치다.
       #    계약이 바뀌었는데 타입을 재생성 안 했으면 여기서 잡힌다.
       #    contract 가 바뀌기만 해도 이 job 이 도는 이유가 이것이다.
       - name: 생성 타입 최신성
+        if: steps.scaffold.outputs.ready == 'true'
         run: |
           set -euo pipefail
           npx --yes openapi-typescript@7 ../docs/api/openapi.yaml -o /tmp/api.d.ts
