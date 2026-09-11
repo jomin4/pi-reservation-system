@@ -157,7 +157,7 @@ jobs:
 | `GITHUB_TOKEN` | 자동 발급 | ghcr push |
 | **`EXPO_TOKEN`** | **GitHub Secrets** | mobile CD |
 | `DISCORD_WEBHOOK_CI` `_CD` `_RELEASE` | **GitHub Secrets** | `_notify.yml` |
-| DB 비밀번호 · 토스 키 · R2 키 | **호스트** `/srv/pi/secrets/.env` | 컨테이너 |
+| DB 비밀번호 · 토스 키 · R2 키 | **호스트** `/home/resv/secrets/.env` | 컨테이너 |
 | 터널 토큰 | **호스트** | `cloudflared` |
 | **`age` 개인키** | ⚠️ **어느 쪽에도 두지 않는다** | 복구 시 수동 |
 | `DISCORD_WEBHOOK_ALERT` | **호스트** | Alertmanager |
@@ -177,16 +177,30 @@ jobs:
 | | **systemd 서비스** (채택) | 컨테이너 |
 |---|---|---|
 | docker 조작 | 호스트에서 직접 | ⚠️ **`/var/run/docker.sock` 마운트 필요** |
-| 위험 | `docker` 그룹 권한만 | **socket = 사실상 root** |
+| 위험 | ⚠️ **아래 5.1.1 참조** | **socket = 사실상 root** |
 | 부팅 자동 | `systemctl enable` | compose `restart` |
 
 > ⚠️ **컨테이너로 돌리면 docker socket을 마운트해야 `compose up`을 할 수 있다.** 그건 **그 컨테이너에 호스트 root를 주는 것과 같다** — 폐쇄망을 주제로 한 프로젝트에서 자기 발등을 찍는 구성이다.
 
 ```
 서비스: actions.runner.<owner>-pi-reservation-system.pi-host.service
-사용자: 전용 계정 (docker 그룹)
-작업 디렉터리: /srv/pi/runner
+사용자: resv
+작업 디렉터리: /home/resv/runner
 ```
+
+### ⚠️ 5.1.1 `resv` 는 sudo 를 갖는다 — 감수한 선택이다
+
+**계정을 나눈 목적은 "이 PC 를 프로젝트마다 나눠 쓴다" 였지 권한 최소화가 아니다** (2026-09-11).
+
+| 사실 | |
+|---|---|
+| `resv` 에 **sudo 부여** | 개인 PC 이고 관리자가 한 명이다. 호스트 작업마다 `ubuntu` 로 갈아타는 비용이 이득보다 크다 |
+| ⚠️ **그래서 계정 격리는 이름뿐이다** | sudo 가 있으면 다른 프로젝트 폴더도 `/etc` 도 전부 볼 수 있다 |
+| `docker` 그룹도 마찬가지 | `docker run -v /:/host` 한 줄이면 호스트 루트를 잡는다 — **`docker` 그룹 = 사실상 root** |
+
+> **문서가 이걸 장점으로 적고 있으면 안 된다.** 원래 이 표는 "`docker` 그룹 권한만" 을 systemd 방식의 이점으로 들었는데, sudo 를 준 이상 **그 비교는 무의미하다.** systemd 를 고른 진짜 이유는 **컨테이너로 돌리면 `docker.sock` 을 마운트해야 한다**는 쪽이고, 그건 그대로 유효하다.
+
+> **진짜 격리가 필요해지면** rootless Docker 로 간다 — 계정마다 자기 데몬을 띄우는 구성이다. 지금은 채택하지 않는다.
 
 ### 5.2 라벨
 

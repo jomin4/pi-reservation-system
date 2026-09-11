@@ -244,13 +244,43 @@ cloudflared ──아웃바운드 HTTPS/QUIC──▶ Cloudflare 엣지
 
 **bind mount를 쓴다.** named volume보다 백업과 점검이 쉽다.
 
-| 경로 | 내용 |
+**전용 계정의 홈이 프로젝트 루트다** (2026-09-11 확정).
+
+```
+/home/resv/                       소유 resv:resv · 권한 750
+├─ pi-reservation-system/         저장소 클론 — infra 세션의 작업 공간
+├─ runner/                        GitHub Actions runner (_work 포함)
+├─ data/                          ⭐ 컨테이너 데이터 — bind mount
+│   ├─ postgres/ redis/
+│   └─ prometheus/ loki/ grafana/
+├─ config/                        nginx · tinyproxy · prometheus 설정
+└─ secrets/                       ⚠️ 권한 700 · 파일 600
+    ├─ .env                       DB 비밀번호 · 토스 키 · R2 키
+    └─ age.pub                    백업 암호화 공개키
+```
+
+> **`/srv` 가 아니라 홈인 이유** — 이 PC 를 **프로젝트마다 계정 하나씩** 나눠 쓴다. 경계를 계정으로 그었으면 **디렉터리 경계도 홈과 일치**해야 권한이 자연스럽다. `/srv` 는 계정 개념이 없어 소유·권한을 따로 관리해야 한다.
+
+> **백업 대상은 `data/` 와 `secrets/` 둘뿐이다.** 나머지는 저장소와 설치 과정에서 복원된다.
+
+| 디렉터리 | 성격 | 백업 | git |
+|---|---|---|---|
+| `pi-reservation-system/` | 작업 공간 | ❌ | ✅ |
+| `runner/` | 도구 | ❌ | ❌ |
+| **`data/`** | ⭐ **잃으면 안 되는 것** | ✅ `pg_dump` → R2 | ❌ |
+| `config/` | 저장소에서 파생 | ❌ | ✅ 원본이 `infra/` |
+| **`secrets/`** | ⚠️ **잃어도, 새어도 안 된다** | ⚠️ 수동 | ❌ **절대 금지** |
+
+### ⚠️ 6.1 `config/` 가 왜 저장소 밖에 또 있나 — 미결
+
+설정 원본은 저장소 `infra/` 에 있다. 그런데 러너의 체크아웃(`runner/_work/…`)에서 바로 bind mount 하면 **컨테이너가 체크아웃 경로에 의존하게 된다** — 러너를 재설치하거나 `_work` 를 지우면 **재기동 시 마운트가 깨진다.**
+
+| 안 | |
 |---|---|
-| `/srv/pi/postgres` | **PG 데이터 디렉터리** |
-| `/srv/pi/redis` | AOF |
-| `/srv/pi/prometheus` · `/srv/pi/loki` | 관측 데이터 |
-| `/srv/pi/config` | nginx · tinyproxy · prometheus 설정 |
-| `/srv/pi/secrets` | `.env` · `age` 공개키 — **`chmod 600`** |
+| **A** | CD 가 `infra/` → `/home/resv/config/` 로 **복사**한 뒤 compose 실행. 컨테이너는 **고정 경로만** 본다 |
+| B | 고정 클론에서 `git pull` 후 compose. 러너 체크아웃을 안 쓴다 |
+
+**`infra-cd.yml` 을 쓸 때 정한다.**
 
 **용량 추정** — 512GB에 여유가 압도적이다.
 
@@ -353,7 +383,7 @@ docker compose exec -T postgres pg_dump -Fc -U pi pi \
 
 | 대상 | 보관 |
 |---|---|
-| 터널 토큰 · DB 비밀번호 · 토스 키 · R2 키 | **`.env`** (`/srv/pi/secrets`, `chmod 600`) |
+| 터널 토큰 · DB 비밀번호 · 토스 키 · R2 키 | **`.env`** (`/home/resv/secrets`, 디렉터리 700 · 파일 600) |
 | **`age` 개인키** | ⚠️ **호스트에 두지 않는다** — 별도 보관 |
 | git | **`.gitignore`에 `.env` · `*.age` · `*.key` 등록 완료** |
 
