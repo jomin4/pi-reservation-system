@@ -7,6 +7,8 @@
 | 날짜 | 증상 | 트랙 | 상태 |
 |---|---|---|---|
 | 2026-09-10 | [`redocly.yaml` 의 `apis:` 가 `openapi-typescript` 의 `-o` 를 무시](2026-09-10-redocly-config-hijacks-openapi-typescript.md) | tooling | 해결 |
+| 2026-09-11 | [트랙 문서 한 줄만 고쳐도 그 트랙 CI 가 돈다 (스캐폴드 전이면 죽는다)](2026-09-11-ci-dies-on-unscaffolded-track.md) | tooling | 해결(예방) |
+| 2026-09-11 | [스캐폴드 PR 이 `schema.d.ts: No such file or directory` 로 죽는다](2026-09-11-generated-type-must-ship-with-contract.md) | tooling | 해결 |
 
 ---
 
