@@ -21,7 +21,7 @@
 |---|---|---|---|---|
 | **`_changes.yml`** | — | `workflow_call` | GitHub-hosted | ✅ |
 | **`forbidden.yml`** | 전체 | `pull_request` · `push` | GitHub-hosted | ✅ |
-| **`docs-ci.yml`** | docs | `pull_request` · `push` | GitHub-hosted | ✅ |
+| **`contract-ci.yml`** | 계약 | `pull_request` · `push` | GitHub-hosted | ✅ |
 | `back-ci.yml` | back | `pull_request` · `push` | GitHub-hosted | ✅ |
 | **`back-cd.yml`** | back | `push` develop · 태그 | **혼합** (§6) | ⬜ |
 | `front-ci.yml` | front | `pull_request` · `push` | GitHub-hosted | ✅ |
@@ -82,7 +82,7 @@ jobs:
 
 > **`contract` 가 따로 있는 이유** — `docs/api/**` 만 바뀐 PR 에서도 **front · mobile CI 가 돌아야 한다.** 계약이 바뀌었는데 생성 타입을 재생성 안 한 걸 잡는 게 그 CI 의 일이기 때문이다(§7.2).
 
-### 1.2 `docs-ci.yml` — 지도에 없던 파일
+### 1.2 `contract-ci.yml` — 지도에 없던 파일
 
 `api.md` 부록 A.4 가 **"스펙 문법·스타일은 `docs/api-*` PR CI 에서"** 라고 정해뒀는데 §1 지도에 그 파일이 없었다. **계약이 실재하는 파일이 된 이상 검사할 곳이 필요하다.**
 
@@ -92,6 +92,10 @@ jobs:
 | **타입 생성 가능 여부** | `openapi-typescript` 로 실제로 뽑아 본다 |
 
 > **lint 를 통과해도 타입 생성이 깨질 수 있다.** 계약이 타입으로 안 뽑히면 front · mobile 이 착수를 못 하므로, **뽑히는지까지가 계약의 통과 조건이다.**
+
+> ⚠️ **`back-ci` 로 합치지 않는다.** 계약 선행 PR(`workflow.md` §3)은 **`docs/api/**` 만 바꾸므로** `back` 게이트에 안 걸린다 — 합치면 **계약이 검사 없이 머지된다.** 계약은 백엔드 것이 아니라 **세 트랙의 경계**다.
+>
+> **이름이 `docs-ci` 가 아닌 이유도 같다.** 이 워크플로는 `docs/` 를 검사하지 않는다 — `data.md` 가 바뀌어도 안 돈다. 지키는 대상이 문서가 아니라 **계약**이다.
 
 ---
 
