@@ -6,10 +6,10 @@
 
 ## §0 이 문서의 범위
 
-| | **이 문서 (`workflow.md`)** | `deploy.md` (미작성) |
+| | **이 문서 (`workflow.md`)** | [`deploy.md`](deploy.md) |
 |---|---|---|
 | 답하는 질문 | **"사람과 세션이 어떻게 협업하나"** | **"코드가 어떻게 배포되나"** |
-| 다루는 것 | worktree · 브랜치 · 커밋 · PR · 리뷰 | CI 파이프라인 · 릴리스 · 롤백 |
+| 다루는 것 | worktree · 브랜치 · 커밋 · PR · 이슈 · 보드 | CI 파이프라인 · 릴리스 · 롤백 |
 
 ---
 
@@ -211,9 +211,9 @@ features.md  F-04
   ┌────▼─────────┐
   │ In Progress  │
   └────┬─────────┘
-       │  PR 열기 (본문에 Closes #12) → Gemini 자동 리뷰
+       │  PR 열기 (본문에 Closes #12)
   ┌────▼─────────┐
-  │  In Review   │  ← Gemini + CI 대기
+  │  In Review   │  ← CI 대기
   └────┬─────────┘
        │  develop 머지 → 이슈 자동 종료
   ┌────▼────┐
@@ -225,7 +225,7 @@ features.md  F-04
 
 ### 5.3 라벨 — 3축 네임스페이스
 
-`<축>:<값>`. 목록이 축별로 묶여 보인다. 전체 목록은 **부록 D**.
+`<축>:<값>`. 목록이 축별로 묶여 보인다. 전체 목록은 **부록 C**.
 
 | 축 | 값 | 출처 |
 |---|---|---|
@@ -269,7 +269,7 @@ features.md  F-04
 
 ### 5.6 템플릿 3종
 
-`.github/ISSUE_TEMPLATE/` — 원본은 **부록 E**.
+`.github/ISSUE_TEMPLATE/` — 원본은 **부록 D**.
 
 | 파일 | 덮는 범위 | 고유 필드 |
 |---|---|---|
@@ -290,7 +290,7 @@ features.md  F-04
 |---|---|---|
 | **Todo** | 정의됐고 아직 안 잡음 | worktree + 브랜치 생성 |
 | **In Progress** | 세션이 작업 중 | PR 열기 |
-| **In Review** | **Gemini + CI 대기** | `develop` 머지 |
+| **In Review** | **CI 대기** | `develop` 머지 |
 | **Done** | 머지됨 | — |
 
 **전이 자동화**
@@ -419,7 +419,7 @@ Projects 내장 `Priority` **필드**로 그룹핑하는 뷰인데, 우리는 �
 
 ### 6.1 템플릿
 
-`.github/PULL_REQUEST_TEMPLATE.md` — 부록 B.
+`.github/PULL_REQUEST_TEMPLATE.md` — 부록 A.
 
 | 칸 | 왜 있나 |
 |---|---|
@@ -434,13 +434,14 @@ Projects 내장 `Priority` **필드**로 그룹핑하는 뷰인데, 우리는 �
 
 ### 6.2 초안 PR
 
-| 상태 | Gemini 리뷰 |
+| 상태 | CI |
 |---|---|
-| Draft | ❌ 자동 리뷰 안 함 (`include_drafts: false`) |
-| Ready | ✅ 자동 |
-| 수동 | `/gemini review` 언제든 |
+| Draft | ✅ **돈다** — `on: pull_request` 가 초안도 포함한다 |
+| Ready | ✅ |
 
-> **Claude가 작업 중인 초안까지 리뷰받으면 소음이다.** 준비되면 Ready로 바꾸거나 `/gemini review`로 직접 부른다.
+> **초안에서도 CI를 돌리는 게 맞다.** 자동 리뷰 봇이 없어 초안에 붙는 소음이 없고, **일찍 빨개지는 편이 낫다.**
+
+> ⚠️ **머지는 Ready여야 한다** — GitHub이 Draft PR의 머지를 막는다.
 
 ---
 
@@ -469,7 +470,7 @@ Projects 내장 `Priority` **필드**로 그룹핑하는 뷰인데, 우리는 �
 | 직접 push | **금지** (`main` · `develop`) |
 | **필수 체크** | **CI 통과** (§8) |
 | 사람 승인 | **필수로 걸지 않는다** |
-| Gemini 리뷰 | **차단 조건 아님** — 참고 의견 |
+| **코드 리뷰 봇** | **없다** (2026-09-11) — 붙여도 차단 조건이 아니다 |
 
 > **1인 프로젝트에서 승인을 필수로 걸면 무의미한 클릭이 늘 뿐이다.** 자기 PR을 자기가 승인하는 건 형식이다.
 >
@@ -489,14 +490,16 @@ Projects 내장 `Priority` **필드**로 그룹핑하는 뷰인데, 우리는 �
 
 ### 8.1 ⚠️ 검사 로직을 `.github/workflows` 밖에 둔다
 
-> **Gemini Code Assist는 `.github/workflows` 파일을 리뷰 대상에서 제외한다** (안전하지 않은 구성 유입 방지).
-
 ```
-scripts/check-forbidden.sh      ← 봇이 리뷰한다 · 로컬에서도 돌린다
-.github/workflows/ci.yml        ← 호출만. 봇 제외 대상
+scripts/check-forbidden.sh          ← 검사 로직
+.github/workflows/forbidden.yml     ← 호출만
 ```
 
-> **검사 로직이 워크플로 안에 있으면 그 로직이 잘못돼도 봇이 못 잡는다.** 셸 스크립트로 빼두면 **리뷰도 받고 로컬에서도 돌아간다.**
+| 이유 | |
+|---|---|
+| **로컬에서 돈다** | PR을 올리기 전에 `./scripts/check-forbidden.sh` 한 번이면 끝난다. CI 를 기다릴 일이 없다 |
+| **검사 로직 자체를 검증할 수 있다** | 픽스처로 "잡아야 할 걸 잡는지"를 돌려볼 수 있다 (부록 B.5) |
+| 나중에 봇을 붙이면 | 코드 리뷰 봇은 흔히 **`.github/workflows`를 리뷰 대상에서 제외**한다(안전하지 않은 구성 유입 방지). 밖에 있으면 그때 리뷰를 받는다 |
 
 ### 8.2 검사 목록
 
@@ -510,90 +513,15 @@ scripts/check-forbidden.sh      ← 봇이 리뷰한다 · 로컬에서도 돌�
 | 6 | `409`를 `ERROR`로 로깅 | `operate.md` §1 |
 | 7 | `trip_seat`에 `CONCURRENTLY` 없는 `CREATE INDEX` | `data.md` §9.4 |
 
-**구현은 [`scripts/check-forbidden.sh`](../scripts/check-forbidden.sh)** — 세부는 부록 C.
+**구현은 [`scripts/check-forbidden.sh`](../scripts/check-forbidden.sh)** — 세부는 부록 B.
 
-> **이 7개가 우리가 문서에 박아둔 금지 사항 중 기계로 판정 가능한 전부다.** 나머지(설계 의도 위반·가독성)는 봇의 몫이다.
->
-> **기계로 막을 수 있는 걸 봇에게 맡기지 않는다.** 봇은 놓칠 수 있지만 **CI는 못 지나간다.**
+> **이 7개가 우리가 문서에 박아둔 금지 사항 중 기계로 판정 가능한 전부다.**
 
----
-
-## §9 코드 리뷰 — Gemini Code Assist
-
-### 9.1 설치
-
-| 항목 | 내용 |
-|---|---|
-| 형태 | **Enterprise 버전 (미리보기)** · `gemini-code-assist[bot]` |
-| 경로 | **Google Cloud 콘솔** → Gemini Code Assist 에이전트 및 도구 → Code Assist 소스 코드 관리 |
-| 연결 | **Developer Connect** — 항상 `us-east1` |
-| ⚠️ 전제 | **유효한 결제 계정 연결 필수.** 없으면 봇이 응답하지 않는다 |
-| 비용 | 미리보기 중 과금 없음 |
-| 할당량 | PR 100개 이상/일 |
-
-> ⚠️ **"GitHub App만 설치하면 끝"이 아니다.** 공식 문제 해결 항목이 **"응답이 없으면 결제 계정부터 확인하라"**로 시작한다.
-
-### 9.2 설정 파일 2개
-
-| 파일 | 성격 |
-|---|---|
-| `.gemini/config.yaml` | **정해진 스키마** — 부록 A |
-| `.gemini/styleguide.md` | **스키마 없음.** 자연어. 표준 프롬프트를 확장 |
-
-**커스텀 스타일가이드 위반은 심각도 임계값에 안 걸러진다** — 공식 문서가 "일반적으로 기준을 충족하거나 초과한다"고 명시한다.
-
-### 9.3 `styleguide.md`는 `CLAUDE.md`와 다른 문서다
-
-| | `CLAUDE.md` | **`.gemini/styleguide.md`** |
-|---|---|---|
-| 독자 | **Claude — 코드를 *쓸* 때** | **Gemini — *잡을* 때** |
-| 내용 | 결정 사항 전체 | **위반을 잡아낼 규칙만** |
-| 길이 | 길다 | **짧게** |
-
-> **참조로 떼우지 않는다.** "자세한 건 `docs/adr/`를 보라"고 쓰면 **봇이 안 읽을 수 있다.** 규칙을 자족적으로 적는다.
-
-### 9.4 호출
-
-| 명령 | 동작 |
-|---|---|
-| `/gemini review` | 코드 리뷰 |
-| `/gemini summary` | 변경 요약 |
-| `/gemini <질문>` | PR 맥락 질의 |
-| `/gemini help` | 명령 목록 |
+> ⚠️ **나머지(설계 의도 위반 · 가독성)를 지금은 아무도 안 본다.** 코드 리뷰 봇이 없고(§7.2) 1인 프로젝트라 사람 리뷰도 없다. **그래서 기계로 판정 가능한 것을 최대한 여기로 끌어온다** — 규칙이 하나 늘 때마다 "이건 grep 으로 판정되나"를 먼저 묻는다.
 
 ---
 
-## 부록 A — `.gemini/config.yaml`
-
-```yaml
-have_fun: false
-
-code_review:
-  disable: false
-  comment_severity_threshold: MEDIUM
-  max_review_comments: -1
-  pull_request_opened:
-    help: false
-    summary: true          # 4트랙 병렬 — 어느 트랙 무엇인지 요약이 통합에 도움
-    code_review: true
-    include_drafts: false  # 작업 중 초안은 소음
-
-ignore_patterns:
-  - "docs/diagrams/**"     # archify 생성 HTML — 각 700KB
-  - "docs/wireframes/**"   # 생성 HTML
-  - "**/*.lock"
-  - "**/build/**"
-  - "**/node_modules/**"
-```
-
-| 선택 | 근거 |
-|---|---|
-| `summary: true` | 4트랙이 섞이니 요약이 통합 판단에 쓰인다 |
-| `include_drafts: false` | 초안 리뷰는 소음 · 필요하면 `/gemini review` |
-| `MEDIUM` | 커스텀 규칙 위반은 어차피 임계 이상. 소음이 많으면 `HIGH`로 |
-| `ignore_patterns` | **700KB 생성 HTML에 리뷰를 낭비하지 않는다** |
-
-## 부록 B — `.github/PULL_REQUEST_TEMPLATE.md`
+## 부록 A — `.github/PULL_REQUEST_TEMPLATE.md`
 
 ```markdown
 ## 트랙
@@ -617,12 +545,12 @@ ignore_patterns:
 - [ ] 설계 문서와 어긋나면 문서도 함께 고쳤다
 ```
 
-## 부록 C — `scripts/check-forbidden.sh`
+## 부록 B — `scripts/check-forbidden.sh`
 
 > **초안이 아니라 동작하는 스크립트다** (2026-09-10 작성 · 자기검증 통과).
 > **본문을 여기 복사하지 않는다** — 두 곳이 어긋난다. [파일이 진실이다](../scripts/check-forbidden.sh).
 
-### C.1 실행
+### B.1 실행
 
 ```bash
 ./scripts/check-forbidden.sh      # 어느 디렉터리에서든 (스크립트가 루트를 찾는다)
@@ -635,7 +563,7 @@ ignore_patterns:
 
 출력은 `OK` · `FAIL` · **`SKIP`** 세 가지다. `SKIP` 은 **대상 코드가 아직 없다**는 뜻이며, 트랙이 시작되면 저절로 켜진다.
 
-### C.2 ⚠️ 초안에서 고친 것 — 넷 다 CI 를 못 쓰게 만들 문제였다
+### B.2 ⚠️ 초안에서 고친 것 — 넷 다 CI 를 못 쓰게 만들 문제였다
 
 | # | 초안의 문제 | 왜 치명적인가 | 고침 |
 |---|---|---|---|
@@ -646,7 +574,7 @@ ignore_patterns:
 
 > **1·2 는 첫 PR 부터 CI 를 빨갛게 만든다.** 그 상태로 브랜치 보호를 켰다면 **아무 PR 도 못 머지한다.**
 
-### C.3 ⚠️ 7번은 `grep` 으로 판정할 수 없다
+### B.3 ⚠️ 7번은 `grep` 으로 판정할 수 없다
 
 ```sql
 CREATE INDEX idx_trip_seat_hold
@@ -657,7 +585,7 @@ CREATE INDEX idx_trip_seat_hold
 
 > **`awk` 로 세미콜론까지 이어 붙여 문장 단위로 판정한다.** 초안대로 뒀으면 **7번은 사실상 항상 통과**했을 것이다.
 
-### C.4 예외 마커
+### B.4 예외 마커
 
 ```sql
 SET lock_timeout = '3s';  -- check-forbidden:allow 트랜잭션 밖 마이그레이션
@@ -669,7 +597,7 @@ SET lock_timeout = '3s';  -- check-forbidden:allow 트랜잭션 밖 마이그레
 | **의무** | **왜인지 함께 적는다.** 마커만 있는 줄은 리뷰에서 막는다 |
 | ⚠️ 신호 | **마커가 늘어나면 규칙이 틀린 것이다** — 문서를 고치는 PR 을 먼저 |
 
-### C.5 자기검증
+### B.5 자기검증
 
 **7개를 실제로 잡는지, 그리고 정상 코드를 잘못 잡지 않는지**를 픽스처로 확인했다.
 
@@ -682,7 +610,7 @@ SET lock_timeout = '3s';  -- check-forbidden:allow 트랜잭션 밖 마이그레
 
 ---
 
-## 부록 D — 라벨 목록
+## 부록 C — 라벨 목록
 
 `gh label create` 로 일괄 생성한다. 색은 축별로 묶는다.
 
@@ -705,7 +633,7 @@ SET lock_timeout = '3s';  -- check-forbidden:allow 트랜잭션 밖 마이그레
 | `status:needs-decision` | `#6B7280` | 사용자 판단 대기 |
 | **`status:needs-adr`** | `#6B7280` | **구현 전 ADR을 써야 한다** |
 
-## 부록 E — 이슈 템플릿
+## 부록 D — 이슈 템플릿
 
 `.github/ISSUE_TEMPLATE/`
 
