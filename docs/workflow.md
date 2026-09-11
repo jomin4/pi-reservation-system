@@ -28,23 +28,21 @@
 ### 1.2 구성 — 저장소 1개 · 워킹 디렉터리 5개 (2026-09-11 세팅 완료)
 
 ```
-Desktop/
-├─ pi-reservation-system/    ← 본체. 통합 확인 + 문서 작업
-└─ pi-worktrees/
-   ├─ back/                  feat/back-*
-   ├─ front/                 feat/front-*
-   ├─ mobile/                feat/mobile-*
-   └─ infra/                 feat/infra-*
+pi-reservation-system/          ← 본체. 통합 확인 + 문서 작업
+pi-reservation-system-back/     feat/back-*
+pi-reservation-system-front/    feat/front-*
+pi-reservation-system-mobile/   feat/mobile-*
+pi-reservation-system-infra/    feat/infra-*
 ```
 
-> **한 폴더에 묶는다.** 형제로 흩뿌리면(`../pi-back` …) 이미 폴더가 많은 작업 디렉터리에서 **본체가 파묻힌다.** 묶으면 `pi-` 접두도 필요 없다.
+> **폴더 이름이 저장소 이름으로 시작한다.** 세션이 여러 개 떠 있을 때 **창 제목·터미널 프롬프트만 보고 어느 프로젝트의 어느 트랙인지** 알 수 있어야 한다. 이름을 줄이면(`back/`) 다른 프로젝트의 폴더와 구분이 안 된다.
 
 **만들 때 — 한 번만 한다**
 
 ```bash
 git fetch origin
 for t in back front mobile infra; do
-  git worktree add --detach ../pi-worktrees/$t origin/develop
+  git worktree add --detach ../pi-reservation-system-$t origin/develop
 done
 ```
 
@@ -59,6 +57,8 @@ done
 > **세션이 오래 살고 브랜치가 짧게 산다.** 일회용으로 하면 이슈를 닫을 때마다 세션의 `cwd` 가 없어진다.
 
 **그래서 `--detach` 로 만든다.** `origin/develop` 을 가리킨 채 브랜치가 없는 상태다. 세션 시작 프로토콜 4번이 첫 브랜치를 만든다.
+
+> ⚠️ **폴더 안은 비워 두지 않는다 — 채우는 것도 세션의 일이다.** worktree 를 만들면 저장소 전체가 체크아웃되므로 `back/CLAUDE.md` 같은 트랙 규칙이 이미 들어 있다. **프로젝트 뼈대(`build.gradle.kts` · `package.json` …)는 각 세션이 자기 첫 이슈로 만든다** — 우리가 미리 만들어 주면 그 커밋이 리뷰도 이슈도 없이 들어간다.
 
 ```bash
 # 세션이 이슈를 잡을 때
