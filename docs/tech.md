@@ -99,7 +99,7 @@
 
 > **갓 나온 메이저는 피했다.** `vitest` 5.0.0(2026-09-03 · **8일**)과 `react-router` 8(2026-06-17 · 3개월)을 각각 **4.1.11 · 7.18.3**으로 내렸다. 둘 다 유지보수가 도는 현역이다. **트러블슈팅을 본질이 아닌 데서 쓰지 않는다.**
 
-> **`openapi-typescript`는 7.13.0에 고정한다.** [트러블슈팅 2026-09-10](troubleshooting/2026-09-10-redocly-config-hijacks-openapi-typescript.md)의 재현 조건이 이 버전이다. 올릴 때는 `redocly.yaml`의 `apis:` 금지가 여전히 필요한지 다시 본다.
+> **`openapi-typescript`는 7.13.0에 고정한다.** [트러블슈팅 2026-09-10](troubleshooting/tooling/2026-09-10-redocly-config-hijacks-openapi-typescript.md)의 재현 조건이 이 버전이다. 올릴 때는 `redocly.yaml`의 `apis:` 금지가 여전히 필요한지 다시 본다.
 
 ## 부하 생성 — 초기 범위 밖
 

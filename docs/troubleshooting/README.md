@@ -2,13 +2,52 @@
 
 겪은 문제와 **왜 안 됐는지**를 남긴다. 결정을 남기는 [ADR](../adr/README.md)과 다르다.
 
+## 폴더 — 트랙별로 나뉜다 (2026-09-11)
+
+| 폴더 | 담는 것 |
+|---|---|
+| [`back/`](back/) [`front/`](front/) [`mobile/`](mobile/) [`infra/`](infra/) | **그 트랙에서만** 나는 문제 |
+| [**`tooling/`**](tooling/) | **두 트랙 이상에 걸리거나** 도구(CI · 생성기 · 린터) 문제 |
+
+> **폴더 이름은 `TEMPLATE.md` 의 `트랙` 필드 값과 같다.** 새 식별자를 만들지 않는다 (`workflow.md` §5.1). **파일의 `트랙` 값과 폴더가 어긋나면 폴더가 틀린 것이다.**
+>
+> ⚠️ **어디 둘지 애매하면 `tooling/`.** 자기 트랙 폴더에 넣으면 **다른 트랙 세션이 안 본다** — 그게 이 폴더의 존재 이유를 없앤다.
+
 ## 목록
 
-| 날짜 | 증상 | 트랙 | 상태 |
-|---|---|---|---|
-| 2026-09-10 | [`redocly.yaml` 의 `apis:` 가 `openapi-typescript` 의 `-o` 를 무시](2026-09-10-redocly-config-hijacks-openapi-typescript.md) | tooling | 해결 |
-| 2026-09-11 | [트랙 문서 한 줄만 고쳐도 그 트랙 CI 가 돈다 (스캐폴드 전이면 죽는다)](2026-09-11-ci-dies-on-unscaffolded-track.md) | tooling | 해결(예방) |
-| 2026-09-11 | [스캐폴드 PR 이 `schema.d.ts: No such file or directory` 로 죽는다](2026-09-11-generated-type-must-ship-with-contract.md) | tooling | 해결 |
+**색인을 트랙별 절로 나눴다.** 두 트랙이 동시에 기록을 남겨도 **다른 절이라 그대로 머지된다** (`workflow.md` §1.3.1). ⚠️ **자기 절 끝에만 추가한다.**
+
+### `tooling`
+
+| 날짜 | 증상 | 상태 |
+|---|---|---|
+| 2026-09-10 | [`redocly.yaml` 의 `apis:` 가 `openapi-typescript` 의 `-o` 를 무시](tooling/2026-09-10-redocly-config-hijacks-openapi-typescript.md) | 해결 |
+| 2026-09-11 | [트랙 문서 한 줄만 고쳐도 그 트랙 CI 가 돈다 (스캐폴드 전이면 죽는다)](tooling/2026-09-11-ci-dies-on-unscaffolded-track.md) | 해결(예방) |
+| 2026-09-11 | [스캐폴드 PR 이 `schema.d.ts: No such file or directory` 로 죽는다](tooling/2026-09-11-generated-type-must-ship-with-contract.md) | 해결 |
+
+### `back`
+
+| 날짜 | 증상 | 상태 |
+|---|---|---|
+| — | 아직 없음 | |
+
+### `front`
+
+| 날짜 | 증상 | 상태 |
+|---|---|---|
+| — | 아직 없음 | |
+
+### `mobile`
+
+| 날짜 | 증상 | 상태 |
+|---|---|---|
+| — | 아직 없음 | |
+
+### `infra`
+
+| 날짜 | 증상 | 상태 |
+|---|---|---|
+| — | 아직 없음 | |
 
 ---
 

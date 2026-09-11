@@ -137,7 +137,7 @@ fatal: 'feat/back-seat-hold' is already used by worktree at '.../pi-worktrees/ba
 
 | 문서 | 누가 | 브랜치 |
 |---|---|---|
-| **`docs/troubleshooting/*`** | **겪은 트랙이 직접** | `docs/<track>-*` |
+| **`docs/troubleshooting/<track>/*`** | **겪은 트랙이 직접.** ⚠️ 두 트랙 이상이면 **`tooling/`** | `docs/<track>-*` |
 | `tech.md` · `deploy.md` · `operate.md` 의 **자기 트랙 절** | 그 트랙 | 〃 |
 | **`.github/workflows/<track>-ci.yml`** | 그 트랙 | `ci/<track>-*` |
 | **`docs/api/openapi.yaml` · `api.md`** | ⚠️ **누가 열어도 §3 순서를 지킨다** | `docs/api-*` |
