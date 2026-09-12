@@ -14,7 +14,7 @@
 | 타입 생성 | **`openapi-typescript`** ← `docs/api/openapi.yaml` |
 | SSE | **`react-native-sse`** (`EventSource` 아님) |
 | 토큰 저장 | **Expo SecureStore** |
-| 스타일 | NativeWind + **Tailwind 3** ⚠️ **웹은 4다** (ADR-0008) |
+| 스타일 | NativeWind + **Tailwind 3** ⚠️ **웹은 4다** (`tech.md`) |
 | 빌드 | **EAS Build** (클라우드) |
 | 배포 | **GitHub Releases** — APK 직접 |
 
@@ -49,7 +49,7 @@
 |---|---|
 | ⚠️ **함수 안에서 가짜 데이터 `return`** | `api.md` §7.2 — 로딩·에러 화면을 만들 계기가 없어진다 |
 | 타입을 손으로 고치기 | 생성물이다. `openapi.yaml`을 고치고 재생성 |
-| ⚠️ **Tailwind를 4로 올려 웹과 맞추기** | ADR-0008 — **엔진(`react-native-css-interop`)이 `~3`으로 막는다.** 갈린 건 의도다 |
+| ⚠️ **Tailwind를 4로 올려 웹과 맞추기** | `tech.md` — **엔진(`react-native-css-interop`)이 `~3`으로 막는다.** 갈린 건 의도다 |
 | `VITE_` 접두 환경변수 | **Expo는 `EXPO_PUBLIC_`만 번들에 주입한다** (`api.md` §7.2) |
 | **멱등키를 메모리에만** | 앱 종료 시 사라진다 (`api.md` §2) |
 | 인터벌로 TTL 카운트 | 백그라운드에서 멈춘다 |

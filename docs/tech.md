@@ -47,7 +47,7 @@
 | **라우터 (모바일)** | **`expo-router`** — 파일 기반. **SDK 57이 번들한다** |
 | **토큰 저장 (웹)** | **메모리 전용** — 새로고침은 Refresh 회전으로 복구 |
 | 토큰 저장 (모바일) | Expo SecureStore |
-| 스타일 | Tailwind · NativeWind — ⚠️ **메이저가 갈린다.** 웹 4 · 모바일 3 (ADR-0008) |
+| 스타일 | Tailwind · NativeWind — ⚠️ **메이저가 갈린다.** 웹 4 · 모바일 3 (아래) |
 
 > **웹 토큰을 `localStorage`에 두지 않는다.** XSS 한 번이면 14일짜리 세션이 통째로 나간다. 메모리에 두면 새로고침마다 Refresh 회전(`F-26`)을 한 번 더 타는 대신 **노출면이 탭 수명으로 줄어든다.** httpOnly 쿠키로 가면 `openapi.yaml`이 바뀐다 — **계약을 안 건드리는 선택**이기도 하다.
 
@@ -155,8 +155,13 @@ nativewind@4.2.6
 | **모바일만 `tailwindcss@3.4.19`** | ✅ **채택** |
 | NativeWind 5 | ❌ `5.0.0-preview.4` — prerelease |
 | 웹을 3으로 내린다 | ❌ 이미 머지된 걸 되돌린다 |
+| 모바일만 `StyleSheet` | ❌ 디자인 토큰 공유 경로가 사라진다 |
 
-> **맞추려 들지 말 것.** `front`/`mobile`은 workspace로 안 묶여 있어 **버전이 갈려도 충돌하지 않는다.** 대신 **Tailwind 문법이 갈린다** — 웹은 `@theme`, 모바일은 `tailwind.config.js`다. 자세한 건 [ADR-0008](adr/0008-tailwind-major-split.md).
+> **맞추려 들지 말 것.** `front`/`mobile`은 workspace로 안 묶여 있어 **버전이 갈려도 충돌하지 않는다.** 대신 **Tailwind 문법이 갈린다** — 웹은 `@theme`, 모바일은 `tailwind.config.js`다.
+
+> **되돌리기 자체는 싸다. 비싼 건 갈린 채로 오래 두는 것이다.** NativeWind 5 정식판이 나오면 모바일을 4로 올리는 건 설정 파일 옮기기다. 그런데 **양쪽 문법이 다른 상태로 디자인 토큰이 굳으면 공유 지점을 만들 자리가 없다.**
+
+> ⚠️ **이 결정은 두 트랙에 걸치므로 ADR은 본체가 쓴다** (`workflow.md` §1.3.1). 여기 있는 대안 표와 근거가 그 입력이다.
 
 **⚠️ `react-native-sse`는 유지보수가 멈춰 있다**
 
