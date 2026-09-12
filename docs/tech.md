@@ -42,15 +42,18 @@
 | 스키마 검증 | Zod |
 | API 클라이언트 생성 | **`openapi-typescript`** — 입력은 `docs/api/openapi.yaml` |
 | SSE (웹) | 네이티브 `EventSource` |
-| SSE (React Native) | `react-native-sse` |
+| SSE (React Native) | `react-native-sse` — ⚠️ **유지보수 정지 상태.** 아래 |
 | **라우터 (웹)** | **React Router 7** — 선언형 SPA 모드 |
+| **라우터 (모바일)** | **`expo-router`** — 파일 기반. **SDK 57이 번들한다** |
 | **토큰 저장 (웹)** | **메모리 전용** — 새로고침은 Refresh 회전으로 복구 |
 | 토큰 저장 (모바일) | Expo SecureStore |
-| 스타일 | Tailwind · NativeWind |
+| 스타일 | Tailwind · NativeWind — ⚠️ **메이저가 갈린다.** 웹 4 · 모바일 3 (아래) |
 
 > **웹 토큰을 `localStorage`에 두지 않는다.** XSS 한 번이면 14일짜리 세션이 통째로 나간다. 메모리에 두면 새로고침마다 Refresh 회전(`F-26`)을 한 번 더 타는 대신 **노출면이 탭 수명으로 줄어든다.** httpOnly 쿠키로 가면 `openapi.yaml`이 바뀐다 — **계약을 안 건드리는 선택**이기도 하다.
 
 > **라우터는 TanStack Router가 아니다.** 타입 안전 라우팅이 더 낫지만 **이 프로젝트가 증명할 것은 동시성이다.** 학습 비용을 좌석 경합 쪽에 쓴다.
+
+> **모바일 라우터는 고를 게 없었다.** `expo-router`는 Expo SDK가 번들하고 React Navigation 위에 얹힌 것이다. 직접 React Navigation을 쓰면 **딥링크와 타입 라우팅을 손으로 짜게 된다.** 대안을 저울질한 결정이 아니라서 ADR을 쓰지 않는다.
 
 ### 버전 고정 — 2026-09-11 레지스트리 실측
 
@@ -61,7 +64,7 @@
 | **Node** | **24.21.0 LTS** (Krypton) | 2026-09-07 기준 **Active LTS**. 22(Jod)는 maintenance |
 | **pnpm** | **10.34.5** | v10 = 2025-01-07. **20개월 검증** |
 
-> ⚠️ **2026-09-11 현재 `front-ci.yml`만 이 값을 따른다.** `mobile-ci.yml` · `contract-ci.yml`은 아직 **Node 22 · pnpm 9**다. **각 트랙 PR에서 따라온다** — 여기 적어두지 않으면 다음 사람이 CI와 문서 중 어느 쪽이 맞는지 모른다.
+> ⚠️ **2026-09-11 현재 `contract-ci.yml`만 아직 Node 22 · pnpm 9다.** `front-ci.yml`(#62) · `mobile-ci.yml`(#74)은 따라왔다. **각 트랙 PR에서 따라온다** — 여기 적어두지 않으면 다음 사람이 CI와 문서 중 어느 쪽이 맞는지 모른다.
 
 **웹 (`front/`)**
 
@@ -100,6 +103,79 @@
 > **갓 나온 메이저는 피했다.** `vitest` 5.0.0(2026-09-03 · **8일**)과 `react-router` 8(2026-06-17 · 3개월)을 각각 **4.1.11 · 7.18.3**으로 내렸다. 둘 다 유지보수가 도는 현역이다. **트러블슈팅을 본질이 아닌 데서 쓰지 않는다.**
 
 > **`openapi-typescript`는 7.13.0에 고정한다.** [트러블슈팅 2026-09-10](troubleshooting/tooling/2026-09-10-redocly-config-hijacks-openapi-typescript.md)의 재현 조건이 이 버전이다. 올릴 때는 `redocly.yaml`의 `apis:` 금지가 여전히 필요한지 다시 본다.
+
+**모바일 (`mobile/`)** — 2026-09-11 레지스트리 실측
+
+> ⚠️ **여기서는 `latest`에서 시작하지 않는다.** 웹은 레지스트리 `latest`를 받아 peer 충돌만큼 내렸지만, 모바일은 **`expo`의 `bundledNativeModules.json`이 먼저 결정한다.** `expo install`이 그 값을 쓰고 **`expo-doctor`가 mobile CI에서 불일치를 잡는다**(`deploy.md` §8.1).
+
+| 패키지 | npm `latest` | **SDK 57이 고정** | 채택 |
+|---|---|---|---|
+| `react-native` | 0.87.1 | **0.86.3** | ✅ **0.86.3** |
+| `react` | 19.3.0 | **19.2.3** | ✅ **19.2.3** |
+
+| 구분 | 패키지 | 버전 |
+|---|---|---|
+| **SDK** | `expo` | **57.0.21** |
+| 프레임워크 | `react-native` | **0.86.3** |
+| | `react` | **19.2.3** |
+| 언어 | `typescript` | **5.9.3** |
+| **라우터** | `expo-router` | **57.0.20** |
+| 서버 상태 | `@tanstack/react-query` | 5.102.8 |
+| 스키마 검증 | `zod` | 4.6.2 |
+| **SSE** | `react-native-sse` | **1.2.1** |
+| 토큰 저장 | `expo-secure-store` | **57.0.3** |
+| **스타일** | `nativewind` | **4.2.6** |
+| | `tailwindcss` | ⚠️ **3.4.19** — 웹과 메이저가 다르다 |
+| | `react-native-reanimated` | **4.5.1** — NativeWind 엔진이 요구 |
+| Mock | `msw` | 2.15.0 |
+| **타입 생성** | `openapi-typescript` | **7.13.0** |
+| 테스트 | `jest-expo` | 57.0.5 |
+| | `jest` | 30.5.1 |
+| | `@testing-library/react-native` | 14.0.1 |
+| 린트 | `eslint` | 10.10.0 |
+| | `eslint-config-expo` | 57.0.2 |
+| 포맷 | `prettier` | 3.9.6 |
+
+> ⚠️ **`openapi-typescript`는 웹과 같은 값이어야 한다.** `mobile-ci.yml`의 마지막 단계가 `openapi-typescript@7`로 생성해 커밋된 파일과 `diff`한다. **로컬에서 다른 마이너로 생성하면 CI가 빨개진다.**
+
+> ⚠️ **`typescript`도 웹과 같은 덫이다.** `latest`는 7.0.2인데 `openapi-typescript` 7.13.0의 peer가 `^5.x`이고, `eslint-config-expo`가 끌어오는 `@typescript-eslint/*` 8.x가 `<6.1.0`이다. **5.9.3** 고정.
+
+**⚠️ Tailwind 메이저를 의도적으로 가른다 — 웹 4 · 모바일 3**
+
+```
+nativewind@4.2.6
+  └─ react-native-css-interop@0.2.6
+       peer: tailwindcss@~3        ← nativewind 자신의 peer(>3.3.0)와 다르다
+```
+
+`nativewind`의 peer만 보면 4가 될 것 같지만 **실제 엔진이 `~3`으로 막는다.**
+
+| 대안 | 판정 |
+|---|---|
+| **모바일만 `tailwindcss@3.4.19`** | ✅ **채택** |
+| NativeWind 5 | ❌ `5.0.0-preview.4` — prerelease |
+| 웹을 3으로 내린다 | ❌ 이미 머지된 걸 되돌린다 |
+| 모바일만 `StyleSheet` | ❌ 디자인 토큰 공유 경로가 사라진다 |
+
+> **맞추려 들지 말 것.** `front`/`mobile`은 workspace로 안 묶여 있어 **버전이 갈려도 충돌하지 않는다.** 대신 **Tailwind 문법이 갈린다** — 웹은 `@theme`, 모바일은 `tailwind.config.js`다.
+
+> **되돌리기 자체는 싸다. 비싼 건 갈린 채로 오래 두는 것이다.** NativeWind 5 정식판이 나오면 모바일을 4로 올리는 건 설정 파일 옮기기다. 그런데 **양쪽 문법이 다른 상태로 디자인 토큰이 굳으면 공유 지점을 만들 자리가 없다.**
+
+> ⚠️ **이 결정은 두 트랙에 걸치므로 ADR은 본체가 쓴다** (`workflow.md` §1.3.1). 여기 있는 대안 표와 근거가 그 입력이다.
+
+**⚠️ `react-native-sse`는 유지보수가 멈춰 있다**
+
+| 항목 | 값 |
+|---|---|
+| 최신 | **1.2.1 · 2024-03-05** — **2년 6개월 무릴리스** |
+| 총 릴리스 | 9개 |
+
+| 그래도 쓰는 이유 | 위험 |
+|---|---|
+| SSE 프레임 파싱은 **사양이 안 바뀐다** | RN 0.86의 네트워크 스택 변경에 **아무도 대응 안 한다** |
+| 의존성이 거의 없다 | `F-19` 재개(`Last-Event-ID`)를 **직접 검증해야 한다** |
+
+> **`api.md` §7.4가 "SSE는 인터페이스로 감싼다"고 이미 정해뒀다.** 그 결정이 여기서 값을 한다 — **교체가 어댑터 한 장이 된다.** 대안 조사는 실물이 돈 뒤에 한다.
 
 ## 부하 생성 — 초기 범위 밖
 

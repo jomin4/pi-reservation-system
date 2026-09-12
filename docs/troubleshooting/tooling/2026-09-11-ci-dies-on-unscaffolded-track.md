@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| 상태 | **해결**(예방) — ⚠️ **`front-ci` 만.** `back` · `mobile` · `infra` 는 그대로다 (아래 「재발 방지」) |
+| 상태 | **해결**(예방) — **`front-ci` · `mobile-ci`.** ⚠️ **`back` · `infra` 는 그대로다** (아래 「재발 방지」) |
 | 트랙 | tooling |
 | 관련 | `deploy.md` §1 · §7.1 · `.github/workflows/_changes.yml` · PR #61 |
 
@@ -102,11 +102,17 @@ front=$(has '^front/')
 | `front-ci.yml` 스캐폴드 가드 | `.github/workflows/front-ci.yml` | ✅ PR #61 |
 | 가드의 존재 이유를 설계 문서에 | `deploy.md` §7.1 | ✅ PR #61 |
 | 확인 방법(소요 시간)을 트랙 문서에 | `front/CLAUDE.md` | ✅ PR #61 |
-| **`mobile-ci.yml` 가드** | `.github/workflows/mobile-ci.yml` | 🔄 **mobile 세션이** |
+| **`mobile-ci.yml` 가드** | `.github/workflows/mobile-ci.yml` | ✅ **PR #74** |
 | **`back-ci.yml` 가드** | `.github/workflows/back-ci.yml` | 🔄 **back 세션이** |
 | **`infra-ci.yml` 가드** | `.github/workflows/infra-ci.yml` | 🔄 **infra 세션이** |
 
 > ⚠️ **front 세션이 다른 트랙의 CI 를 대신 고치지 않는다.** **가드의 판정 기준이 트랙마다 다르기 때문**이다 — front·mobile 은 `package.json`, back 은 `gradlew`, infra 는 compose 파일 유무. **"그 트랙에서 스캐폴드란 무엇인가" 를 아는 세션이 써야 한다.**
+
+**mobile 에서 관측한 것 (2026-09-11 · PR #77)**
+
+`mobile/CLAUDE.md` 한 줄이 들어간 PR 에서 `mobile · 타입 · 린트 · expo-doctor` job 이 **실제로 돌고 6초에 끝났다.** front 와 같은 결과다 — **job 은 돌되 가드가 이후 7단계를 건너뛴다.**
+
+> ⚠️ **mobile 의 트리거 조건은 front 보다 하나 넓다.** `mobile-ci` 의 `if` 에 **`contract == 'true'`** 가 함께 있어서 **`docs/api/openapi.yaml` 만 고친 PR 에서도 이 job 이 돈다.** 모바일을 전혀 안 건드린 계약 PR 이 모바일 CI 때문에 빨개질 수 있었다는 뜻이다.
 
 ### 다른 트랙 세션이 할 일
 
