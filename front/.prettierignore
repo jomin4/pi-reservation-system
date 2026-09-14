@@ -2,6 +2,9 @@ dist
 coverage
 pnpm-lock.yaml
 
+# msw init 이 만든다. 손대지 않는다
+public/mockServiceWorker.js
+
 # 손으로 짠 표다. prettier 가 재배치하면 읽기 어려워진다
 *.md
 

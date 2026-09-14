@@ -50,6 +50,7 @@
 | 에러 화면 | `api.md` §4 — 에러 코드 21개 |
 | SSE를 붙일 때 | **`api.md` §6** |
 | Mock 전략 | **`api.md` §7** |
+| **예외 화면을 볼 때** | **`src/mocks/scenario.ts`** — 주소에 `?mock=seat-conflict` 처럼 준다. 되돌리기는 `?mock=happy` |
 
 ## 자주 틀리는 것
 
