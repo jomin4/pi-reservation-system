@@ -92,10 +92,16 @@ const catalog = [
 /** 하트비트 주기. 계약은 15초지만 목에서는 화면을 보며 확인할 수 있게 짧게 둔다 */
 export const MOCK_HEARTBEAT_MS = 3000
 
+/** 좌석 변경을 흘려보내는 주기. 목에만 있는 것이다 — 실제 서버는 변경이 있을 때만 보낸다 */
+export const MOCK_SEAT_CHANGE_MS = 6000
+
 const sse = [
-  http.get(url('/trips/:tripId/seat-events'), () => {
+  http.get(url('/trips/:tripId/seat-events'), ({ params }) => {
     const encoder = new TextEncoder()
-    let timer: ReturnType<typeof setInterval> | undefined
+    const tripId = Number(params['tripId'])
+    let heartbeat: ReturnType<typeof setInterval> | undefined
+    let changes: ReturnType<typeof setInterval> | undefined
+    let seq = 7
 
     const stream = new ReadableStream({
       start(controller) {
@@ -110,11 +116,31 @@ const sse = [
           return
         }
 
-        send('heartbeat', {})
-        timer = setInterval(() => send('heartbeat', {}), MOCK_HEARTBEAT_MS)
+        // ⚠️ `{}` 가 아니라 `{ at }` 이다 (§6.2). 클라가 마지막 수신 시각을 볼 수 있어야 한다
+        const beat = () => send('heartbeat', { at: new Date().toISOString() })
+        beat()
+        heartbeat = setInterval(beat, MOCK_HEARTBEAT_MS)
+
+        // 좌석이 실제로 바뀌어야 W-03 이 SSE 반영을 화면에서 확인할 수 있다.
+        // HOLD_CREATED 와 HOLD_RELEASED 를 번갈아 — 같은 좌석이 잡혔다 풀렸다 한다
+        let held = false
+        changes = setInterval(() => {
+          held = !held
+          seq += 1
+          send(
+            'seat-changed',
+            {
+              tripId,
+              cause: held ? 'HOLD_CREATED' : 'HOLD_RELEASED',
+              seats: [{ carNo: 4, rowNo: 7, colLetter: 'C', status: held ? 'HELD' : 'AVAILABLE' }],
+            },
+            `1725426753000-${seq}`,
+          )
+        }, MOCK_SEAT_CHANGE_MS)
       },
       cancel() {
-        if (timer !== undefined) clearInterval(timer)
+        if (heartbeat !== undefined) clearInterval(heartbeat)
+        if (changes !== undefined) clearInterval(changes)
       },
     })
 
