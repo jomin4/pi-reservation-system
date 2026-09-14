@@ -129,6 +129,7 @@
 | 스키마 검증 | `zod` | 4.6.2 |
 | **SSE** | `react-native-sse` | **1.2.1** |
 | 토큰 저장 | `expo-secure-store` | **57.0.4** |
+| **UUID** | **`expo-crypto`** | **57.0.3** — ⚠️ Hermes에 `crypto.randomUUID`가 없다 |
 | **스타일** | `nativewind` | **4.2.6** |
 | | `tailwindcss` | ⚠️ **3.4.19** — 웹과 메이저가 다르다 |
 | | `react-native-reanimated` | **4.5.1** — NativeWind 엔진이 요구 |
@@ -138,6 +139,7 @@
 | 빌드 | `@babel/core` | 7.29.7 |
 | 테스트 | `jest-expo` | 57.0.5 |
 | | `jest` | ⚠️ **29.7.0** — 웹(`vitest`)과 무관하게 **Expo가 29를 기대한다** |
+| | `@types/jest` | 29.5.14 — ⚠️ `jest-expo`가 안 끌어온다. `tsc`가 `describe` 를 못 찾는다 |
 | | `@testing-library/react-native` | 14.0.1 + **`test-renderer` 1.2.0** |
 | 린트 | `eslint` | ⚠️ **9.39.5** — **웹은 10이다.** 아래 |
 | | `eslint-config-expo` | 57.0.2 |
