@@ -971,7 +971,30 @@ data: {"reason":"EVENT_ID_TOO_OLD","action":"REFETCH_SNAPSHOT"}
 
 > **이름이 다른 건 취향이 아니다.** Vite는 `VITE_`, Expo는 **`EXPO_PUBLIC_`** 접두만 클라이언트 번들에 주입한다. 접두를 안 맞추면 **값이 `undefined`로 들어오고 조용히 `real`로 떨어진다** — 백엔드가 없는데 mock이 안 붙는다.
 
-⚠️ **React Native에서 MSW 동작은 세팅 때 확인할 것.** 안 되면 mobile만 다른 방식으로 간다.
+**React Native에서도 MSW로 간다 — 2026-09-14 확인** (`#81`)
+
+브라우저에는 Service Worker가 있지만 RN에는 없다. `msw`는 진입점을 따로 준다.
+
+| 환경 | 가로채는 것 |
+|---|---|
+| 브라우저 | `msw/browser` — 진짜 Service Worker |
+| **React Native** | **`msw/native`** — `@mswjs/interceptors`가 런타임에서 `XMLHttpRequest`를 감싼다 |
+
+> **RN의 `fetch`가 XHR 위에 얹혀 있어서 물린다.** 앱 코드는 웹과 똑같이 진짜 `fetch`를 부른다.
+
+**확인한 범위 — 정직하게 나눈다**
+
+| | |
+|---|---|
+| ✅ 확인함 | `msw/native`가 **앱의 `fetch`를 가로챈다.** `fetchImpl` 주입 없이 `client.ts`를 그대로 통과시켜 검증 (`mobile/src/mocks/intercept.test.ts`) |
+| ✅ 확인함 | 시나리오로 `409`(2종) · `500` · `delay`를 실제로 뿜는다 |
+| ⬜ **아직** | **Hermes 실기기·에뮬레이터.** 검증은 jest-expo 환경에서 했다 |
+
+⚠️ **모바일에는 함정이 하나 있다 — 전역 `fetch`를 모듈 로드 시점에 붙잡으면 안 된다.** `msw/native`가 `listen()`에서 전역을 갈아끼우므로, 먼저 캡처한 참조는 **`status`도 `text()`도 `undefined`인 반쪽짜리 Response**를 준다. 던지지 않아서 증상이 엉뚱한 곳에 뜬다 — [트러블슈팅 2026-09-14](troubleshooting/mobile/2026-09-14-msw-returns-half-dead-response.md).
+
+> **웹에는 이 함정이 없다.** `msw/browser`는 전역 `fetch`를 건드리지 않는다. **같은 코드가 웹에서만 돈다.**
+
+**스위치도 갈린다** — 웹은 주소창 `?mock=`, 모바일은 **`EXPO_PUBLIC_MOCK_SCENARIO`**. 모바일에 주소창이 없어서다.
 
 **Prism은 쓰지 않는다** — `openapi.yaml`에서 Mock 서버를 띄우는 도구지만, **프로세스가 하나 늘고** MSW가 이미 같은 일을 앱 안에서 한다.
 
