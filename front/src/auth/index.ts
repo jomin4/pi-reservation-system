@@ -1,5 +1,7 @@
 export { installAuth, uninstallAuth } from './install'
-export { createRefresher, onSessionEnd, resetInflight } from './session'
+export { logout, useLogout } from './logout'
+export type { LogoutOptions } from './logout'
+export { createRefresher, endSession, onSessionEnd, resetInflight } from './session'
 export type { SessionOptions } from './session'
 export { clearTokens, getAccessToken, getRefreshToken, hasSession, setTokens } from './token-store'
 export type { TokenPair } from './token-store'
