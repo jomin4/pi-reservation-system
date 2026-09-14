@@ -144,3 +144,115 @@ describe('⚠️ 202 는 2xx 인데도 던진다', () => {
     expect(err.retryAfterSeconds).toBeNull()
   })
 })
+
+describe('⚠️ 401 → 갱신 → 원요청 1회 재시도', () => {
+  function sequence(responses: Response[]) {
+    let i = 0
+    const calls: RequestInit[] = []
+    const fetchImpl = ((_url: string, init: RequestInit) => {
+      calls.push(init)
+      const res = responses[Math.min(i, responses.length - 1)]
+      i += 1
+      return Promise.resolve(res!.clone())
+    }) as unknown as typeof globalThis.fetch
+    return { fetchImpl, calls }
+  }
+
+  const unauthorized = () => jsonResponse(401, problemOf({ status: 401, code: 'UNAUTHENTICATED' }))
+
+  it('갱신이 성공하면 같은 요청을 다시 쏘고 결과를 준다', async () => {
+    const seq = sequence([unauthorized(), jsonResponse(200, { ok: true })])
+    let token = 'old'
+
+    const api = createApiClient({
+      baseUrl: '/api/v1',
+      getAccessToken: () => token,
+      refreshAccessToken: () => {
+        token = 'new'
+        return Promise.resolve(true)
+      },
+      fetchImpl: seq.fetchImpl,
+    })
+
+    await expect(api.request('/me')).resolves.toEqual({ ok: true })
+    expect(seq.calls).toHaveLength(2)
+    // 재시도는 갱신된 토큰으로 나가야 한다 — 옛 토큰으로 다시 쏘면 또 401 이다
+    expect(new Headers(seq.calls[1]?.headers).get('Authorization')).toBe('Bearer new')
+  })
+
+  it('갱신이 실패하면 원래 401 을 던진다', async () => {
+    const seq = sequence([unauthorized()])
+    const api = createApiClient({
+      baseUrl: '/api/v1',
+      refreshAccessToken: () => Promise.resolve(false),
+      fetchImpl: seq.fetchImpl,
+    })
+
+    const e = (await api.request('/me').catch((x: unknown) => x)) as ApiError
+    expect(e.code).toBe('UNAUTHENTICATED')
+    expect(seq.calls).toHaveLength(1)
+  })
+
+  it('⚠️ 갱신 직후에도 401 이면 멈춘다 — 무한 루프가 나면 안 된다', async () => {
+    const seq = sequence([unauthorized()])
+    let refreshes = 0
+    const api = createApiClient({
+      baseUrl: '/api/v1',
+      refreshAccessToken: () => {
+        refreshes += 1
+        return Promise.resolve(true)
+      },
+      fetchImpl: seq.fetchImpl,
+    })
+
+    await expect(api.request('/me')).rejects.toBeInstanceOf(ApiError)
+    expect(refreshes).toBe(1)
+    expect(seq.calls).toHaveLength(2)
+  })
+
+  it('⚠️ INVALID_CREDENTIALS 는 갱신하지 않는다 — 로그인 실패는 다시 쏴도 같다', async () => {
+    const seq = sequence([
+      jsonResponse(401, problemOf({ status: 401, code: 'INVALID_CREDENTIALS' })),
+    ])
+    let refreshes = 0
+    const api = createApiClient({
+      baseUrl: '/api/v1',
+      refreshAccessToken: () => {
+        refreshes += 1
+        return Promise.resolve(true)
+      },
+      fetchImpl: seq.fetchImpl,
+    })
+
+    await expect(api.request('/auth/login', { method: 'POST', body: {} })).rejects.toBeInstanceOf(
+      ApiError,
+    )
+    expect(refreshes).toBe(0)
+  })
+
+  it('갱신 훅이 없으면 그냥 던진다', async () => {
+    const seq = sequence([unauthorized()])
+    const api = createApiClient({ baseUrl: '/api/v1', fetchImpl: seq.fetchImpl })
+
+    await expect(api.request('/me')).rejects.toBeInstanceOf(ApiError)
+    expect(seq.calls).toHaveLength(1)
+  })
+
+  it('409 는 갱신 대상이 아니다', async () => {
+    const seq = sequence([jsonResponse(409, problemOf({ status: 409, code: 'SEAT_ALREADY_HELD' }))])
+    let refreshes = 0
+    const api = createApiClient({
+      baseUrl: '/api/v1',
+      refreshAccessToken: () => {
+        refreshes += 1
+        return Promise.resolve(true)
+      },
+      fetchImpl: seq.fetchImpl,
+    })
+
+    await expect(api.request('/holds', { method: 'POST', body: {} })).rejects.toBeInstanceOf(
+      ApiError,
+    )
+    expect(refreshes).toBe(0)
+  })
+})
