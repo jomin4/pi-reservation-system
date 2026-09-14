@@ -27,3 +27,19 @@ front/**/*.html   text eol=lf
 front/.env.example      text eol=lf
 front/.gitignore        text eol=lf
 front/.prettierignore   text eol=lf
+
+# ⚠️ mobile — front 와 같은 이유. 여기에 더해 한 가지가 더 걸린다.
+#
+#    mobile CI 의 마지막 단계가 openapi-typescript 로 생성한 파일과
+#    커밋된 src/api/schema.d.ts 를 diff 한다. 생성기는 LF 로 쓰는데
+#    작업 사본이 CRLF 면 "계약이 바뀌었는데 타입이 낡았다" 로 잘못 읽힌다 —
+#    내용은 한 글자도 다르지 않은데도.
+mobile/**/*.ts     text eol=lf
+mobile/**/*.tsx    text eol=lf
+mobile/**/*.js     text eol=lf
+mobile/**/*.mjs    text eol=lf
+mobile/**/*.json   text eol=lf
+mobile/**/*.css    text eol=lf
+mobile/.env.example      text eol=lf
+mobile/.gitignore        text eol=lf
+mobile/.prettierignore   text eol=lf
