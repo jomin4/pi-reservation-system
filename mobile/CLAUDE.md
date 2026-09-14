@@ -98,6 +98,7 @@ Jest 에는 `.env` 가 없으므로 `jest.setup.js` 가 같은 값을 주입한�
 | **멱등키를 메모리에만** | 앱 종료 시 사라진다 (`api.md` §2) |
 | 인터벌로 TTL 카운트 | 백그라운드에서 멈춘다 |
 | 결제 결과 조회를 `POST`로 | **`GET`이다. 이중 결제** |
+| ⚠️ **전역 `fetch`를 모듈 로드 시점에 캡처** | **MSW가 조용히 깨진다** — `status`도 `text()`도 `undefined`인 Response ([트러블슈팅](../docs/troubleshooting/mobile/2026-09-14-msw-returns-half-dead-response.md)) |
 | ⚠️ **타임아웃을 `ApiError`로 뭉뚱그리기** | **답이 없는 것과 답이 온 것은 다르다.** 결제에서 이 차이가 이중 결제를 가른다 |
 | **`202`를 성공으로 반환** | 호출부가 **완료 화면으로 넘어간다** (`api.md` §4.3) |
 | `4xx` 자동 재시도 | 다시 물어도 같은 답이다 (`query-client.ts`) |
@@ -113,4 +114,13 @@ Jest 에는 `.env` 가 없으므로 `jest.setup.js` 가 같은 값을 주입한�
 | Mock 전략 | **`api.md` §7** |
 | 배포 | `deploy.md` §8 |
 
-⚠️ **React Native에서 MSW가 동작하는지 세팅 때 확인할 것.** 안 되면 이 트랙만 다른 Mock 방식으로 간다 (`api.md` §7.2).
+## Mock — `msw/native` 로 확정 (2026-09-14 · #81)
+
+| | |
+|---|---|
+| 진입점 | **`msw/native`** — 브라우저의 Service Worker 가 아니라 XHR 인터셉터 |
+| 켜는 법 | `EXPO_PUBLIC_API_MODE=mock` — `app/_layout.tsx` 가 렌더 전에 부른다 |
+| 시나리오 | **`EXPO_PUBLIC_MOCK_SCENARIO`** — 모바일엔 주소창이 없다 |
+| 검증 | `src/mocks/intercept.test.ts` — ⚠️ **`fetchImpl` 을 주입하지 않는다** |
+
+⚠️ **실기기·에뮬레이터(Hermes) 확인은 아직이다.** jest-expo 환경까지만 봤다 (`api.md` §7.2).

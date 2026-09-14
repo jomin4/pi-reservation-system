@@ -83,7 +83,22 @@ export interface ApiClient {
 }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
-  const doFetch = options.fetchImpl ?? globalThis.fetch.bind(globalThis)
+  /**
+   * ⚠️ **`globalThis.fetch` 를 여기서 붙잡지 않는다. 부를 때마다 읽는다.**
+   *
+   * `const doFetch = globalThis.fetch.bind(globalThis)` 로 캡처하면 **MSW 가 조용히 깨진다.**
+   * `msw/native` 는 `listen()` 시점에 전역 `fetch` 를 갈아끼우는데, 그보다 먼저 캡처된
+   * 참조는 옛 구현을 가리킨다. 그 옛 구현도 XHR 을 타므로 **요청은 가로채지는데**
+   * 돌려주는 Response 가 **`status` 도 `text()` 도 `undefined` 인 반쪽짜리**다.
+   *
+   * 던지지 않고 `undefined` 를 주기 때문에 증상이 `Cannot read properties of undefined
+   * (reading 'length')` 로 **엉뚱한 줄에서** 난다 (트러블슈팅 2026-09-14).
+   *
+   * `api` 인스턴스가 모듈 최상단에서 만들어지므로 **import 순서에 따라 재현된다** —
+   * 즉 고쳐두지 않으면 언젠가 터진다.
+   */
+  const doFetch: typeof globalThis.fetch =
+    options.fetchImpl ?? ((input, init) => globalThis.fetch(input, init))
   const makeId = options.newRequestId ?? randomUUID
   const defaultTimeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
 
