@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "pi-reservation",
+    "slug": "pi-reservation",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "pireservation",
+    "userInterfaceStyle": "light",
+    "platforms": ["android"],
+    "android": {
+      "package": "cloud.jomin4.pireservation"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

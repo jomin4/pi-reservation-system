@@ -113,28 +113,66 @@
 | `react-native` | 0.87.1 | **0.86.3** | ✅ **0.86.3** |
 | `react` | 19.3.0 | **19.2.3** | ✅ **19.2.3** |
 
+> ⚠️ **2026-09-12 스캐폴드(#79)에서 실측으로 세 줄이 바뀌었다.** `eslint` · `jest` · 패치 버전들. **아래 표가 실제로 설치되고 `expo-doctor` 21/21을 통과한 값**이다.
+
 | 구분 | 패키지 | 버전 |
 |---|---|---|
-| **SDK** | `expo` | **57.0.21** |
+| **SDK** | `expo` | **57.0.22** |
 | 프레임워크 | `react-native` | **0.86.3** |
 | | `react` | **19.2.3** |
-| 언어 | `typescript` | **5.9.3** |
-| **라우터** | `expo-router` | **57.0.20** |
+| | `@types/react` | 19.2.18 |
+| 언어 | `typescript` | ⚠️ **5.9.3** — Expo는 6을 기대한다. 아래 |
+| **라우터** | `expo-router` | **57.0.21** |
+| | `expo-constants` · `expo-linking` | 57.0.18 · 57.0.10 |
+| | `react-native-screens` · `react-native-safe-area-context` | 4.26.0 · 5.7.0 |
 | 서버 상태 | `@tanstack/react-query` | 5.102.8 |
 | 스키마 검증 | `zod` | 4.6.2 |
 | **SSE** | `react-native-sse` | **1.2.1** |
-| 토큰 저장 | `expo-secure-store` | **57.0.3** |
+| 토큰 저장 | `expo-secure-store` | **57.0.4** |
 | **스타일** | `nativewind` | **4.2.6** |
 | | `tailwindcss` | ⚠️ **3.4.19** — 웹과 메이저가 다르다 |
 | | `react-native-reanimated` | **4.5.1** — NativeWind 엔진이 요구 |
+| | `react-native-worklets` | **0.10.1** — reanimated 4가 요구 |
 | Mock | `msw` | 2.15.0 |
 | **타입 생성** | `openapi-typescript` | **7.13.0** |
+| 빌드 | `@babel/core` | 7.29.7 |
 | 테스트 | `jest-expo` | 57.0.5 |
-| | `jest` | 30.5.1 |
-| | `@testing-library/react-native` | 14.0.1 |
-| 린트 | `eslint` | 10.10.0 |
+| | `jest` | ⚠️ **29.7.0** — 웹(`vitest`)과 무관하게 **Expo가 29를 기대한다** |
+| | `@testing-library/react-native` | 14.0.1 + **`test-renderer` 1.2.0** |
+| 린트 | `eslint` | ⚠️ **9.39.5** — **웹은 10이다.** 아래 |
 | | `eslint-config-expo` | 57.0.2 |
 | 포맷 | `prettier` | 3.9.6 |
+
+> **`@testing-library/react-native` 14는 `test-renderer`를 따로 깔아야 한다.** peer가 `react-test-renderer`가 아니라 **`test-renderer@^1.0.0`**(별개 패키지)로 바뀌었다. 스캐폴드에는 아직 안 넣었다 — 테스트 이슈에서 함께 들어온다.
+
+**⚠️ `eslint`가 웹과 다르다 — 모바일은 9**
+
+`eslint-config-expo@57.0.2`의 peer는 **`eslint >=8.10`**이라 10을 받을 것처럼 읽힌다. **거짓말이다.**
+
+```
+eslint-config-expo@57.0.2
+  └─ eslint-plugin-react@7.37.5
+       peer: eslint ^3 || … || ^9.7      ← 10 이 없다
+```
+
+ESLint 10으로 깔면 `pnpm run lint`가 **규칙 로딩 단계에서 죽는다.**
+
+```
+TypeError: Error while loading rule 'react/display-name':
+  contextOrFilename.getFilename is not a function
+```
+
+> **웹의 `typescript` 덫과 같은 모양이다** — **바깥 패키지의 peer가 안쪽 엔진보다 느슨하다.** 자세한 건 [트러블슈팅 2026-09-12](troubleshooting/mobile/2026-09-12-eslint-config-expo-caps-eslint-at-9.md).
+
+**⚠️ `typescript`는 `expo-doctor`에서 예외 처리한다**
+
+Expo SDK 57은 **`typescript ~6.0.3`**을 기대한다. 그런데 **5.9.3을 벗어나면 타입 생성과 린트가 동시에 깨진다**(`openapi-typescript` peer `^5.x` · `@typescript-eslint/*` 8.x `<6.1.0`).
+
+```json
+"expo": { "install": { "exclude": ["typescript"] } }
+```
+
+> **Expo의 기대값은 템플릿이 무엇을 깔았나에 가깝고, 우리 제약은 계약에서 타입을 뽑는 것이다.** 후자가 이긴다. `exclude`는 Expo가 공식으로 둔 탈출구다.
 
 > ⚠️ **`openapi-typescript`는 웹과 같은 값이어야 한다.** `mobile-ci.yml`의 마지막 단계가 `openapi-typescript@7`로 생성해 커밋된 파일과 `diff`한다. **로컬에서 다른 마이너로 생성하면 CI가 빨개진다.**
 

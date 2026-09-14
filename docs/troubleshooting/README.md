@@ -41,7 +41,7 @@
 
 | 날짜 | 증상 | 상태 |
 |---|---|---|
-| — | 아직 없음 | |
+| 2026-09-12 | [`eslint-config-expo` 의 peer 가 `>=8.10` 인데 실제로는 9 까지다](mobile/2026-09-12-eslint-config-expo-caps-eslint-at-9.md) | 해결 |
 
 ### `infra`
 
