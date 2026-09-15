@@ -87,3 +87,32 @@ export function useEmailAvailability() {
       ),
   })
 }
+
+// ── 좌석 · 선점 (§5.1 · §5.2) ────────────────────────────────
+
+export function useSeatMap(tripId: number): UseQueryResult<S['SeatMap']> {
+  return useQuery({
+    queryKey: ['seatMap', tripId],
+    queryFn: () => api.request<S['SeatMap']>(`/trips/${tripId}/seats`),
+    // ⚠️ 갱신은 SSE 델타가 한다. 폴링하면 800석을 계속 다시 받는다 (api.md §5.1)
+    staleTime: Infinity,
+  })
+}
+
+export interface CreateHoldBody {
+  tripId: number
+  seats: { carNo: number; rowNo: number; colLetter: string }[]
+}
+
+/**
+ * 좌석 선점 (`F-04`).
+ *
+ * ⚠️ **전부 성공 또는 전부 실패다.** 일부만 잡힌 상태로 남지 않는다 —
+ * 실패하면 `409` 의 `failedSeats` 가 어느 좌석이 왜 실패했는지 알려준다 (`api.md` §4.7).
+ */
+export function useCreateHold() {
+  return useMutation({
+    mutationFn: (body: CreateHoldBody) =>
+      api.request<S['HoldResponse']>('/holds', { method: 'POST', body }),
+  })
+}

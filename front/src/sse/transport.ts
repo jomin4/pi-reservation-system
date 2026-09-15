@@ -34,6 +34,14 @@ export type TransportFactory = (url: string, handlers: TransportHandlers) => Tra
  * > 이게 스트림을 비인증으로 둘 수 있는 이유이기도 하다 (§6.3).
  */
 export const createEventSourceTransport: TransportFactory = (url, handlers) => {
+  // ⚠️ `EventSource` 가 없는 환경(jsdom · SSR)에서 **화면까지 죽이지 않는다.**
+  //    실시간 갱신만 못 할 뿐 좌석맵은 그대로 쓸 수 있고, 연결 배지가
+  //    "재연결 중" 으로 남아 사용자도 상태를 안다 (`W-03` 주석).
+  if (typeof EventSource === 'undefined') {
+    handlers.error()
+    return { close: () => undefined }
+  }
+
   const source = new EventSource(url)
 
   for (const name of SEAT_EVENT_NAMES) {

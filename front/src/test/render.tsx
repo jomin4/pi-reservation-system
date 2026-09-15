@@ -1,7 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { MemoryRouter, useLocation } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { createQueryClient } from '../api/query-client'
 
 /**
@@ -29,12 +29,23 @@ function testQueryClient() {
   return client
 }
 
-export function renderAt(ui: ReactNode, path = '/') {
+/**
+ * ⚠️ **경로 파라미터를 쓰는 화면은 `routePath` 를 줘야 한다.**
+ * `<Route>` 없이 컴포넌트만 렌더하면 `useParams()` 가 빈 객체를 주고,
+ * 화면은 "운행을 찾을 수 없습니다" 만 그린다 — 원인을 찾느라 한참 걸리는 종류다.
+ */
+export function renderAt(ui: ReactNode, path = '/', routePath?: string) {
   return render(
     <QueryClientProvider client={testQueryClient()}>
       <MemoryRouter initialEntries={[path]}>
         <LocationProbe />
-        {ui}
+        {routePath ? (
+          <Routes>
+            <Route path={routePath} element={ui} />
+          </Routes>
+        ) : (
+          ui
+        )}
       </MemoryRouter>
     </QueryClientProvider>,
   )
