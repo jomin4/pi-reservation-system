@@ -19,7 +19,26 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerBackTitle: '뒤로' }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)/login" options={{ title: '로그인' }} />
+        <Stack.Screen name="(auth)/signup" options={{ title: '회원가입' }} />
+        <Stack.Screen name="trips/index" options={{ title: '운행 목록' }} />
+        <Stack.Screen name="trips/[tripId]/seats" options={{ title: '좌석 선택' }} />
+        <Stack.Screen name="holds/[holdId]/index" options={{ title: '승객 정보' }} />
+        <Stack.Screen name="holds/[holdId]/payment" options={{ title: '결제' }} />
+        <Stack.Screen
+          name="reservations/[reservationNo]/complete"
+          options={{
+            title: '예약 완료',
+            // ⚠️ 결제 화면으로 돌아갈 길을 막는다. 스택에서 빼는 것(replace)과
+            //    함께 쓴다 — 제스처만 막으면 헤더 뒤로가기가 남는다.
+            headerBackVisible: false,
+            gestureEnabled: false,
+          }}
+        />
+        <Stack.Screen name="reservations/[reservationNo]/index" options={{ title: '예약 상세' }} />
+      </Stack>
     </QueryClientProvider>
   )
 }
