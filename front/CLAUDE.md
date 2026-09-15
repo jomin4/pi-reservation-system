@@ -62,7 +62,7 @@
 | 시각을 KST로 받는다고 가정 | **서버는 UTC만 보낸다** (`api.md` §0) |
 | 예약 목록에서 `COMPLETED`를 저장값으로 | **파생값이다.** 그냥 표시하면 된다 |
 
-## ⚠️ CI 5단계가 완료 조건이다
+## ⚠️ CI 6단계가 완료 조건이다
 
 `front-ci.yml`이 도는 순서. **하나라도 빠지면 실패한다.**
 
@@ -73,6 +73,7 @@
 | 3 | **`pnpm run lint`** | 스크립트가 없으면 **실패** |
 | 4 | `pnpm run --if-present test` | 없어도 통과 |
 | 5 | **생성 타입 최신성 `diff`** | `src/api/schema.d.ts`가 낡으면 실패 |
+| 6 | **`pnpm run check:bundle`** | **목이 배포물에 실려 나간다** (#108) |
 
 > **5번 때문에 `schema.d.ts`를 커밋한다.** 생성물인데도 저장소에 들어가는 이유가 이것이다 — CI 가 재생성물과 `diff` 를 뜬다. 경로는 **`src/api/schema.d.ts` 하나**다.
 
@@ -80,4 +81,12 @@
 
 ⚠️ **`vite build`는 타입 에러를 그냥 통과시킨다.** front CI의 **`tsc --noEmit`**이 유일한 방어다 (`deploy.md` §7.1).
 
-> **스캐폴드 전에는 2~5 가 건너뛰어진다.** `front/package.json` 이 생기는 순간부터 전부 돈다 (`deploy.md` §7.1).
+> **스캐폴드 전에는 2~6 이 건너뛰어진다.** `front/package.json` 이 생기는 순간부터 전부 돈다 (`deploy.md` §7.1).
+
+### ⚠️ `src/mocks/` 를 정적으로 import 하지 않는다
+
+**`VITE_API_MODE` 검사는 런타임 가드라 트리셰이킹을 못 한다.** `src/mocks/enable.ts` 가
+`handlers` 를 정적으로 `import` 하던 동안 **가짜 예약번호 `48207315` 가 프로덕션 번들에
+들어 있었다** (#108). 목 관련 `import` 는 **전부 `enableMocking()` 안의 `await import(...)`** 로 한다.
+
+6단계가 이걸 지킨다 — 엔트리 청크에서 목 문자열을 `grep` 한다 (`scripts/check-bundle.sh`).

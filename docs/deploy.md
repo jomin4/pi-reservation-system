@@ -286,6 +286,7 @@ IMAGE_TAG=sha-abc1234 docker compose up -d --no-deps app
 | **타입 체크** | ❌ | ✅ **`tsc --noEmit`** |
 | 린트 · 유닛 테스트 | ❌ | ✅ |
 | **생성 타입 최신성** | ❌ | ✅ |
+| **번들에 목이 없는지** | ❌ | ✅ **`check:bundle`** (§7.4) |
 
 > ⚠️ **트랙이 스캐폴드되기 전에도 이 job 은 돈다.** `_changes` 는 `^front/` 로 판별하므로 **`front/CLAUDE.md` 한 줄만 고쳐도 `front=true`** 가 된다. `front/package.json` 이 없으면 `setup-node` 의 캐시 경로부터 깨지므로, 워크플로가 **스캐폴드 여부를 먼저 보고 이후 단계를 건너뛴다.**
 
@@ -312,6 +313,23 @@ diff /tmp/api.d.ts src/api/schema.d.ts    # 다르면 실패
 | 빌드 명령 | `npm run build` |
 | 출력 | `dist` |
 | 프리뷰 | 브랜치·PR별 URL — ⚠️ **Cloudflare Access로 보호** |
+
+### 7.4 ⚠️ 번들에 목이 실려 나가지 않는지
+
+**`VITE_API_MODE` 검사는 런타임 가드라 트리셰이킹을 못 한다.** `src/mocks/enable.ts` 가
+`handlers` 를 정적으로 `import` 하던 동안 **가짜 예약번호 `48207315` · 시나리오 이름
+`seat-conflict` 가 프로덕션 엔트리 청크에 들어 있었다** (2026-09-15, #108).
+
+```bash
+pnpm run check:bundle    # vite build → dist 엔트리 청크에서 목 문자열 grep
+```
+
+> **이 단계가 `vite build` 를 CI 안에서 처음 돌린다.** 그전까지 빌드가 깨지는 것은
+> **Cloudflare Pages 가 배포 시점에 처음 알았다** — §7.1 의 표가 「빌드는 Pages 몫」
+> 이라고만 적혀 있어 생긴 빈틈이다.
+
+> ⚠️ **엔트리 청크만 본다.** 목이 동적 `import` 뒤 별도 청크로 존재하는 것은 정상이다
+> (`VITE_API_MODE=mock` 일 때만 받아진다). 문제는 **동기적으로 실려 나가는 것**이다.
 
 ---
 
