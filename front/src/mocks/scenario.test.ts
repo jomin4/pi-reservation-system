@@ -50,7 +50,7 @@ describe('조회', () => {
   })
 
   it('목록에 10개가 있고 happy 가 기본이다', () => {
-    expect(SCENARIOS).toHaveLength(10)
+    expect(SCENARIOS).toHaveLength(11)
     expect(SCENARIOS[0]).toBe('happy')
   })
 })

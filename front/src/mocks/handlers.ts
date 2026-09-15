@@ -268,7 +268,7 @@ const auth = [
   http.post(url('/auth/signup'), async () => {
     const blocked = await pre()
     if (blocked) return blocked
-    if (isScenarioActive('not-owned')) {
+    if (isScenarioActive('credentials-rejected')) {
       return problemResponse(
         fx.problem({
           status: 409,
@@ -284,7 +284,7 @@ const auth = [
     const blocked = await pre()
     if (blocked) return blocked
     // ⚠️ 폼 편의용이다. 최종 판정은 가입 응답이다 (`api.md` §5.5)
-    return HttpResponse.json({ available: !isScenarioActive('not-owned') })
+    return HttpResponse.json({ available: !isScenarioActive('credentials-rejected') })
   }),
 
   http.post(url('/auth/login'), async () => {
@@ -297,7 +297,7 @@ const auth = [
         { 'Retry-After': '300' },
       )
     }
-    if (isScenarioActive('not-owned')) {
+    if (isScenarioActive('credentials-rejected')) {
       // 계정 존재 여부를 구분하지 않는 문구여야 한다
       return problemResponse(
         fx.problem({
