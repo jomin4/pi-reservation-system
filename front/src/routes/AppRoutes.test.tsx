@@ -117,7 +117,7 @@ describe('⚠️ 보호 라우트 — 원래 자리를 들고 로그인으로', 
 describe('로그인 · 회원가입은 비로그인 전용', () => {
   it('비로그인이면 보여준다', () => {
     open('/login')
-    expect(screen.getByText('W-07')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '로그인' })).toBeInTheDocument()
   })
 
   it('⚠️ 이미 로그인했으면 홈으로 — 다시 로그인하면 회전이 한 번 더 돈다', () => {

@@ -19,6 +19,8 @@ export const SCENARIOS = [
   'payment-declined',
   'login-throttled',
   'not-owned',
+  // 자격 거부 — 로그인 401 · 가입 409 · 이메일 사용 중. 소유권(403)과 다른 개념이라 나눴다
+  'credentials-rejected',
   'not-found',
   'server-error',
 ] as const

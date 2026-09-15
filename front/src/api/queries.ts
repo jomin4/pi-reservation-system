@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { api } from './client'
 import type { components } from './schema'
@@ -54,5 +54,36 @@ export function useTrips(search: TripSearch | null): UseQueryResult<S['TripList'
       return api.request<S['TripList']>(`/trips?${q.toString()}`)
     },
     enabled: search !== null,
+  })
+}
+
+// ── 인증 (§5.5) ───────────────────────────────────────────────
+
+export function useLogin() {
+  return useMutation({
+    mutationFn: (body: { email: string; password: string }) =>
+      api.request<S['TokenPair']>('/auth/login', { method: 'POST', body }),
+  })
+}
+
+export function useSignup() {
+  return useMutation({
+    mutationFn: (body: { email: string; password: string; name: string; phone: string }) =>
+      api.request<S['MemberProfile']>('/auth/signup', { method: 'POST', body }),
+  })
+}
+
+/**
+ * 이메일 중복 확인 (`F-21`).
+ *
+ * ⚠️ **최종 판정이 아니다.** 확인과 가입 사이에 남이 채갈 수 있다 —
+ * **진짜 판정은 가입 요청의 DB unique 제약**이고 이건 폼 편의용이다.
+ */
+export function useEmailAvailability() {
+  return useMutation({
+    mutationFn: (email: string) =>
+      api.request<{ available: boolean }>(
+        `/auth/email-available?email=${encodeURIComponent(email)}`,
+      ),
   })
 }
