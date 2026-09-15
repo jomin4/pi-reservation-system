@@ -91,11 +91,11 @@ describe('⚠️ 보호 라우트 — 원래 자리를 들고 로그인으로', 
     expect(from()).toBe('/reservations?page=2')
   })
 
-  it('로그인해 있으면 그대로 들어간다', () => {
+  it('로그인해 있으면 그대로 들어간다', async () => {
     setTokens(pair)
     open('/reservations')
     expect(path()).toBe('/reservations')
-    expect(screen.getByText('W-09')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '예약 내역' })).toBeInTheDocument()
   })
 
   it('⚠️ Access 가 없어도 Refresh 가 있으면 통과한다 — 새로고침 직후가 그 상태다', () => {
@@ -125,19 +125,21 @@ describe('로그인 · 회원가입은 비로그인 전용', () => {
 })
 
 describe('⚠️ 경로 순서 — complete 를 예약번호로 먹으면 안 된다', () => {
-  it('/reservations/48207315/complete 는 W-06 이다', () => {
+  /*
+   * ⚠️ 두 화면이 **같은 데이터를 같은 문구로** 불러온다. 로딩 표시로는 구분이 안 되니
+   * 데이터가 온 뒤의 제목으로 본다 — 순서가 뒤집혔다면 둘 다 상세가 먹는다.
+   */
+  it('/reservations/48207315/complete 는 W-06 이다', async () => {
     setTokens(pair)
     open('/reservations/48207315/complete')
-    // W-06 이 진짜 화면이 된 뒤로는 로딩 표시가 라우트의 증거다.
-    // 순서가 뒤집혔다면 상세(W-10)가 먹었을 것이다
-    expect(screen.getByRole('status')).toHaveTextContent('예약을 불러오는 중')
-    expect(screen.queryByText('W-10')).not.toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '예약이 확정되었습니다' })).toBeInTheDocument()
   })
 
-  it('/reservations/48207315 는 W-10 이다', () => {
+  it('/reservations/48207315 는 W-10 이다', async () => {
     setTokens(pair)
     open('/reservations/48207315')
-    expect(screen.getByText('W-10')).toBeInTheDocument()
+    // 상세의 제목은 예약번호다
+    expect(await screen.findByRole('heading', { name: '4820 7315' })).toBeInTheDocument()
   })
 })
 

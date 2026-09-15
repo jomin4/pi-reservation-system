@@ -204,3 +204,54 @@ export function useReservation(reservationNo: string) {
     queryFn: () => api.request<S['ReservationDetail']>(`/reservations/${reservationNo}`),
   })
 }
+
+// ── 예약 관리 (§5.4) ─────────────────────────────────────────
+
+/**
+ * 내 예약 목록 (`F-12`).
+ *
+ * ⚠️ **정렬 파라미터를 보내지 않는다.** 계약이 `createdAt DESC` 로 고정했다 —
+ * 클라이언트가 정렬을 고르기 시작하면 서버 인덱스 계획이 흔들린다.
+ *
+ * > **취소분도 온다.** `F-14` 는 삭제가 아니라 `CANCELLED` 전이다 — 이력 보존이
+ * > 설계 의도다. 화면이 걸러내면 그 의도가 사라진다.
+ */
+export function useReservations(page: number): UseQueryResult<S['ReservationPage']> {
+  return useQuery({
+    queryKey: ['reservations', page],
+    queryFn: () => api.request<S['ReservationPage']>(`/reservations?page=${page}`),
+    // 페이지를 오갈 때 목록이 빈 화면으로 깜빡이지 않게 한다
+    placeholderData: (prev) => prev,
+  })
+}
+
+/**
+ * 예약 취소 (`F-14`).
+ *
+ * ⚠️ **`DELETE` 가 아니라 `POST /cancel` 이다.** 예약은 지워지지 않고 `CANCELLED`
+ * 로 전이한다 — **이력 보존이 요구사항**이다.
+ *
+ * > 이 호출이 **해당 운행을 보고 있는 모든 화면에 SSE 로 좌석 복귀를 전파**한다
+ * > (`cause: RESERVATION_CANCELLED`).
+ */
+export function useCancelReservation() {
+  return useMutation({
+    mutationFn: (reservationNo: string) =>
+      api.request<S['Reservation']>(`/reservations/${reservationNo}/cancel`, { method: 'POST' }),
+  })
+}
+
+/**
+ * 내 정보 수정 — **이름 · 연락처만** (`F-22`).
+ *
+ * ⚠️ 이메일 변경 · 비밀번호 변경은 **범위 밖**이다. 누락이 아니라 의도된 축소다.
+ *
+ * > 여기서 이름을 바꿔도 **이미 만든 예약의 `passengerName` 은 안 변한다** —
+ * > 예약 시점 스냅샷이다 (`data.md` §3).
+ */
+export function useUpdateMe() {
+  return useMutation({
+    mutationFn: (body: S['UpdateProfileRequest']) =>
+      api.request<S['MemberProfile']>('/me', { method: 'PATCH', body }),
+  })
+}

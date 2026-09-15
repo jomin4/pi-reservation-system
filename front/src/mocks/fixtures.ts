@@ -118,6 +118,23 @@ export const paymentIntent: S['PaymentIntentResponse'] = {
   orderName: 'KTX 101 · 4호차 7A 외 1석',
 }
 
+/**
+ * ⚠️ **출발 시각을 고정 날짜로 박지 않는다.**
+ *
+ * > 박아두면 그 날이 지나는 순간 목이 **계약과 모순된 데이터**를 준다 —
+ * > `CONFIRMED` 인데 이미 출발한 예약. `COMPLETED` 는 `departAt < now()` 로
+ * > 파생되기 때문이다(`data.md` §5.5). `W-10` 의 취소 버튼이 영원히 잠긴다.
+ */
+function kstDaysFromNow(days: number, kstHour: number): string {
+  const d = new Date(Date.now() + days * 86_400_000)
+  // KST 06:00 = UTC 21:00 (전날)
+  d.setUTCHours(kstHour - 9, 0, 0, 0)
+  return d.toISOString()
+}
+
+const departAt = kstDaysFromNow(5, 6)
+const arriveAt = new Date(Date.parse(departAt) + 137 * 60_000).toISOString()
+
 export const reservation: S['ReservationDetail'] = {
   reservationNo: '48207315',
   status: 'CONFIRMED',
@@ -125,8 +142,8 @@ export const reservation: S['ReservationDetail'] = {
   trainNo: 'KTX 101',
   fromStation: { code: 'SEO', name: '서울' },
   toStation: { code: 'BSN', name: '부산' },
-  departAt: '2026-09-10T21:00:00Z',
-  arriveAt: '2026-09-10T23:17:00Z',
+  departAt,
+  arriveAt,
   passengerName: '홍길동',
   passengerPhone: '010-0000-0000',
   seats: [
@@ -135,6 +152,19 @@ export const reservation: S['ReservationDetail'] = {
   ],
   totalFare: 119600,
   paidAt: '2026-09-04T05:18:02Z',
+}
+
+/** ⚠️ 이미 출발한 예약 — `W-10` 의 「취소 불가」 경로를 목으로 볼 수 있게 한다 */
+export const completedReservation: S['ReservationDetail'] = {
+  ...reservation,
+  reservationNo: '48207316',
+  status: 'COMPLETED',
+  tripId: 103,
+  trainNo: 'KTX 103',
+  departAt: kstDaysFromNow(-14, 7),
+  arriveAt: kstDaysFromNow(-14, 9),
+  seats: [{ carNo: 2, rowNo: 3, colLetter: 'D', fare: 59800 }],
+  totalFare: 59800,
 }
 
 export const reservationPage: S['ReservationPage'] = {
@@ -147,7 +177,7 @@ export const reservationPage: S['ReservationPage'] = {
       reservationNo: '48207315',
       status: 'CONFIRMED',
       trainNo: 'KTX 101',
-      departAt: '2026-09-20T00:00:00Z',
+      departAt,
       seats: [
         { carNo: 4, rowNo: 7, colLetter: 'A', fare: 59800 },
         { carNo: 4, rowNo: 7, colLetter: 'B', fare: 59800 },
@@ -159,7 +189,7 @@ export const reservationPage: S['ReservationPage'] = {
       // ⚠️ 파생값이다 (`data.md` §5.5). 클라이언트는 그냥 표시한다
       status: 'COMPLETED',
       trainNo: 'KTX 103',
-      departAt: '2026-08-01T00:00:00Z',
+      departAt: completedReservation.departAt,
       seats: [{ carNo: 2, rowNo: 3, colLetter: 'D', fare: 59800 }],
       totalFare: 59800,
     },
