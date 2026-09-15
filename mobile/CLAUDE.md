@@ -114,13 +114,36 @@ Jest 에는 `.env` 가 없으므로 `jest.setup.js` 가 같은 값을 주입한�
 | Mock 전략 | **`api.md` §7** |
 | 배포 | `deploy.md` §8 |
 
-## Mock — `msw/native` 로 확정 (2026-09-14 · #81)
+## ⚠️ Mock — MSW 를 버리고 자체 인터셉터로 (2026-09-14 · #91)
+
+**`msw` 는 Hermes 에서 안 돈다.** 모듈 평가 시점에 없는 Web API 를 참조해 **앱이 첫 화면도 못 그리고 죽는다** — `MessageEvent` → `BroadcastChannel` → 스트림 계열.
 
 | | |
 |---|---|
-| 진입점 | **`msw/native`** — 브라우저의 Service Worker 가 아니라 XHR 인터셉터 |
+| 지금 상태 | ⚠️ **목이 꺼져 있다.** 교체 진행 중 |
 | 켜는 법 | `EXPO_PUBLIC_API_MODE=mock` — `app/_layout.tsx` 가 렌더 전에 부른다 |
 | 시나리오 | **`EXPO_PUBLIC_MOCK_SCENARIO`** — 모바일엔 주소창이 없다 |
-| 검증 | `src/mocks/intercept.test.ts` — ⚠️ **`fetchImpl` 을 주입하지 않는다** |
+| 그대로 쓰는 것 | `fixtures.ts` · `scenario.ts` · 핸들러 **로직** |
 
-⚠️ **실기기·에뮬레이터(Hermes) 확인은 아직이다.** jest-expo 환경까지만 봤다 (`api.md` §7.2).
+> **바뀌는 건 「누가 가로채나」 뿐이다.** 앱이 진짜 `fetch` 를 부르고 `status`·`delay` 를 조작한다는 것은 웹과 같다 (`api.md` §7.2).
+
+## 개발 루프 — 화면이 있는 작업은 에뮬레이터를 띄운 채로
+
+⚠️ **정적 검사 4종이 전부 초록인데 앱이 안 뜨는 일이 실제로 두 번 있었다.** `tsc` · `eslint` · `jest` · `expo-doctor` 중 **번들러를 돌리는 건 하나도 없다.**
+
+| 단계 | 명령 |
+|---|---|
+| 0 | `cp .env.example .env` — ⚠️ 없으면 앱이 뜨다 죽는다 |
+| 1 | `emulator -avd <AVD>` · `adb devices` 로 확인 |
+| 2 | `pnpm exec expo start --android` — 상주시킨다 |
+| 3 | 코드 수정 → **Fast Refresh** 로 1~2초 |
+| 4 | `adb exec-out screencap -p > screen.png` — **화면을 직접 본다** |
+| 5 | 와이어프레임(`docs/wireframes/mobile.html`)과 맞으면 커밋 |
+
+| 함정 | |
+|---|---|
+| 포트 8081 점유 | 이전 Metro 가 살아 있다. 죽이고 다시 |
+| 새 파일을 안 집어간다 | **`--clear`** 로 캐시를 비우고 재시작 |
+| 에러가 화면에만 뜬다 | `adb logcat` 말고 **Metro 출력**에 `ERROR` 로 같이 찍힌다 |
+
+> ⚠️ **「Jest 초록」 을 「동작한다」 로 읽지 않는다.** 엔진이 다르면 없는 전역도 다르다. **런타임에 기대는 결론은 에뮬레이터에서 한 번 보고 적는다.**

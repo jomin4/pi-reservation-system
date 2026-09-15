@@ -971,28 +971,31 @@ data: {"reason":"EVENT_ID_TOO_OLD","action":"REFETCH_SNAPSHOT"}
 
 > **이름이 다른 건 취향이 아니다.** Vite는 `VITE_`, Expo는 **`EXPO_PUBLIC_`** 접두만 클라이언트 번들에 주입한다. 접두를 안 맞추면 **값이 `undefined`로 들어오고 조용히 `real`로 떨어진다** — 백엔드가 없는데 mock이 안 붙는다.
 
-**React Native에서도 MSW로 간다 — 2026-09-14 확인** (`#81`)
+⚠️ **React Native에서 MSW는 쓰지 못한다 — 2026-09-14 에뮬레이터 확인** (`#91`)
 
-브라우저에는 Service Worker가 있지만 RN에는 없다. `msw`는 진입점을 따로 준다.
+**한 번 반대로 적었다.** #90에서 "`msw/native`로 간다"고 확정했는데 **에뮬레이터에서 뒤집혔다.**
 
-| 환경 | 가로채는 것 |
-|---|---|
-| 브라우저 | `msw/browser` — 진짜 Service Worker |
-| **React Native** | **`msw/native`** — `@mswjs/interceptors`가 런타임에서 `XMLHttpRequest`를 감싼다 |
+```
+Uncaught Error: Property 'MessageEvent' doesn't exist
+  at src/mocks/handlers.ts:1 → enable.ts → app/_layout.tsx
+```
 
-> **RN의 `fetch`가 XHR 위에 얹혀 있어서 물린다.** 앱 코드는 웹과 똑같이 진짜 `fetch`를 부른다.
+`msw`와 `@mswjs/interceptors`는 모듈 평가 시점에 **Hermes에 없는 Web API**를 참조한다 — `MessageEvent` · `BroadcastChannel` · `TransformStream` · `DecompressionStream` …. 하나 채우면 다음이 나온다.
 
-**확인한 범위 — 정직하게 나눈다**
+> ⚠️ **`jest-expo`로는 못 잡는다.** RN의 모듈 해석은 흉내 내지만 **엔진은 Node**다. `MessageEvent`가 거기엔 있다. **「Jest 초록」이 「Hermes에서 된다」를 뜻하지 않는다** — [트러블슈팅](troubleshooting/mobile/2026-09-14-msw-does-not-run-on-hermes.md).
 
-| | |
-|---|---|
-| ✅ 확인함 | `msw/native`가 **앱의 `fetch`를 가로챈다.** `fetchImpl` 주입 없이 `client.ts`를 그대로 통과시켜 검증 (`mobile/src/mocks/intercept.test.ts`) |
-| ✅ 확인함 | 시나리오로 `409`(2종) · `500` · `delay`를 실제로 뿜는다 |
-| ⬜ **아직** | **Hermes 실기기·에뮬레이터.** 검증은 jest-expo 환경에서 했다 |
+**그래서 모바일만 자체 `fetch` 인터셉터로 간다.** §7.2가 처음부터 열어둔 경로다.
 
-⚠️ **모바일에는 함정이 하나 있다 — 전역 `fetch`를 모듈 로드 시점에 붙잡으면 안 된다.** `msw/native`가 `listen()`에서 전역을 갈아끼우므로, 먼저 캡처한 참조는 **`status`도 `text()`도 `undefined`인 반쪽짜리 Response**를 준다. 던지지 않아서 증상이 엉뚱한 곳에 뜬다 — [트러블슈팅 2026-09-14](troubleshooting/mobile/2026-09-14-msw-returns-half-dead-response.md).
+| | 웹 (`front/`) | **모바일 (`mobile/`)** |
+|---|---|---|
+| 가로채는 것 | **MSW** — Service Worker | **자체 `fetch` 인터셉터** 한 장 |
+| 버리는 것 | — | WebSocket 목 · 워커 · 스트림 응답 |
+| **지키는 것** | **앱이 진짜 `fetch`를 부른다 · `status`·`delay` 조작 · 끌 때 핸들러만 뺀다** | **동일** |
+| 공유하는 것 | — | **`fixtures` · `scenario` · 핸들러 로직은 그대로** |
 
-> **웹에는 이 함정이 없다.** `msw/browser`는 전역 `fetch`를 건드리지 않는다. **같은 코드가 웹에서만 돈다.**
+> **바뀌는 건 「누가 가로채나」뿐이다.** 앱 코드와 예외 화면을 만드는 방식은 웹과 같다 — **그게 §7.2가 지키려던 것**이고 도구 이름이 아니다.
+
+⚠️ **모바일에는 함정이 하나 더 있다 — 전역 `fetch`를 모듈 로드 시점에 붙잡으면 안 된다.** 인터셉터가 전역을 갈아끼우므로, 먼저 캡처한 참조는 **`status`도 `text()`도 `undefined`인 반쪽짜리 Response**를 준다 — [트러블슈팅](troubleshooting/mobile/2026-09-14-msw-returns-half-dead-response.md). **MSW를 버려도 이 함정은 그대로 남는다.**
 
 **스위치도 갈린다** — 웹은 주소창 `?mock=`, 모바일은 **`EXPO_PUBLIC_MOCK_SCENARIO`**. 모바일에 주소창이 없어서다.
 

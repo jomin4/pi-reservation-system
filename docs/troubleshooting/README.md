@@ -45,6 +45,8 @@
 | 2026-09-12 | [`eslint-config-expo` 의 peer 가 `>=8.10` 인데 실제로는 9 까지다](mobile/2026-09-12-eslint-config-expo-caps-eslint-at-9.md) | 해결 |
 | 2026-09-14 | [`msw` 를 import 하면 `Cannot use import statement outside a module` 로 죽는다](mobile/2026-09-14-jest-expo-does-not-transform-mjs.md) | 해결 |
 | 2026-09-14 | [MSW 를 켰는데 `Cannot read properties of undefined (reading 'length')` 로 죽는다](mobile/2026-09-14-msw-returns-half-dead-response.md) | 해결 |
+| 2026-09-14 | [`Unable to resolve "react-native-css-interop/jsx-runtime"` 로 번들이 실패한다](mobile/2026-09-14-metro-cannot-resolve-nativewind-jsx-runtime.md) | 해결 |
+| 2026-09-14 | [앱이 `Property 'MessageEvent' doesn't exist` 로 뜨다 죽는다 (MSW)](mobile/2026-09-14-msw-does-not-run-on-hermes.md) | ⚠️ **미해결** |
 
 ### `infra`
 
