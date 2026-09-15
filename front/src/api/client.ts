@@ -45,7 +45,12 @@ export interface ApiClient {
 }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
-  const doFetch = options.fetchImpl ?? globalThis.fetch.bind(globalThis)
+  // ⚠️ `globalThis.fetch.bind()` 로 지금 잡아두면 안 된다.
+  //    `api` 싱글턴은 모듈 로드 시점에 만들어지는데, 그 뒤에 누가 fetch 를 갈아끼우면
+  //    (테스트의 msw/node, 계측 도구 등) 낡은 참조가 남아 **가로채기를 통과해 버린다.**
+  //    매 요청마다 현재 전역을 본다.
+  const doFetch: typeof globalThis.fetch = (input, init) =>
+    (options.fetchImpl ?? globalThis.fetch)(input, init)
 
   async function request<T>(path: string, opts: RequestOptions = {}, retried = false): Promise<T> {
     const headers = new Headers({

@@ -1,10 +1,17 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { setupServer } from 'msw/node'
 import { MemoryRouter, useLocation } from 'react-router'
 import { createQueryClient } from '../api/query-client'
 import { clearTokens, setTokens } from '../auth'
+import { handlers } from '../mocks/handlers'
 import { AppRoutes } from './AppRoutes'
+
+// ⚠️ 공개 라우트(W-01 · W-02)가 이제 진짜 화면이라 네트워크를 탄다
+const server = setupServer(...handlers)
+beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }))
+afterAll(() => server.close())
 
 const pair = {
   accessToken: 'acc_1',
@@ -44,14 +51,23 @@ beforeEach(() => {
 })
 
 describe('공개 라우트 — 로그인 없이 본다 (api.md §5.1)', () => {
-  it.each([
-    ['/', 'W-01'],
-    ['/trips', 'W-02'],
-    ['/trips/101/seats', 'W-03'],
-  ])('%s 는 %s 를 보여준다', (route, id) => {
-    open(route)
-    expect(screen.getByText(id)).toBeInTheDocument()
-    expect(path()).toBe(route)
+  it('/ 는 홈을 띄운다', () => {
+    open('/')
+    // 역 목록을 부르는 중이다 — 라우트가 붙었다는 증거로 충분하다
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(path()).toBe('/')
+  })
+
+  it('/trips 는 운행 목록을 띄운다', () => {
+    open('/trips')
+    expect(screen.getByText(/조회 조건이 없습니다/)).toBeInTheDocument()
+    expect(path()).toBe('/trips')
+  })
+
+  it('/trips/:tripId/seats 는 좌석 선택을 띄운다', () => {
+    open('/trips/101/seats')
+    expect(screen.getByText('W-03')).toBeInTheDocument()
+    expect(path()).toBe('/trips/101/seats')
   })
 
   it('⚠️ 좌석 선택도 공개다 — 로그인을 요구하는 건 선점 버튼이다', () => {
@@ -159,7 +175,10 @@ describe('헤더', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '로그아웃' }))
 
-    expect(path()).toBe('/login')
+    // 로그아웃은 서버를 한 번 부르고 정리한다 — 리다이렉트가 클릭보다 한 박자 늦다
+    await waitFor(() => {
+      expect(path()).toBe('/login')
+    })
     expect(from()).toBe('/reservations')
   })
 })
