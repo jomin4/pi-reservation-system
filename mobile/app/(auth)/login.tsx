@@ -18,8 +18,12 @@ export default function Login() {
     <Placeholder id="M-07" title="로그인" note={`로그인 후 돌아갈 곳: ${target}`}>
       <TouchableOpacity
         onPress={() => {
-          signIn()
-          router.replace(target)
+          // #46 이 진짜 POST /auth/login 으로 바꾼다. 지금은 계약 모양만 맞춘다.
+          void signIn({
+            accessToken: 'placeholder',
+            refreshToken: 'placeholder',
+            accessExpiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+          }).then(() => router.replace(target))
         }}
         className="mt-6 rounded-lg bg-sky-600 px-6 py-3"
       >

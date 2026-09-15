@@ -21,6 +21,17 @@ export interface ApiClientOptions {
    * 저장(SecureStore)과 회전은 #84 가 채운다.
    */
   getAccessToken?: () => string | null
+  /**
+   * ⚠️ **선제 갱신.** 요청 전에 Access 가 곧 만료면 먼저 회전한다.
+   *    계약이 `accessExpiresAt` 을 주는 이유다 — `401` 을 받고 갱신하면
+   *    **사용자 동작 하나가 이미 실패한 뒤**다.
+   */
+  ensureFreshToken?: () => Promise<void>
+  /**
+   * `401` 을 받았을 때 한 번 되살려 본다. **갱신했으면 `true`** —
+   * 그러면 원래 요청을 그대로 다시 보낸다.
+   */
+  onUnauthorized?: () => Promise<boolean>
   /** 기본 요청 타임아웃(ms). 아래 「타임아웃」 참조 */
   timeoutMs?: number
   /** 테스트에서 갈아끼운다 */
@@ -38,6 +49,11 @@ export interface RequestOptions {
    *    ⚠️ 모바일은 이 값을 **영속 저장**해야 한다 — 앱이 죽으면 메모리 키가 사라진다 (#84).
    */
   idempotencyKey?: string
+  /**
+   * ⚠️ **인증 갱신 경로를 타지 않는다.** `POST /auth/refresh` 자신이 이걸 쓴다 —
+   *    안 그러면 갱신 실패가 다시 갱신을 부르는 무한 재귀가 된다.
+   */
+  skipAuthRefresh?: boolean
   /** 이 요청만 다른 타임아웃 */
   timeoutMs?: number
   signal?: AbortSignal
@@ -103,6 +119,16 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const defaultTimeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
 
   async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+    // ⚠️ **선제 갱신.** 계약이 `accessExpiresAt` 을 주는 이유가 이것이다 —
+    //    `401` 을 받고 나서 갱신하면 **사용자 동작 하나가 이미 실패한 뒤**다.
+    if (options.ensureFreshToken !== undefined && opts.skipAuthRefresh !== true) {
+      await options.ensureFreshToken()
+    }
+
+    return send<T>(path, opts, false)
+  }
+
+  async function send<T>(path: string, opts: RequestOptions, isRetry: boolean): Promise<T> {
     const requestId = makeId()
 
     const headers = new Headers({
@@ -159,6 +185,17 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       }
     }
 
+    // ⚠️ **`401` 은 한 번만 되살려 본다.** 선제 갱신이 있어도 시계 오차나
+    //    서버측 폐기로 여기 올 수 있다. 성공하면 **원래 요청을 그대로 다시** 보낸다 —
+    //    사용자 동작이 실패한 것처럼 보이지 않게.
+    //
+    //    ⚠️ **두 번은 없다.** 갱신 후에도 `401` 이면 세션이 끝난 것이고,
+    //    거기서 또 갱신하면 폐기된 토큰을 다시 보내 **재사용 탐지**에 걸린다.
+    if (res.status === 401 && !isRetry && opts.skipAuthRefresh !== true) {
+      const refreshed = (await options.onUnauthorized?.()) ?? false
+      if (refreshed) return send<T>(path, opts, true)
+    }
+
     // ⚠️ 202 는 2xx 인데도 던진다 — 성공으로 흘려보내면 안 되기 때문이다.
     //
     //    `202 PAYMENT_PENDING` 은 "승인됐는지 서버도 아직 모른다" 는 뜻이다 (`api.md` §4.3).
@@ -178,14 +215,34 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   return { request }
 }
 
-/** 앱이 쓰는 기본 인스턴스. 토큰 공급자는 #84 가 꽂는다. */
+/**
+ * 앱이 쓰는 기본 인스턴스.
+ *
+ * ⚠️ **인증 훅은 setter 로 꽂는다.** `client.ts` 가 `auth/` 를 import 하면
+ *    `auth/` 도 갱신 요청을 보내려고 `client.ts` 를 import 해 **순환**이 된다.
+ *    배선은 `src/auth/wire.ts` 한 곳에서 한다.
+ */
 let accessTokenProvider: () => string | null = () => null
+let ensureFresh: (() => Promise<void>) | null = null
+let unauthorized: (() => Promise<boolean>) | null = null
 
 export function setAccessTokenProvider(fn: () => string | null): void {
   accessTokenProvider = fn
 }
 
+export function setAuthRefreshHooks(hooks: {
+  ensureFreshToken: () => Promise<void>
+  onUnauthorized: () => Promise<boolean>
+}): void {
+  ensureFresh = hooks.ensureFreshToken
+  unauthorized = hooks.onUnauthorized
+}
+
 export const api: ApiClient = createApiClient({
   baseUrl: API_BASE_URL,
   getAccessToken: () => accessTokenProvider(),
+  ensureFreshToken: async () => {
+    await ensureFresh?.()
+  },
+  onUnauthorized: async () => (await unauthorized?.()) ?? false,
 })

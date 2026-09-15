@@ -7,13 +7,13 @@ import { View, type ColorValue } from 'react-native'
  * ⚠️ **예약·마이페이지 탭은 로그인이 필요하다.** 탭 자체를 숨기지 않고 **열되
  *    가드가 로그인으로 보낸다** — 탭이 사라지면 "예약은 어디서 보지" 가 된다.
  *
- * ⚠️ **미해결 — 탭바에 빈 네모(⧅)가 그려진다.** 에뮬레이터에서 셋 다 시도했고
- *    셋 다 안 지워졌다: `tabBarIcon: () => null` · `tabBarIconStyle: {display:'none'}` ·
- *    아래처럼 **명시적 View 아이콘**. 번들은 매번 새로 말렸다(횟수 확인).
+ * ⚠️ **`tabBarIcon` 을 반드시 준다.** 안 주면 RN 이 **빈 네모(⧅)** 를 그려
+ *    "아이콘이 깨졌나" 로 보인다. 아래 점 하나면 충분하다 — 시스템 폰트에
+ *    의존하지 않아 항상 그려진다. 아이콘 세트는 디자인이 정해진 뒤에 넣는다.
  *
- *    **원인을 모른다.** 우리 `tabBarIcon` 이 안 먹는 것인지, 다른 레이어가 그리는
- *    것인지 아직 못 갈랐다. 자리표 화면이라 **동선에는 지장이 없어** 여기서 멈춘다 —
- *    아이콘 세트를 넣는 이슈에서 다시 본다.
+ * > **#100 에서 「원인 미확인」 으로 남겼던 게 이거다.** 고쳐도 계속 ⧅ 가 보였는데
+ * > **낡은 번들이었다** — `CI=1` 이 watch mode 를 꺼서 수정이 안 실렸다
+ * > (`mobile/CLAUDE.md` 「개발 루프」).
  */
 function Dot({ color }: { color: ColorValue }) {
   return <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />
