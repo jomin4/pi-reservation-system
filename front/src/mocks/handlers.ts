@@ -226,17 +226,25 @@ const payments = [
 // ── 예약 관리 (§5.4) ──────────────────────────────────────────
 
 const reservations = [
+  // 목록은 한 페이지뿐이다 — 페이지네이션 UI 는 테스트가 여러 페이지 목으로 본다
   http.get(
     url('/reservations'),
     async () => (await pre()) ?? HttpResponse.json(fx.reservationPage),
   ),
 
-  http.get(url('/reservations/:reservationNo'), async () => {
+  /*
+   * ⚠️ **예약번호에 맞는 예약을 준다.** 무엇을 부르든 같은 것을 돌려주면
+   * 목록에서 `COMPLETED` 행을 눌렀는데 상세는 `CONFIRMED` 로 뜬다 — 그 상태로
+   * 「출발한 예약은 취소 불가」 경로를 영영 못 본다.
+   */
+  http.get(url('/reservations/:reservationNo'), async ({ params }) => {
     const blocked = await pre()
     if (blocked) return blocked
     if (isScenarioActive('not-found'))
       return notFound('RESERVATION_NOT_FOUND', '예약을 찾을 수 없습니다')
     if (isScenarioActive('not-owned')) return notOwned('RESERVATION_NOT_OWNED')
+    if (params['reservationNo'] === fx.completedReservation.reservationNo)
+      return HttpResponse.json(fx.completedReservation)
     return HttpResponse.json(fx.reservation)
   }),
 
