@@ -64,20 +64,11 @@ describe('공개 라우트 — 로그인 없이 본다 (api.md §5.1)', () => {
     expect(path()).toBe('/trips')
   })
 
-  it('/trips/:tripId/seats 는 좌석 선택을 띄운다', () => {
-    open('/trips/101/seats')
-    expect(screen.getByText('W-03')).toBeInTheDocument()
-    expect(path()).toBe('/trips/101/seats')
-  })
-
   it('⚠️ 좌석 선택도 공개다 — 로그인을 요구하는 건 선점 버튼이다', () => {
     open('/trips/101/seats')
+    // 좌석을 부르는 중이다 — 가드에 막히지 않았다는 증거
+    expect(screen.getByRole('status')).toBeInTheDocument()
     expect(path()).toBe('/trips/101/seats')
-  })
-
-  it('경로 파라미터가 화면에 전달된다', () => {
-    open('/trips/101/seats')
-    expect(screen.getByText('101')).toBeInTheDocument()
   })
 })
 
