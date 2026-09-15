@@ -29,7 +29,11 @@ jobs:
     uses: ./.github/workflows/_changes.yml
 
   check:
-    name: front · 타입 · 린트 · 테스트 · 번들
+    # ⚠️ 이 `name` 은 develop 브랜치 보호의 **필수 체크 이름과 글자까지 같아야 한다.**
+    #    바꾸면 그 이름의 체크가 영영 안 와서 모든 PR 이 BLOCKED 로 멈춘다 —
+    #    검사는 전부 초록인데 머지만 안 되므로 원인이 안 보인다.
+    #    단계를 추가할 때 이름에 덧붙이고 싶어지지만, 그게 이 함정이다.
+    name: front · 타입 · 린트 · 테스트
     needs: changes
     if: needs.changes.outputs.front == 'true' || needs.changes.outputs.contract == 'true'
     runs-on: ubuntu-latest

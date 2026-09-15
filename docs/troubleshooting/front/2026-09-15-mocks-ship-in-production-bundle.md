@@ -93,6 +93,7 @@ export async function enableMocking(): Promise<void> {
 
 | 시도 | 결과 |
 |---|---|
+| 단계를 늘린 김에 job `name` 에 `· 번들` 을 덧붙임 | ❌ **모든 PR 이 `BLOCKED` 로 멈췄다.** `develop` 브랜치 보호가 **`front · 타입 · 린트 · 테스트`** 를 필수 체크로 **이름으로** 고정한다 — 이름을 바꾸면 그 체크가 **영영 안 온다.** 검사는 전부 초록인데 머지만 안 되므로 원인이 안 보인다 |
 | 청크 목록만 보고 판단 | ❌ **`browser-*.js` · `cookieStore-*.js` 가 분리돼 있어 「MSW 는 안 실린다」고 읽었다.** 새는 건 이름이 안 드러나는 `handlers` 쪽이었다 |
 | `import.meta.env.VITE_API_MODE` 가드를 믿음 | ❌ 런타임 가드다. **번들 구성에 아무 영향이 없다** |
 | 검사기 회귀 테스트로 `void handlers` 를 추가 | ❌ **Rollup 이 그걸 트리셰이킹해서 검사기가 초록이 났다.** 실제로 쓰이는 원래 형태로 되돌려야 재현된다 — **검사기를 못 믿을 뻔했다** |
@@ -109,3 +110,4 @@ export async function enableMocking(): Promise<void> {
 | 로컬에서도 같은 명령 | `pnpm run check:bundle` · `pnpm run ci` |
 | 금지를 트랙 문서에 | `front/CLAUDE.md` 「`src/mocks/` 를 정적으로 import 하지 않는다」 |
 | 계약을 배포 문서에 | `docs/deploy.md` §7.1 표 · §7.4 |
+| ⚠️ job `name` 이 브랜치 보호와 묶인다는 경고 | `.github/workflows/front-ci.yml` 주석 |
