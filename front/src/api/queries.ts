@@ -116,3 +116,37 @@ export function useCreateHold() {
       api.request<S['HoldResponse']>('/holds', { method: 'POST', body }),
   })
 }
+
+export function useHold(holdId: string) {
+  return useQuery({
+    queryKey: ['hold', holdId],
+    queryFn: () => api.request<S['HoldResponse']>(`/holds/${holdId}`),
+    // ⚠️ 이 조회에 **lazy 만료 판정**이 걸린다 (`api.md` §5.2).
+    //    expires_at 이 지났으면 DB 가 아직 HELD 여도 410 을 준다
+    staleTime: Infinity,
+    retry: false,
+  })
+}
+
+/**
+ * 선점 해제 (`F-06`).
+ *
+ * > **만료를 기다리지 않고 즉시 좌석을 반환한다.** 이게 있어야 다른 채널의 대기
+ * > 시간이 줄어든다 — 다채널 경합 시연에서 체감 차이가 크다 (`W-04` 주석).
+ *
+ * ⚠️ 이미 만료·해제된 선점도 `204` 다. **멱등하게 처리된다** — 재시도가 에러가 되면
+ * 클라이언트가 불필요한 분기를 갖는다 (`api.md` §5.2).
+ */
+export function useReleaseHold() {
+  return useMutation({
+    mutationFn: (holdId: string) => api.request<void>(`/holds/${holdId}`, { method: 'DELETE' }),
+  })
+}
+
+export function useMe(enabled = true): UseQueryResult<S['MemberProfile']> {
+  return useQuery({
+    queryKey: ['me'],
+    queryFn: () => api.request<S['MemberProfile']>('/me'),
+    enabled,
+  })
+}
