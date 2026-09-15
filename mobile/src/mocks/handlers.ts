@@ -1,32 +1,23 @@
-import { delay, http, HttpResponse } from 'msw'
-import type { Problem } from '../api/problem'
 import * as fx from './fixtures'
+import { delay, json, noContent, problemResponse } from './respond'
+import { http, type Handler } from './router'
 import { isScenarioActive } from './scenario'
-import { sseFrame } from './sse-frame'
 
 /**
- * `api.md` §7.2 — 즉시 반환하면 **로딩 화면을 만들 계기가 없다.**
- * 다만 테스트는 그 계기가 필요 없다 — 20개가 500ms 씩 기다리면 10초다.
+ * 핸들러 — **`api.md` §5 · §4 의 예시가 그대로 본문이 된다** (§7.3).
+ *
+ * ⚠️ **fixture 를 새로 지어내지 않는다.** 계약과 갈린다.
+ *
+ * > **MSW 에서 옮겨왔지만 로직은 그대로다** (#91). `http.get(...)` 과 응답 헬퍼만
+ * > 우리 것으로 바뀌었다 — **어느 경로가 어느 상태를 주는가는 한 줄도 안 바꿨다.**
  */
-export const MOCK_DELAY_MS = process.env.JEST_WORKER_ID === undefined ? 500 : 0
-
-/** 오리진을 가리지 않는다 — `EXPO_PUBLIC_API_BASE_URL` 이 절대 URL 이어도 물린다 */
-const url = (path: string) => `*/api/v1${path}`
-
-function problemResponse(p: Problem, headers: Record<string, string> = {}): HttpResponse<Problem> {
-  return HttpResponse.json(p, {
-    status: p.status,
-    // ⚠️ 성공과 다른 미디어 타입이다 (`api.md` §4.1)
-    headers: { 'Content-Type': 'application/problem+json', ...headers },
-  })
-}
 
 /**
  * 모든 핸들러의 앞단. 지연을 넣고, `server-error` 시나리오면 `500` 으로 끊는다.
  * 끊을 게 없으면 `null` 을 준다 — 호출부는 `(await pre()) ?? 정상응답` 으로 쓴다.
  */
-async function pre(): Promise<HttpResponse<Problem> | null> {
-  await delay(MOCK_DELAY_MS)
+async function pre(): Promise<Response | null> {
+  await delay()
   if (!isScenarioActive('server-error')) return null
   // ⚠️ `5xx` 에는 detail 이 없다 — 내부를 노출하지 않는다 (`api.md` §4.5)
   return problemResponse(
@@ -75,63 +66,22 @@ const paymentDeclined = () =>
 // ── 조회 — 인증 불필요 (§5.1) ──────────────────────────────────
 
 const catalog = [
-  http.get(url('/stations'), async () => (await pre()) ?? HttpResponse.json(fx.stations)),
+  http.get('/stations', async () => (await pre()) ?? json(fx.stations)),
 
-  http.get(url('/trips'), async () => (await pre()) ?? HttpResponse.json(fx.trips)),
+  http.get('/trips', async () => (await pre()) ?? json(fx.trips)),
 
-  http.get(url('/trips/:tripId/seats'), async ({ params }) => {
+  http.get('/trips/:tripId/seats', async ({ params }) => {
     const blocked = await pre()
     if (blocked) return blocked
     if (isScenarioActive('not-found')) return notFound('TRIP_NOT_FOUND', '운행을 찾을 수 없습니다')
-    return HttpResponse.json(fx.buildSeatMap(Number(params['tripId'])))
-  }),
-]
-
-// ── SSE (§6) ──────────────────────────────────────────────────
-
-/** 하트비트 주기. 계약은 15초지만 목에서는 화면을 보며 확인할 수 있게 짧게 둔다 */
-export const MOCK_HEARTBEAT_MS = 3000
-
-const sse = [
-  http.get(url('/trips/:tripId/seat-events'), () => {
-    const encoder = new TextEncoder()
-    let timer: ReturnType<typeof setInterval> | undefined
-
-    const stream = new ReadableStream({
-      start(controller) {
-        const send = (event: string, data: unknown, id?: string) => {
-          controller.enqueue(encoder.encode(sseFrame(event, data, id)))
-        }
-
-        // 재개 실패는 에러 응답이 아니라 이벤트다 — 연결이 이미 200 으로 열려 있다 (§6.2)
-        if (isScenarioActive('not-found')) {
-          send('resume-failed', { reason: 'EVENT_ID_TOO_OLD', action: 'REFETCH_SNAPSHOT' })
-          controller.close()
-          return
-        }
-
-        send('heartbeat', {})
-        timer = setInterval(() => send('heartbeat', {}), MOCK_HEARTBEAT_MS)
-      },
-      cancel() {
-        if (timer !== undefined) clearInterval(timer)
-      },
-    })
-
-    return new HttpResponse(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      },
-    })
+    return json(fx.buildSeatMap(Number(params['tripId'])))
   }),
 ]
 
 // ── 선점 (§5.2) ───────────────────────────────────────────────
 
 const holds = [
-  http.post(url('/holds'), async () => {
+  http.post('/holds', async () => {
     const blocked = await pre()
     if (blocked) return blocked
     if (isScenarioActive('not-found')) return notFound('TRIP_NOT_FOUND', '운행을 찾을 수 없습니다')
@@ -147,74 +97,71 @@ const holds = [
         }),
       )
     }
-    return HttpResponse.json(fx.freshHold(), { status: 201 })
+    return json(fx.freshHold(), { status: 201 })
   }),
 
-  http.get(url('/holds/:holdId'), async () => {
+  http.get('/holds/:holdId', async () => {
     const blocked = await pre()
     if (blocked) return blocked
     if (isScenarioActive('not-owned')) return notOwned('HOLD_NOT_OWNED')
     if (isScenarioActive('hold-expired')) return holdExpired()
-    return HttpResponse.json(fx.freshHold())
+    return json(fx.freshHold())
   }),
 
-  http.delete(url('/holds/:holdId'), async () => {
+  http.delete('/holds/:holdId', async () => {
     const blocked = await pre()
     if (blocked) return blocked
     if (isScenarioActive('not-owned')) return notOwned('HOLD_NOT_OWNED')
-    return new HttpResponse(null, { status: 204 })
+    return noContent()
   }),
 ]
 
 // ── 결제 · 확정 (§5.3) ────────────────────────────────────────
 
 const payments = [
-  http.post(url('/holds/:holdId/payment-intent'), async () => {
+  http.post('/holds/:holdId/payment-intent', async () => {
     const blocked = await pre()
     if (blocked) return blocked
     if (isScenarioActive('hold-expired')) return holdExpired()
-    return HttpResponse.json(fx.paymentIntent)
+    return json(fx.paymentIntent)
   }),
 
-  http.post(url('/holds/:holdId/payment'), async () => {
+  http.post('/holds/:holdId/payment', async () => {
     const blocked = await pre()
     if (blocked) return blocked
     if (isScenarioActive('hold-expired')) return holdExpired()
     if (isScenarioActive('payment-pending')) return paymentPending()
     // ⚠️ 거절이어도 선점은 유지된다 (`PM-3`) — 화면이 좌석 선택으로 되돌리면 안 된다
     if (isScenarioActive('payment-declined')) return paymentDeclined()
-    return HttpResponse.json(fx.reservation, { status: 201 })
+    return json(fx.reservation, { status: 201 })
   }),
 
   // ⚠️ GET 이다. POST 로 다시 부르면 이중 결제 (`api.md` §5.3)
-  http.get(url('/holds/:holdId/payment'), async () => {
+  http.get('/holds/:holdId/payment', async () => {
     const blocked = await pre()
     if (blocked) return blocked
     if (isScenarioActive('payment-pending')) return paymentPending()
     if (isScenarioActive('payment-declined')) return paymentDeclined()
     if (isScenarioActive('hold-expired')) return holdExpired()
-    return HttpResponse.json(fx.reservation)
+    return json(fx.reservation)
   }),
 ]
 
 // ── 예약 관리 (§5.4) ──────────────────────────────────────────
 
 const reservations = [
-  http.get(
-    url('/reservations'),
-    async () => (await pre()) ?? HttpResponse.json(fx.reservationPage),
-  ),
+  http.get('/reservations', async () => (await pre()) ?? json(fx.reservationPage)),
 
-  http.get(url('/reservations/:reservationNo'), async () => {
+  http.get('/reservations/:reservationNo', async () => {
     const blocked = await pre()
     if (blocked) return blocked
     if (isScenarioActive('not-found'))
       return notFound('RESERVATION_NOT_FOUND', '예약을 찾을 수 없습니다')
     if (isScenarioActive('not-owned')) return notOwned('RESERVATION_NOT_OWNED')
-    return HttpResponse.json(fx.reservation)
+    return json(fx.reservation)
   }),
 
-  http.post(url('/reservations/:reservationNo/cancel'), async () => {
+  http.post('/reservations/:reservationNo/cancel', async () => {
     const blocked = await pre()
     if (blocked) return blocked
     if (isScenarioActive('not-owned')) return notOwned('RESERVATION_NOT_OWNED')
@@ -228,7 +175,7 @@ const reservations = [
         }),
       )
     }
-    return HttpResponse.json({
+    return json({
       ...fx.reservation,
       status: 'CANCELLED' as const,
       cancelledAt: new Date().toISOString(),
@@ -239,7 +186,7 @@ const reservations = [
 // ── 인증 · 회원 (§5.5) ────────────────────────────────────────
 
 const auth = [
-  http.post(url('/auth/signup'), async () => {
+  http.post('/auth/signup', async () => {
     const blocked = await pre()
     if (blocked) return blocked
     if (isScenarioActive('not-owned')) {
@@ -251,17 +198,17 @@ const auth = [
         }),
       )
     }
-    return HttpResponse.json(fx.me, { status: 201 })
+    return json(fx.me, { status: 201 })
   }),
 
-  http.get(url('/auth/email-available'), async () => {
+  http.get('/auth/email-available', async () => {
     const blocked = await pre()
     if (blocked) return blocked
     // ⚠️ 폼 편의용이다. 최종 판정은 가입 응답이다 (`api.md` §5.5)
-    return HttpResponse.json({ available: !isScenarioActive('not-owned') })
+    return json({ available: !isScenarioActive('not-owned') })
   }),
 
-  http.post(url('/auth/login'), async () => {
+  http.post('/auth/login', async () => {
     const blocked = await pre()
     if (blocked) return blocked
     if (isScenarioActive('login-throttled')) {
@@ -281,24 +228,32 @@ const auth = [
         }),
       )
     }
-    return HttpResponse.json(fx.tokens)
+    return json(fx.tokens)
   }),
 
-  http.post(url('/auth/refresh'), async () => (await pre()) ?? HttpResponse.json(fx.tokens)),
+  http.post('/auth/refresh', async () => (await pre()) ?? json(fx.tokens)),
 
-  http.post(
-    url('/auth/logout'),
-    async () => (await pre()) ?? new HttpResponse(null, { status: 204 }),
-  ),
+  http.post('/auth/logout', async () => (await pre()) ?? noContent()),
 
-  http.get(url('/me'), async () => (await pre()) ?? HttpResponse.json(fx.me)),
+  http.get('/me', async () => (await pre()) ?? json(fx.me)),
 
-  http.patch(url('/me'), async ({ request }) => {
+  http.patch('/me', async ({ json: readJson }) => {
     const blocked = await pre()
     if (blocked) return blocked
-    const body = (await request.json()) as Partial<typeof fx.me>
-    return HttpResponse.json({ ...fx.me, ...body })
+    const body = (await readJson<Partial<typeof fx.me>>()) ?? {}
+    return json({ ...fx.me, ...body })
   }),
 ]
 
-export const handlers = [...catalog, ...sse, ...holds, ...payments, ...reservations, ...auth]
+/**
+ * ⚠️ **SSE 핸들러가 없다.** `api.md` §7.4 가 「SSE 는 인터페이스로 감싼다」 로 이미
+ * 정해뒀고 가짜 구현은 `FakeSeatEvents` 다 (#82). 목이 스트림을 만들 필요가 없고,
+ * **덕분에 `ReadableStream` 에 의존하지 않는다** — Hermes 에 없다.
+ */
+export const handlers: readonly Handler[] = [
+  ...catalog,
+  ...holds,
+  ...payments,
+  ...reservations,
+  ...auth,
+]
