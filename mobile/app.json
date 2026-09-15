@@ -6,13 +6,14 @@
     "orientation": "portrait",
     "scheme": "pireservation",
     "userInterfaceStyle": "light",
-    "platforms": ["android"],
+    "platforms": [
+      "android"
+    ],
     "android": {
       "package": "cloud.jomin4.pireservation"
     },
-    "plugins": ["expo-router"],
-    "experiments": {
-      "typedRoutes": true
-    }
+    "plugins": [
+      "expo-router"
+    ]
   }
 }
