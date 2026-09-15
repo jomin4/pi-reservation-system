@@ -41,6 +41,16 @@ export const trips: S['TripList'] = {
       availableSeats: 8,
       fare: 59800,
     },
+    {
+      // ⚠️ 매진 행. 목록에서 지우지 않는다 — 취소분이 돌아올 수 있다 (`W-02` 주석)
+      tripId: 105,
+      trainNo: '105',
+      departAt: '2026-09-20T02:00:00Z',
+      arriveAt: '2026-09-20T04:18:00Z',
+      durationMinutes: 138,
+      availableSeats: 0,
+      fare: 59800,
+    },
   ],
 }
 

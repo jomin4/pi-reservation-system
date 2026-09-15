@@ -23,4 +23,12 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+  {
+    // ⚠️ 테스트와 테스트 헬퍼는 HMR 그래프에 없다. fast refresh 규칙이 의미가 없고,
+    //    끄지 않으면 헬퍼를 쪼개려고 파일만 늘어난다
+    files: ['**/*.test.{ts,tsx}', 'src/test/**'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 )
