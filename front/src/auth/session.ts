@@ -27,7 +27,13 @@ export function onSessionEnd(fn: Listener): () => void {
   return () => sessionEndListeners.delete(fn)
 }
 
-function endSession(): void {
+/**
+ * 토큰을 버리고 구독자에게 알린다.
+ *
+ * 갱신 실패(`401`)와 **명시적 로그아웃**(`logout.ts`)이 같은 문을 쓴다 —
+ * 화면 입장에서는 둘 다 "세션이 끝났다" 하나다.
+ */
+export function endSession(): void {
   clearTokens()
   for (const fn of sessionEndListeners) fn()
 }
