@@ -128,7 +128,10 @@ describe('⚠️ 경로 순서 — complete 를 예약번호로 먹으면 안 �
   it('/reservations/48207315/complete 는 W-06 이다', () => {
     setTokens(pair)
     open('/reservations/48207315/complete')
-    expect(screen.getByText('W-06')).toBeInTheDocument()
+    // W-06 이 진짜 화면이 된 뒤로는 로딩 표시가 라우트의 증거다.
+    // 순서가 뒤집혔다면 상세(W-10)가 먹었을 것이다
+    expect(screen.getByRole('status')).toHaveTextContent('예약을 불러오는 중')
+    expect(screen.queryByText('W-10')).not.toBeInTheDocument()
   })
 
   it('/reservations/48207315 는 W-10 이다', () => {

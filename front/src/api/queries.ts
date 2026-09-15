@@ -150,3 +150,57 @@ export function useMe(enabled = true): UseQueryResult<S['MemberProfile']> {
     enabled,
   })
 }
+
+// ── 결제 · 확정 (§5.3) ───────────────────────────────────────
+
+export function useCreatePaymentIntent() {
+  return useMutation({
+    mutationFn: (holdId: string) =>
+      api.request<S['PaymentIntentResponse']>(`/holds/${holdId}/payment-intent`, {
+        method: 'POST',
+      }),
+  })
+}
+
+export interface ConfirmPaymentArgs {
+  holdId: string
+  idempotencyKey: string
+  body: { paymentKey: string; orderId: string; amount: number }
+}
+
+/**
+ * 결제 확정 (`F-08` `F-09` `F-10`).
+ *
+ * ⚠️ **`Idempotency-Key` 는 화면 진입 시 1회 생성한 값을 재시도에도 그대로 쓴다.**
+ * 버튼을 누를 때마다 새로 만들면 **멱등성이 무의미하다** (`W-05` 주석).
+ *
+ * ⚠️ **`202` 는 던져진다** — 승인됐는지 서버도 모르는 상태다. `isPaymentPending` 으로
+ * 잡아 **`GET` 폴링**으로 간다. `POST` 로 다시 부르면 이중 결제다.
+ */
+export function useConfirmPayment() {
+  return useMutation({
+    mutationFn: ({ holdId, idempotencyKey, body }: ConfirmPaymentArgs) =>
+      api.request<S['ReservationDetail']>(`/holds/${holdId}/payment`, {
+        method: 'POST',
+        idempotencyKey,
+        body,
+      }),
+  })
+}
+
+/**
+ * 결제 **결과 조회** (`E-03` 폴링).
+ *
+ * ⚠️ **`GET` 이다. 새 결제 요청이 아니라 기존 요청의 결과 조회다** —
+ * 이 구분이 무너지면 이중 결제가 난다 (`api.md` §5.3).
+ */
+export function fetchPaymentResult(holdId: string) {
+  return api.request<S['ReservationDetail']>(`/holds/${holdId}/payment`)
+}
+
+export function useReservation(reservationNo: string) {
+  return useQuery({
+    queryKey: ['reservation', reservationNo],
+    queryFn: () => api.request<S['ReservationDetail']>(`/reservations/${reservationNo}`),
+  })
+}
