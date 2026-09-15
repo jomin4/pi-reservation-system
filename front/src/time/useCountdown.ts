@@ -32,15 +32,20 @@ export function formatRemaining(ms: number): string {
  * ⚠️ **스냅샷을 캐시한다.** 매 호출마다 `Date.now()` 를 새로 읽으면 같은 렌더 안에서
  * 값이 바뀌어 React 가 "getSnapshot should be cached" 로 경고한다.
  */
-let cachedSecond = Math.floor(Date.now() / 1000)
+/**
+ * ⚠️ **초 단위로 내림하지 않는다.** 내림하면 남은 시간이 **최대 1초 부풀려져**
+ * 10분짜리 선점이 `10:01` 로 보인다. 스냅샷은 밀리초 그대로 두고, **갱신 시점에만**
+ * 바뀌므로 렌더 사이에는 여전히 안정적이다.
+ */
+let cachedNow = Date.now()
 
 function getSnapshot(): number {
-  return cachedSecond
+  return cachedNow
 }
 
 function subscribe(onChange: () => void): () => void {
   const update = () => {
-    cachedSecond = Math.floor(Date.now() / 1000)
+    cachedNow = Date.now()
     onChange()
   }
 
@@ -73,10 +78,10 @@ function subscribe(onChange: () => void): () => void {
 export function useCountdown(expiresAt: Instant | null | undefined): Countdown {
   // ⚠️ 렌더 중에 Date.now() 를 부르지 않는다. 스냅샷만 보고 계산해야
   //    같은 입력에 같은 결과가 나온다 — 구독이 값을 밀어 넣는 구조다
-  const second = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+  const now = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
   const deadlineMs = expiresAt == null ? null : instantToMs(expiresAt)
-  const remainingMs = deadlineMs === null ? 0 : Math.max(0, deadlineMs - serverNow(second * 1000))
+  const remainingMs = deadlineMs === null ? 0 : Math.max(0, deadlineMs - serverNow(now))
 
   return {
     remainingMs,
