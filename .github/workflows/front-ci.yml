@@ -29,7 +29,7 @@ jobs:
     uses: ./.github/workflows/_changes.yml
 
   check:
-    name: front · 타입 · 린트 · 테스트
+    name: front · 타입 · 린트 · 테스트 · 번들
     needs: changes
     if: needs.changes.outputs.front == 'true' || needs.changes.outputs.contract == 'true'
     runs-on: ubuntu-latest
@@ -96,6 +96,16 @@ jobs:
             echo '  npx openapi-typescript ../docs/api/openapi.yaml -o src/api/schema.d.ts'
             exit 1
           fi
+
+      # ⚠️ 목이 프로덕션 번들에 실려 나간 적이 있다 (#108).
+      #    VITE_API_MODE 검사는 런타임 가드라 트리셰이킹을 못 한다 —
+      #    src/mocks/ 를 정적으로 import 하면 가짜 예약 데이터가 엔트리 청크에 들어간다.
+      #
+      #    이 단계가 vite build 를 처음으로 CI 안에서 돌린다. 빌드 자체가 깨지는 것도
+      #    여기서 잡힌다 — 그전까지는 Cloudflare Pages 가 배포 시점에 처음 알았다.
+      - name: 번들에 목이 없다
+        if: steps.scaffold.outputs.ready == 'true'
+        run: pnpm run check:bundle
 
   notify:
     needs: check
