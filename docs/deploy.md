@@ -286,7 +286,8 @@ IMAGE_TAG=sha-abc1234 docker compose up -d --no-deps app
 | **타입 체크** | ❌ | ✅ **`tsc --noEmit`** |
 | 린트 · 유닛 테스트 | ❌ | ✅ |
 | **생성 타입 최신성** | ❌ | ✅ |
-| **번들에 목이 없는지** | ❌ | ✅ **`check:bundle`** (§7.4) |
+| **번들에 목이 없는지** | ❌ | ✅ **`check:bundle`** (§7.5) |
+| **SPA 폴백 (`_redirects`)** | ❌ | ✅ 〃 (§7.4) |
 
 > ⚠️ **트랙이 스캐폴드되기 전에도 이 job 은 돈다.** `_changes` 는 `^front/` 로 판별하므로 **`front/CLAUDE.md` 한 줄만 고쳐도 `front=true`** 가 된다. `front/package.json` 이 없으면 `setup-node` 의 캐시 경로부터 깨지므로, 워크플로가 **스캐폴드 여부를 먼저 보고 이후 단계를 건너뛴다.**
 
@@ -310,11 +311,45 @@ diff /tmp/api.d.ts src/api/schema.d.ts    # 다르면 실패
 | 항목 | 값 |
 |---|---|
 | 루트 디렉터리 | **`front/`** |
-| 빌드 명령 | `npm run build` |
+| 빌드 명령 | **`pnpm run build`** — ⚠️ `npm` 이 아니다. `pnpm-lock.yaml` 프로젝트다 |
 | 출력 | `dist` |
+| Node | **24.21.0** — `front/.nvmrc` · 대시보드 `NODE_VERSION` **둘 다** |
 | 프리뷰 | 브랜치·PR별 URL — ⚠️ **Cloudflare Access로 보호** |
 
-### 7.4 ⚠️ 번들에 목이 실려 나가지 않는지
+**환경변수 — Production · Preview 둘 다**
+
+| 이름 | 값 | |
+|---|---|---|
+| `VITE_API_MODE` | `mock` | 백엔드가 서면 `real` |
+| `VITE_API_BASE_URL` | `/api/v1` | 〃 `https://api.jomin4.cloud/api/v1` |
+
+> ⚠️ **Preview 에도 넣는다.** 안 넣으면 PR 프리뷰만 조용히 다르게 빌드돼 **「프리뷰에선 되는데 프로덕션에선 안 된다」**가 된다.
+
+> **`real` 로 넘어가는 순간 오리진이 갈린다** — 웹은 `jomin4.cloud`, API 는 `api.jomin4.cloud` (`infra.md` §4.2). **CORS 가 계약에 아직 없다** (#114).
+
+### 7.4 ⚠️ SPA 폴백 — 없으면 딥링크가 전부 404
+
+라우터가 `BrowserRouter` 라 **`/trips/101/seats` 는 파일이 아니다.** `dist` 에는 `index.html` 하나뿐이고 그 경로는 JS 가 읽는 문자열이다.
+
+| 이동 방법 | 서버에 묻나 | 폴백 없으면 |
+|---|---|---|
+| 링크 클릭 | ❌ 라우터가 주소만 바꾼다 | ✅ 정상 |
+| **새로고침 · 북마크 · 공유 링크** | ✅ **그 경로를 직접 요청한다** | ❌ **404** |
+
+```
+# front/public/_redirects
+/*    /index.html   200
+```
+
+> ⚠️ **`301`/`302` 가 아니라 `200` 이다.** 리다이렉트면 주소창이 `/index.html` 로 바뀌어 **라우터가 읽을 URL 자체가 사라진다** — 404 는 안 나지만 **항상 홈**이 뜬다.
+
+> ⚠️ **`vite dev` 는 폴백을 기본으로 해준다.** 그래서 **배포해야 드러난다** — 개발 내내 멀쩡하다.
+
+**이 프로젝트에서 유독 치명적이다.** `src/routes/paths.ts` 가 새로고침에서 살아남으려고 **일부러** `holdId` 를 URL 에 뒀다(선점 TTL 10분). 폴백이 없으면 그 의도가 정확히 뒤집힌다 — 결제 직전 `F5` 한 번에 좌석을 잃는다.
+
+`check:bundle`(CI 6단계)이 `dist/_redirects` 존재와 `200` 규칙을 함께 본다.
+
+### 7.5 ⚠️ 번들에 목이 실려 나가지 않는지
 
 **`VITE_API_MODE` 검사는 런타임 가드라 트리셰이킹을 못 한다.** `src/mocks/enable.ts` 가
 `handlers` 를 정적으로 `import` 하던 동안 **가짜 예약번호 `48207315` · 시나리오 이름

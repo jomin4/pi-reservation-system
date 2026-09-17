@@ -18,6 +18,24 @@ cd "$(dirname "$0")/.."
   exit 1
 }
 
+# ── SPA 폴백 (#112) ───────────────────────────────────────────
+#
+# ⚠️ `public/_redirects` 는 자동 복사되지만 **누가 지워도 아무도 모른다.**
+#    증상은 「딥링크만 404」 — 홈은 멀쩡하고 클릭 이동도 되니 배포는 성공처럼
+#    보인다. 새로고침하거나 링크를 받은 사람만 깨진다.
+[ -f dist/_redirects ] || {
+  echo "⚠️  dist/_redirects 가 없다. front/public/_redirects 를 확인한다 (#112)." >&2
+  exit 1
+}
+
+# ⚠️ 301/302 면 주소창이 /index.html 로 바뀌어 **라우터가 읽을 URL 이 사라진다** —
+#    404 는 안 나지만 항상 홈이 뜬다. 200 이어야 한다.
+grep -qE '^/\*[[:space:]]+/index\.html[[:space:]]+200[[:space:]]*$' dist/_redirects || {
+  echo "⚠️  _redirects 에 '/*  /index.html  200' 규칙이 없다 (#112)." >&2
+  echo "    리다이렉트(301/302)가 아니라 200 이어야 한다." >&2
+  exit 1
+}
+
 entry=$(sed -n 's#.*<script[^>]*src="/\(assets/index-[^"]*\.js\)".*#\1#p' dist/index.html | head -1)
 [ -n "$entry" ] || {
   echo "dist/index.html 에서 엔트리 청크를 못 찾았다." >&2
@@ -51,4 +69,4 @@ MSG
   exit 1
 fi
 
-echo "✅ 엔트리 청크($entry)에 목이 없다."
+echo "✅ 엔트리 청크($entry)에 목이 없다. SPA 폴백도 있다."
