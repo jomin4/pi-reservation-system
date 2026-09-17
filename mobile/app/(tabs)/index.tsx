@@ -73,7 +73,19 @@ export default function Home() {
   function submit(): void {
     setTouched(true)
     if (error !== null) return
-    router.push({ pathname: '/trips', params: toTripsQuery(form) })
+    // ⚠️ 역 **이름**도 같이 넘긴다. `M-02` 헤더가 `서울 → 부산` 이어야 하는데
+    //    코드만 넘기면 그 화면이 /stations 를 한 번 더 부르게 된다.
+    const nameOf = (code: string | null) =>
+      stationOptions.find((o) => o.value === code)?.label ?? code ?? ''
+
+    router.push({
+      pathname: '/trips',
+      params: {
+        ...toTripsQuery(form),
+        fromName: nameOf(form.from),
+        toName: nameOf(form.to),
+      },
+    })
   }
 
   return (
