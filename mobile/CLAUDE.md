@@ -163,18 +163,20 @@ Jest 에는 `.env` 가 없으므로 `jest.setup.js` 가 같은 값을 주입한�
 | Mock 전략 | **`api.md` §7** |
 | 배포 | `deploy.md` §8 |
 
-## ⚠️ Mock — MSW 를 버리고 자체 인터셉터로 (2026-09-14 · #91)
+## Mock — 자체 `fetch` 인터셉터 (2026-09-15 · #95)
 
-**`msw` 는 Hermes 에서 안 돈다.** 모듈 평가 시점에 없는 Web API 를 참조해 **앱이 첫 화면도 못 그리고 죽는다** — `MessageEvent` → `BroadcastChannel` → 스트림 계열.
+**`msw` 는 Hermes 에서 안 돈다.** 모듈 평가 시점에 없는 Web API 를 참조해 **앱이 첫 화면도 못 그리고 죽었다** — `MessageEvent` → `BroadcastChannel` → 스트림 계열. 그래서 **모바일만 자체 인터셉터**로 간다.
 
 | | |
 |---|---|
-| 지금 상태 | ⚠️ **목이 꺼져 있다.** 교체 진행 중 |
+| 가로채는 것 | **전역 `fetch` 를 한 겹 감싼다** (`src/mocks/intercept.ts`) |
 | 켜는 법 | `EXPO_PUBLIC_API_MODE=mock` — `app/_layout.tsx` 가 렌더 전에 부른다 |
 | 시나리오 | **`EXPO_PUBLIC_MOCK_SCENARIO`** — 모바일엔 주소창이 없다 |
-| 그대로 쓰는 것 | `fixtures.ts` · `scenario.ts` · 핸들러 **로직** |
+| 웹과 같은 것 | `fixtures.ts` · `scenario.ts` · 핸들러 **로직** |
 
-> **바뀌는 건 「누가 가로채나」 뿐이다.** 앱이 진짜 `fetch` 를 부르고 `status`·`delay` 를 조작한다는 것은 웹과 같다 (`api.md` §7.2).
+> **바뀐 건 「누가 가로채나」 뿐이다.** 앱이 진짜 `fetch` 를 부르고 `status`·`delay` 를 조작한다는 것은 웹과 같다 (`api.md` §7.2).
+
+⚠️ **매칭 안 되는 요청은 404 를 지어내지 않고 원본으로 통과시킨다.** 목이 모르는 요청은 진짜로 나가야 **"목이 답한 건지 서버가 없는 건지" 가 구분된다.**
 
 ## 개발 루프 — 화면이 있는 작업은 에뮬레이터를 띄운 채로
 
