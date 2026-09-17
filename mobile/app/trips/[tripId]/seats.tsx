@@ -171,24 +171,35 @@ export default function Seats() {
     })
   }, [])
 
-  function submit(): void {
-    if (selected.length === 0) return
-
-    // ⚠️ **선점 시점에 로그인을 요구한다** — 화면 진입이 아니라 여기서.
-    if (authStatus !== 'authed') {
-      router.push({ pathname: '/login', params: { next: `/trips/${tripId}/seats` } })
-      return
-    }
-
-    hold.mutate(selected)
-  }
-
   /**
    * ⚠️ **운임은 `M-02` 가 넘긴 값이다.** 여기서 상수로 박으면 요금이 바뀌는 날
    *    **조용히 틀린 금액**을 보여준다 — 계약이 운행마다 `fare` 를 주는 이유다.
    */
   const unitFare = Number(fareParam ?? '0')
   const fare = unitFare * selected.length
+
+  function submit(): void {
+    if (selected.length === 0) return
+
+    // ⚠️ **선점 시점에 로그인을 요구한다** — 화면 진입이 아니라 여기서.
+    if (authStatus !== 'authed') {
+      // ⚠️ **조건을 `next` 에 실어 보낸다.** 경로만 넘기면 로그인하고 돌아왔을 때
+      //    운임·인원이 사라져 버튼이 **`좌석 선점하기 · 0원`** 이 된다
+      //    (2026-09-17 에뮬레이터에서 확인).
+      const query = new URLSearchParams({
+        passengers: passengers ?? '1',
+        fare: String(unitFare),
+      }).toString()
+
+      router.push({
+        pathname: '/login',
+        params: { next: `/trips/${tripId}/seats?${query}` },
+      })
+      return
+    }
+
+    hold.mutate(selected)
+  }
 
   return (
     <View className="flex-1 bg-slate-50">
