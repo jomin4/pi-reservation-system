@@ -35,7 +35,7 @@
 |---|---|
 | 패키지 관리 | **`front`/`mobile` 각자 독립** — workspace로 안 묶는다 (Expo metro resolver 이슈 회피) |
 | 공유 방식 | **각자 `docs/api/openapi.yaml`에서 타입 생성** — 원본이 하나면 생성물 중복은 중복이 아니다 |
-| Mock | **MSW** — 앱이 진짜 `fetch`를 호출하고 네트워크에서 가로챈다 (`api.md` §7.2) |
+| Mock | **웹은 MSW · 모바일은 자체 `fetch` 인터셉터** — ⚠️ **갈렸다** (`api.md` §7.2). 앱이 진짜 `fetch` 를 호출한다는 건 같다 |
 | **웹** | React 19 + Vite (SPA) |
 | **모바일** | React Native + Expo → Android APK |
 | 서버 상태 | TanStack Query |
@@ -125,10 +125,12 @@
 | `react` | 19.3.0 | **19.2.3** | ✅ **19.2.3** |
 
 > ⚠️ **2026-09-12 스캐폴드(#79)에서 실측으로 세 줄이 바뀌었다.** `eslint` · `jest` · 패치 버전들. **아래 표가 실제로 설치되고 `expo-doctor` 21/21을 통과한 값**이다.
+>
+> ⚠️ **`expo` 패치는 계속 움직인다.** SDK 57 안에서도 `57.0.21 → .22 → .23` 으로 올라갔고 **그때마다 `expo-doctor` 가 mobile CI 를 빨갛게 만든다.** 막을 방법은 없다 — **`expo-doctor` 가 지적하면 그 PR 에서 올린다.** 여기 숫자도 함께 고친다.
 
 | 구분 | 패키지 | 버전 |
 |---|---|---|
-| **SDK** | `expo` | **57.0.22** |
+| **SDK** | `expo` | **57.0.23** |
 | 프레임워크 | `react-native` | **0.86.3** |
 | | `react` | **19.2.3** |
 | | `@types/react` | 19.2.18 |
@@ -145,7 +147,7 @@
 | | `tailwindcss` | ⚠️ **3.4.19** — 웹과 메이저가 다르다 |
 | | `react-native-reanimated` | **4.5.1** — NativeWind 엔진이 요구 |
 | | `react-native-worklets` | **0.10.1** — reanimated 4가 요구 |
-| Mock | `msw` | 2.15.0 |
+| **Mock** | ⚠️ **없다 — 자체 `fetch` 인터셉터** | `msw` 는 Hermes 에서 안 돈다 (#91) |
 | **타입 생성** | `openapi-typescript` | **7.13.0** |
 | 빌드 | `@babel/core` | 7.29.7 |
 | 테스트 | `jest-expo` | 57.0.5 |

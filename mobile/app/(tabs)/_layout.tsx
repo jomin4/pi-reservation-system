@@ -28,9 +28,10 @@ export default function TabsLayout() {
         tabBarLabelStyle: { fontSize: 13 },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: '홈' }} />
+      {/* ⚠️ 라벨은 와이어프레임 그대로 — 「탭 3개 — 예매 · 예약 · 마이」 */}
+      <Tabs.Screen name="index" options={{ title: '예매' }} />
       <Tabs.Screen name="reservations" options={{ title: '예약' }} />
-      <Tabs.Screen name="me" options={{ title: '마이페이지' }} />
+      <Tabs.Screen name="me" options={{ title: '마이' }} />
     </Tabs>
   )
 }
