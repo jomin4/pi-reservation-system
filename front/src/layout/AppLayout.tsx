@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { hasSession, onSessionEnd, useLogout } from '../auth'
 import { PATHS } from '../routes/paths'
+import { DemoBadge } from './DemoBadge'
 
 /**
  * 공통 레이아웃. 헤더 · 로그인 상태 · 로그아웃.
@@ -25,6 +26,9 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* ⚠️ 헤더보다 위다 — 화면에 들어오기 전에 읽혀야 의미가 있다 */}
+      <DemoBadge />
+
       <header className="border-b border-gray-200 bg-white">
         <nav className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3">
           <Link to={PATHS.home} className="font-bold">
