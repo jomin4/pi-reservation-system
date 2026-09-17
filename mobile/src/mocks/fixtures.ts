@@ -41,6 +41,25 @@ export const trips: S['TripListResponse'] = {
       availableSeats: 8,
       fare: 59800,
     },
+    /**
+     * ⚠️ **매진 한 건은 우리가 보탰다** (2026-09-17 · #41).
+     *
+     * 와이어프레임이 `M-02` 의 **매진 카드 처리**를 명시하는데
+     * (「흐리게 하되 목록에서 지우지 않는다 — 취소분이 돌아올 수 있다」)
+     * 계약 예시에는 `availableSeats: 0` 인 운행이 없어 **그 분기를 볼 길이 없었다.**
+     *
+     * **새 모양을 지어낸 게 아니다** — `availableSeats` 의 `minimum` 이 `0` 이라
+     * 계약이 이미 허용하는 값이고, `api.md` §7.3 이 막는 건 **계약에 없는 형태**다.
+     */
+    {
+      tripId: 105,
+      trainNo: '105',
+      departAt: '2026-09-20T02:00:00Z',
+      arriveAt: '2026-09-20T04:38:00Z',
+      durationMinutes: 158,
+      availableSeats: 0,
+      fare: 59800,
+    },
   ],
 }
 
