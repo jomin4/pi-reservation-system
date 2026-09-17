@@ -168,7 +168,12 @@ function TripCard({ trip, passengers }: { trip: Trip; passengers: string }) {
       //    와이어프레임: "목록에서 지우지 않는다 — 취소분이 돌아올 수 있다".
       //    막아버리면 돌아온 좌석을 잡을 길이 없다.
       onPress={() =>
-        router.push({ pathname: `/trips/${trip.tripId}/seats`, params: { passengers } })
+        router.push({
+          pathname: `/trips/${trip.tripId}/seats`,
+          // ⚠️ 운임을 같이 넘긴다. 좌석 화면이 하드코딩하면 **요금이 바뀌는 날
+          //    조용히 틀린 금액**을 보여준다 — 계약은 운행마다 `fare` 를 준다.
+          params: { passengers, fare: String(trip.fare) },
+        })
       }
       className={`rounded-xl border border-slate-200 bg-white px-4 py-4 ${soldOut ? 'opacity-50' : ''}`}
     >
