@@ -64,7 +64,10 @@ export function createFakeSeatEvents(options: FakeOptions = {}): SeatEventSource
       eventId: lastEventId,
       seats: [
         {
-          carNo: 1 + (seq % 18),
+          // ⚠️ 계약의 `Car.carNo` 는 **1~10** 이다 (`catalog.yaml`).
+          //    18 까지 뿜으면 `applySeatDelta` 가 "없는 호차" 로 버려서
+          //    **목을 켜도 좌석이 안 움직인다** — 가짜가 조용히 헛돈다.
+          carNo: 1 + (seq % 10),
           rowNo: 1 + (seq % 20),
           colLetter: COLS[seq % COLS.length] as string,
           status: STATUS_BY_CAUSE[cause],

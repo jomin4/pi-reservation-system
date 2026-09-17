@@ -1,0 +1,5 @@
+export { applySeatDelta, findTakenSeats } from './applyDelta'
+export { SeatGrid, SeatLegend } from './SeatGrid'
+export { MAX_SEATS, isSelected, sortSeats, summarize, toggleSeat } from './selection'
+export { COLUMNS, seatKey, seatLabel } from './types'
+export type { Car, Seat, SeatAddress, SeatMap, SeatStatus } from './types'
