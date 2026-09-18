@@ -6,8 +6,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'rea
 import { api, isApiError } from '@/api'
 import { RequireAuth } from '@/auth/guard'
 import {
-  formatCountdown,
-  isUrgent,
+  HoldTimer,
   toDeadline,
   unitFare,
   useCountdown,
@@ -199,35 +198,10 @@ function HoldDetail() {
 
   const data = hold.data.data
   const perSeat = unitFare(data)
-  const urgent = isUrgent(remaining)
 
   return (
     <View className="flex-1 bg-slate-50">
-      {/*
-       * ⚠️ 타이머를 **상단 고정 바로 뺐다** (와이어프레임). 웹은 한 화면에 다
-       *    들어가지만 모바일은 스크롤이 생긴다 — **남은 시간이 화면 밖으로
-       *    밀려나면 안 된다.** 그래서 `ScrollView` **바깥**이다.
-       */}
-      <View
-        testID="hold-timer"
-        accessibilityRole="timer"
-        accessibilityLabel={`결제까지 남은 시간 ${formatCountdown(remaining)}`}
-        className={`items-center border-b py-3 ${
-          urgent ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'
-        }`}
-      >
-        <Text className={`text-[11px] ${urgent ? 'text-red-500' : 'text-slate-500'}`}>
-          결제까지 남은 시간
-        </Text>
-        {/* 3분 미만에서 색·굵기를 바꿔 경고한다 (와이어프레임) */}
-        <Text
-          className={`text-3xl tabular-nums ${
-            urgent ? 'font-extrabold text-red-600' : 'font-bold text-slate-900'
-          }`}
-        >
-          {formatCountdown(remaining)}
-        </Text>
-      </View>
+      <HoldTimer remainingMs={remaining} />
 
       <ScrollView contentContainerClassName="p-4 gap-4">
         <View className="gap-1 rounded-xl border border-slate-200 bg-white px-4 py-4">
