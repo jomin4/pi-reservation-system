@@ -5,7 +5,7 @@
 | 상태 | 채택 |
 | 날짜 | 2026-09-10 |
 | 대체 | 초기안 — 외장 USB RAID 백업 (ADR 없음) |
-| 관련 문서 | [tech.md](../tech.md) · [data.md §7.8](../data.md) · [system-architecture](../diagrams/system-architecture.html) |
+| 관련 문서 | [tech.md](../tech.md) · [data.md §7.8](../data.md) · [deploy-host](../diagrams/c4/deploy-host.svg) |
 
 ## 맥락
 

@@ -6,13 +6,15 @@
 
 | # | 제목 | 날짜 | 상태 |
 |---|---|---|---|
-| [0001](0001-hexagonal-gradle-multimodule.md) | 백엔드를 헥사고날 + Gradle 멀티모듈 8개로 나눈다 | 2026-09-03 | 채택 · 소급 |
+| [0001](0001-hexagonal-gradle-multimodule.md) | 백엔드를 헥사고날 + Gradle 멀티모듈 8개로 나눈다 | 2026-09-03 | 채택 · 소급 · **일부 보정** |
 | [0002](0002-pessimistic-lock-cas.md) | 좌석 선점을 비관적 락 + CAS 가드로 처리한다 | 2026-09-08 | 채택 · 소급 |
 | [0003](0003-withdraw-kiosk-channel.md) | 키오스크 채널을 철회한다 | 2026-09-04 | 채택 · 소급 |
 | [0004](0004-redis-stream-only-fanout.md) | SSE 팬아웃을 Redis Stream 단독으로 한다 | 2026-09-09 | 채택 |
 | [0005](0005-single-host-onpremise.md) | 온프레미스를 단일 호스트로 전환한다 | 2026-09-10 | 채택 |
 | [0006](0006-backup-to-cloudflare-r2.md) | 백업을 Cloudflare R2 오프사이트 한 벌로 한다 | 2026-09-10 | 채택 |
 | [0007](0007-design-first-api-contract.md) | **API 계약을 손으로 쓴 `openapi.yaml`로 관리한다** | 2026-09-10 | 채택 |
+| [0008](0008-spring-jdbc-over-jpa.md) | **영속화를 JPA 없이 Spring JDBC로 한다** | 2026-09-15 | 채택 |
+| [0009](0009-hold-open-factory.md) | **6석 규칙을 `Hold`의 정적 팩토리 안에 가둔다** | 2026-09-17 | 채택 |
 
 > **0001~0003은 소급 작성이다.** 결정 이후에 기록했으므로 **그때의 사고가 지금 시점에서 각색되었을 수 있다.** 그 한계를 표시해 둔다.
 
@@ -58,7 +60,7 @@
 
 | 결정 | 근거 위치 |
 |---|---|
-| 완전 분리 + 매퍼 (도메인 ↔ JPA) | `CLAUDE.md` · ADR-0001에 포함 |
+| 완전 분리 + 매퍼 (도메인 ↔ 테이블) | `CLAUDE.md` · ADR-0001에 포함 · 매퍼 형태는 **ADR-0008** |
 | `TransactionRunner` 포트 | `data.md` §4 |
 | RFC 9457 + `code` 확장 | `api.md` §4 |
 | ~~`openapi.yaml`~~ | **ADR-0007로 승격** |

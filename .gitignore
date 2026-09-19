@@ -35,3 +35,7 @@ Thumbs.db
 # ── 로그 · 임시 ───────────────────────────────
 *.log
 tmp/
+
+# C4 다이어그램 도구 — scripts/diagrams.sh 가 받는다. 커밋하지 않는다
+tools/
+docs/diagrams/.render/

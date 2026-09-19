@@ -5,7 +5,7 @@
 | 상태 | 채택 |
 | 날짜 | 2026-09-09 |
 | 대체 | 초기안 — Redis Pub/Sub 팬아웃 (ADR 없음) |
-| 관련 문서 | [api.md §6](../api.md) · [data.md §6.4](../data.md) · [redis-workloads](../diagrams/redis-workloads.html) |
+| 관련 문서 | [api.md §6](../api.md) · [data.md §6.4](../data.md) · [d3-sse-fanout](../diagrams/c4/d3-sse-fanout.svg) |
 
 ## 맥락
 

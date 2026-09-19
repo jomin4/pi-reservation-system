@@ -1,8 +1,14 @@
 # 기술 스택
 
-> **2026-09-04 키오스크 채널 철회.** 임베디드 스택(C · libcurl · SQLite3 · ESC/POS · CMake)과 관련 하드웨어를 제거했다.
->
-> **2026-09-10 인프라 전제 변경.** 배포 대상이 **32GB Proxmox 호스트 → 8GB Ubuntu 개인 PC**로 바뀌었다. 하이퍼바이저 · VLAN 물리 분리 · 사설 CA · 외장 백업이 함께 빠졌다. 자세한 건 [infra.md](infra.md).
+> **이 문서가 답하는 질문 하나** — **무슨 기술을 쓰기로 했나.** 한 줄씩만. **왜**는 ADR 이, **어떻게**는 각 설계 문서가 답한다.
+
+| 여기 있다 | 여기 없다 → 어디 |
+|---|---|
+| 기술 이름과 역할 한 줄 | 호스트 · 네트워크 · **메모리 예산** → [infra.md](infra.md) |
+| | CI/CD · 배포처 · 시크릿 → [deploy.md](deploy.md) |
+| | **폐기된 기술과 이유** → ADR-0003 · ADR-0005 · ADR-0008 · 루트 `CLAUDE.md` 폐기 목록 |
+
+> 그림 — [02-container](diagrams/c4/02-container.svg): 이 표의 기술이 어느 컨테이너로 도는가
 
 ## 언어
 
@@ -10,7 +16,7 @@
 
 | 역할 | 언어 |
 |---|---|
-| 백엔드 | **Java 21** |
+| 백엔드 | **Java 21** — [미확정 U-1](README.md#부록--미확정) |
 | 프론트 계열 (웹 · 모바일) | **TypeScript 5.x** |
 | 인프라 정의 | YAML (Docker Compose · Ansible) |
 
@@ -20,14 +26,21 @@
 |---|---|
 | 프레임워크 | Spring Boot 4.1 |
 | 빌드 | Gradle (Kotlin DSL) |
-| 구조 | 모듈러 모놀리스 · **헥사고날 · Gradle 8모듈** |
+| 구조 | 모듈러 모놀리스 · **헥사고날 · Gradle 9모듈** ([back.md](back.md) §1) |
 | DB | **PostgreSQL 17** — 좌석의 진실 |
+| **영속화** | **Spring JDBC (`JdbcClient`)** — **ORM 없음** (ADR-0008) |
 | 캐시 · 이벤트 | **Redis 7** — 좌석맵 캐시 + **Stream**(팬아웃 · 재개) |
 | 마이그레이션 | Flyway |
 | **API 계약** | **`docs/api/openapi.yaml`** — **손으로 작성.** 진실의 출처 (ADR-0007) |
 | API 문서 UI · 구현 검증 | **SpringDoc OpenAPI** — Swagger UI + **계약 대조용 산출 스펙** |
 | 테스트 | JUnit 5 · Testcontainers · AssertJ |
 | 관측 | Micrometer → Prometheus |
+
+> **의도 — JPA를 왜 안 쓰나.** 네 가지가 막혔다. ① `lock_timeout` 200ms를 표현할 힌트가 PostgreSQL에 **없다**(있는 건 `NOWAIT`과 ADR-0002가 금지한 `SKIP LOCKED`뿐). ② `@Version`을 붙이면 실패 모드가 둘로 갈라지는데 CAS가 필요한 경로는 만료 회수 하나뿐이다. ③ 도메인에 PK가 없어 **1차 캐시가 히트하지 않는다.** ④ 더티 체킹은 **락을 쥔 구간의 길이를 코드에서 지운다.**
+>
+> 여기에 완전 분리(ADR-0001)가 겹치면 JPA 엔티티는 **표현을 한 겹 더 늘릴 뿐**이다 — 엔티티 + 매퍼 + DDL로 3겹이 된다. 자세한 저울질은 **ADR-0008**.
+>
+> ⚠️ **대가는 컴파일러가 SQL 오타를 못 잡는다는 것이다.** 그래서 **Repository는 Testcontainers 통합 테스트 없이 짜지 않는다** — 이건 규율이 아니라 이 선택의 조건이다.
 
 ## 프론트 계열 (TypeScript)
 
@@ -48,64 +61,26 @@
 
 ## 부하 생성 — 초기 범위 밖
 
-> **2026-09-10 연기.** 초기 릴리스에서는 부하 생성 도구를 정하지 않는다. 동시성 설계(`data.md` §4)와 검증 기준은 그대로 두고, **경합을 만드는 수단만 미정**이다.
-
-| 항목 | 상태 |
-|---|---|
-| 검증 기준 | ✅ **초과 판매 0건** — DB 대사 (`data.md` §4.9) |
-| 측정 도구 | ⬜ **미정** — 동작하는 시스템이 나온 뒤 선정 |
-| 실행 위치 | ⬜ 미정 |
+검증 기준(**초과 판매 0건** · `data.md` §4.9)은 유지하고 **경합을 만드는 수단만 미정**이다 — [미확정 U-2](README.md#부록--미확정).
 
 ## 인프라
 
-**단일 호스트다.** 하이퍼바이저도 VM도 없다.
+**단일 호스트다.** 하이퍼바이저도 VM도 없다 (ADR-0005).
 
 | 구분 | 선택 |
 |---|---|
-| 호스트 OS | **Ubuntu 24.04 LTS · 헤드리스** |
-| 하드웨어 | **RAM 8GB · SSD 512GB** |
+| 호스트 | **Ubuntu 24.04 LTS · 개인 PC · RAM 8GB · SSD 512GB · 헤드리스** |
 | 컨테이너 | **Docker Compose** — 전부 여기서 돈다 |
 | **네트워크 격리** | **Docker 네트워크 3분리** — `net:dmz` · `net:app` · `net:data` |
 | 호스트 방화벽 | **`ufw`** |
 | 리버스 프록시 · LB | **nginx** |
 | 아웃바운드 프록시 | **tinyproxy** — 화이트리스트 **3곳** |
-| **백업** | **Cloudflare R2** — `pg_dump` → `age` 암호화 → `rclone` |
+| **백업** | **Cloudflare R2** — `pg_dump` → `age` 암호화 → `rclone` (ADR-0006) |
 | 구성 관리 | **Ansible** — **호스트 준비까지만** (Docker 설치 · `ufw` · 디렉터리) |
 | 관측 | Prometheus · Grafana · Loki |
 | 알림 | Alertmanager → Discord |
 
-### 메모리 예산 — 이게 설계 제약이다
-
-**추정치. 실측 후 조정한다.**
-
-| 구성 | 평시 |
-|---|---|
-| Ubuntu (헤드리스) + Docker | 0.8 GB |
-| PostgreSQL 17 (`shared_buffers 256MB`) | 0.8 GB |
-| Redis 7 (`maxmemory 256MB`) | 0.4 GB |
-| **Spring Boot ×1** (heap 512MB) | 0.9 GB |
-| nginx · cloudflared · tinyproxy | 0.13 GB |
-| Prometheus · Grafana | 0.6 GB |
-| Loki · Promtail | 0.5 GB |
-| **Actions self-hosted runner** | **0.25 GB** |
-| **합계** | **≈ 4.35 GB** (여유 3.65) |
-| 앱 2대로 올리면 | ≈ 5.25 GB (여유 2.75) |
-
-> ⚠️ **데스크톱 환경이 최대 변수다.** GNOME이 1.5~2GB를 먹는다. **SSH로만 접속하는 헤드리스 운영**이 전제다.
-
-> **여유가 필요한 이유는 PostgreSQL의 OS 페이지 캐시다.** 다행히 `trip_seat` 48만 행이 인덱스 포함 100MB 안쪽이라 통째로 캐시에 올라간다 — **8GB가 빠듯해 보여도 이 워크로드에는 충분하다.**
-
-### 폐기된 것 — 2026-09-10
-
-| 폐기 | 이유 |
-|---|---|
-| **Proxmox VE 8** | 8GB에 하이퍼바이저 + VM 다수는 불가능 |
-| **VLAN 4분리 (물리)** | 개인 PC · NIC 1개 |
-| **step-ca** | 내부 mTLS 대상이 없다 (컨테이너 간 통신) |
-| **외장 USB RAID** | **R2 하나로 간다** — 원본과 운명을 공유하지 않는 사본이 목적 |
-| 내부 레지스트리 · 의존성 미러 | 단일 호스트에 과잉. `ghcr.io` pull로 충분 |
-
-> **"폐쇄망"의 근거가 물리 분리에서 논리 분리로 내려간다.** 축소이므로 그대로 기록한다 — VLAN을 쓴다고 써놓고 Docker 네트워크를 쓰면 그게 거짓말이다.
+메모리 예산과 모자랄 때 버리는 순서는 **[infra.md](infra.md) §1.1**, 네트워크 멤버십은 §2, 나가는 길 3곳은 §5.
 
 ## Cloudflare
 
@@ -118,15 +93,7 @@
 | **Access** | 관리 페이지(Grafana) 접근 제어 |
 | WAF · Rate Limiting | 기본 보호 |
 
-### 도메인 배치
-
-| 이름 | 대상 | 경로 |
-|---|---|---|
-| `jomin4.cloud` · `www` | 웹 (React) | **Pages** — 터널을 안 탄다 |
-| **`api.jomin4.cloud`** | 예매 API | **Tunnel → nginx → app** |
-| `grafana.jomin4.cloud` | Grafana | Tunnel → ⚠️ **Access 필수** |
-
-> **내 PC로 들어오는 건 API와 관리 페이지뿐이다.** 웹은 Cloudflare 안에서 호스팅되므로 노출면이 그만큼 줄어든다.
+도메인별 경로는 **[infra.md](infra.md) §4.2**.
 
 ## DevOps
 
@@ -134,13 +101,11 @@
 |---|---|
 | 소스 | GitHub |
 | CI | **GitHub Actions** |
-| 이미지 레지스트리 | `ghcr.io` + 내부 미러 |
+| 이미지 레지스트리 | `ghcr.io` |
 | **CD (폐쇄망)** | **self-hosted runner** — 인바운드 불필요 |
 | 배포 실행 | **Docker Compose** (호스트 준비는 Ansible) |
-| 시크릿 | SOPS + age |
+| 시크릿 | GitHub Secrets · 호스트 `.env` — 경계는 [deploy.md](deploy.md) §4 |
 | DB 마이그레이션 | Flyway |
-
-### 트랙별 배포처
 
 | 트랙 | 빌드 | 배포처 |
 |---|---|---|
@@ -148,9 +113,7 @@
 | **모바일** | **EAS Build** (Expo 클라우드) | **GitHub Releases** — APK 직접 |
 | **서버** | GitHub Actions → `ghcr.io` | **self-hosted runner가 pull** |
 
-> **로컬 Android 빌드를 안 하는 이유** — Gradle 빌드가 **4GB+**를 쓰는데 그 8GB PC는 이미 서버로 4.1GB를 쓰고 있다. 돌리면 PostgreSQL이 스왑으로 밀린다.
->
-> **Play Store에 안 올린다** — 개발자 계정 비용과 심사 대기만 얹는다. `features.md`가 이미 **iOS 배포를 범위 밖**으로 뒀다.
+로컬 Android 빌드와 Play Store 를 안 쓰는 이유는 **[deploy.md](deploy.md) §8**.
 
 ## 외부 연동
 
@@ -160,34 +123,17 @@
 | 결제창 | 웹 · 모바일 인앱 · 인브라우저 |
 | 외부 경로 | 앱 → **tinyproxy**(`net:dmz`) → 토스 |
 
-**아웃바운드 화이트리스트 — 3곳**
-
-| 목적지 | 용도 |
-|---|---|
-| 토스페이먼츠 | 결제 승인 |
-| **`*.r2.cloudflarestorage.com`** | **암호화 백업 업로드** |
-| **`discord.com`** | **운영 경보** (Alertmanager) |
-
-## 하드웨어
-
-| 항목 | 상태 | 사양 |
-|---|---|---|
-| **Ubuntu 개인 PC** | ✅ 보유 | **RAM 8GB · SSD 512GB** |
-
-> **추가 구매가 없다.** 관리형 스위치는 VLAN 철회와 함께 목록에서 빠졌고, 백업은 R2(클라우드)로 옮겨 물리 매체가 필요 없다.
-
-## 미확정
-
-| 항목 | 선택지 |
-|---|---|
-| 백엔드 언어 | Java 유지 vs Kotlin 전환 |
-| 도메인 · 공유기 설정 | 논의 예정 |
-
 ## 관련 문서
 
 | 문서 | 내용 |
 |---|---|
 | [overview.md](overview.md) | 프로젝트 주제 · 기획 |
 | [features.md](features.md) | 기능정의서 25건 |
+| [back.md](back.md) | **백엔드 설계** — 모듈 · 포트 · 유스케이스 · 어댑터 |
 | [data.md](data.md) | 데이터 설계 · ERD |
+| [infra.md](infra.md) · [deploy.md](deploy.md) | 어디에 · 어떻게 올리나 |
 | [research.md](research.md) | 코레일 · 타사 조사 결과 |
+
+---
+
+**← 앞** [features.md](features.md) — 무엇을 만드나 · **다음 →** [back.md](back.md) — 코드가 어떻게 나뉘나

@@ -7,6 +7,7 @@
 | 날짜 | 증상 | 트랙 | 상태 |
 |---|---|---|---|
 | 2026-09-10 | [`redocly.yaml` 의 `apis:` 가 `openapi-typescript` 의 `-o` 를 무시](2026-09-10-redocly-config-hijacks-openapi-typescript.md) | tooling | 해결 |
+| 2026-09-10 | [워크플로가 큐잉은 되는데 job 이 하나도 시작되지 않는다](2026-09-10-actions-billing-lock.md) | tooling | 해결 |
 
 ---
 

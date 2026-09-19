@@ -1,8 +1,14 @@
 # API 설계
 
-REST + SSE · 4개 트랙 병렬 작업의 계약. 확정일 2026-09-04.
+> **이 문서가 답하는 질문 하나** — **클라이언트와 무엇을 약속하나.** REST + SSE, 4개 트랙이 병렬로 일하기 위한 계약.
 
-> **작성 범위** — §0~§7. 관측 · 로그는 [operate.md](operate.md)로 분리했다.
+| | |
+|---|---|
+| 확정일 | 2026-09-04 |
+| 진실의 출처 | ⚠️ **`api/openapi.yaml`** 이 계약이다 (ADR-0007). 이 문서는 그 **왜**를 설명한다 |
+| 그림 | [d2-confirm-payment](diagrams/c4/d2-confirm-payment.svg) 결제 2단계 · [d3-sse-fanout](diagrams/c4/d3-sse-fanout.svg) SSE 재개 |
+| 여기 있다 | 계약 원칙 · DTO 경계 · 에러 체계 · 엔드포인트 · SSE · 선행 개발 |
+| 여기 없다 → | 로그 · 메트릭 → [operate.md](operate.md) · 락 → [data.md](data.md) §4 · DTO 3겹의 모듈 근거 → [back.md](back.md) §1.3 |
 
 ## 이 문서가 하는 일
 
@@ -173,11 +179,24 @@ REST + SSE · 4개 트랙 병렬 작업의 계약. 확정일 2026-09-04.
 
 | 계층              | 접미사                              | 사는 모듈                  | 예                      |
 | ----------------- | ----------------------------------- | -------------------------- | ----------------------- |
-| HTTP 계약         | `*Request` `*Response`          | **`:adapter-web`** | `ReserveSeatsRequest` |
-| 유스케이스 입출력 | `*Command` `*Query` `*Result` | **`:application`** | `ReserveSeatsCommand` |
+| HTTP 계약         | `*Request` `*Response`          | **`:adapter-web`** | `HoldRequest` |
+| 유스케이스 입출력 | `*Command` `*Query` `*Result` | **`:application`** | `HoldSeatsCommand` |
 | 도메인            | **접미사 없음**               | **`:domain`**      | `Hold` `Seat`       |
 
 > 리뷰에서 `*Response` 안에 **접미사 없는 타입**이 보이면 그게 새어나간 것이다.
+
+**포트 이름도 접미사로 가른다.** DTO 접미사와 겹치지 않게 한다.
+
+| 포트 | 접미사 | 예 | 무엇을 다루나 |
+| --- | --- | --- | --- |
+| 인바운드 | **`*UseCase` — 예외 없음** | `HoldSeatsUseCase` · `CatalogQueryUseCase` | 명령이든 조회든 |
+| 인바운드 구현 | `*Service` | `HoldSeatsService` | |
+| 아웃바운드 | **`*Repository`** | `SeatRepository` | **도메인 객체** |
+| 아웃바운드 | **`*Reader`** | `SeatMapReader` | **Projection** |
+
+> **`*Repository`와 `*Reader`를 가른 게 핵심이다.** 타입 이름만 봐도 **그 경로가 도메인을 거치는지**가 드러난다. `*Reader`가 도메인 객체를 반환하면 그게 잘못된 것이다.
+>
+> ⚠️ **`*Query`는 DTO 전용이다.** 조회 포트를 `SeatMapQuery`라고 부르면 입력 DTO와 같은 접미사가 되어 구분이 사라진다.
 
 ### 경계를 컴파일러로 강제한다
 
@@ -201,10 +220,10 @@ dependencies {
 
 ```java
 // ✕ :adapter-web 이 컴파일 안 됨
-Hold reserve(ReserveSeatsCommand cmd);
+Hold holdSeats(HoldSeatsCommand cmd);
 
 // ○ :application 소유 타입만 넘긴다
-HoldResult reserve(ReserveSeatsCommand cmd);
+HoldResult holdSeats(HoldSeatsCommand cmd);
 ```
 
 ### 4겹 방어
@@ -222,17 +241,17 @@ HoldResult reserve(ReserveSeatsCommand cmd);
 flowchart TB
     subgraph CP["명령 경로 — 지킬 불변식이 있다"]
         direction LR
-        R1["ReserveSeatsRequest<br/>:adapter-web"] --> C1["ReserveSeatsCommand<br/>:application"]
+        R1["HoldRequest<br/>:adapter-web"] --> C1["HoldSeatsCommand<br/>:application"]
         C1 --> D1["Hold · Seat<br/>:domain"]
-        D1 --> J1["HoldJpaEntity<br/>:adapter-persistence"]
+        D1 --> J1["INSERT · UPDATE<br/>:adapter-persistence"]
         D1 --> S1["HoldResult<br/>:application"]
         S1 --> P1["HoldResponse<br/>:adapter-web"]
     end
 
     subgraph QP["조회 경로 — 불변식이 없다"]
         direction LR
-        Q1["GET 좌석 배치도<br/>:adapter-web"] --> Q2["SeatMapQuery<br/>:application"]
-        Q2 --> Q3["SeatMapProjection<br/>:adapter-persistence"]
+        Q1["GET 좌석 배치도<br/>:adapter-web"] --> Q2["CatalogQueryUseCase<br/>:application"]
+        Q2 --> Q3["SeatMapReader → SeatMapProjection<br/>:adapter-persistence"]
         Q3 --> Q4["SeatMapResponse<br/>:adapter-web"]
     end
 ```
@@ -253,7 +272,7 @@ flowchart TB
 | `*Request` ↔ `*Command` | `:adapter-web`         |
 | `*Result` ↔ `*Response` | `:adapter-web`         |
 | `*Command` ↔ 도메인       | `:application`         |
-| 도메인 ↔ JPA 엔티티         | `:adapter-persistence` |
+| 도메인 ↔ 테이블 (RowMapper · SQL) | `:adapter-persistence` |
 
 > **바깥쪽이 안쪽 타입을 아는 것은 정상이다.** 반대가 되면 의존이 뒤집힌다. 매퍼는 항상 **바깥 모듈**에 둔다.
 >
@@ -263,38 +282,43 @@ flowchart TB
 
 ```java
 // :adapter-web
-record ReserveSeatsRequest(
+record HoldRequest(
     Long tripId,
-    List<SeatAddress> seats     // 최대 6
+    List<SeatAddressPayload> seats     // 최대 6
 ) {}
-record SeatAddress(int carNo, int rowNo, String colLetter) {}
+record SeatAddressPayload(int carNo, int rowNo, String colLetter) {}
 
 record HoldResponse(
     String holdId,
     Long tripId,
-    List<SeatAddress> seats,
+    List<SeatAddressPayload> seats,
     Instant expiresAt,          // UTC
     int totalFare
 ) {}
 ```
 
 ```java
-// :application
-record ReserveSeatsCommand(
-    Long tripId,
-    MemberId memberId,
-    List<SeatAddress> seats,
-    Channel channel
+// :application — ⚠️ 도메인 타입이 하나도 없다
+record HoldSeatsCommand(
+    long tripId,
+    long memberId,
+    List<SeatKey> seats,
+    String channel
 ) {}
+record SeatKey(int carNo, int rowNo, String colLetter) {}
 
 record HoldResult(
-    HoldId holdId,
-    Long tripId,
-    List<SeatAddress> seats,
+    String holdId,              // HoldId 가 아니다
+    long tripId,
+    List<SeatKey> seats,
     Instant expiresAt,
     int totalFare
 ) {}
 ```
+
+> ⚠️ **`:application` 의 DTO 에 도메인 타입을 담을 수 없다.** `:adapter-web` 이 `*Command` 를 **생성**하고 `*Result` 를 **읽는데**, `implementation(project(":domain"))` 때문에 그 타입들을 못 본다. `MemberId` · `HoldId` · `SeatAddress` 를 넣는 순간 **웹 어댑터가 컴파일되지 않는다** (`back.md` §1.3).
+>
+> 그래서 좌석 주소가 3겹이 된다 — `SeatAddressPayload`(web) / `SeatKey`(app) / `SeatAddress`(domain). **위에서 "명령 경로는 매핑 3번"이라고 한 그 3번이 이것이다.** 원시 타입 ↔ 도메인 VO 변환은 `:application` 이 한다.
 
 > `HoldResponse`와 `HoldResult`가 거의 같아 보이는 게 정상이다. **지금 같다는 게 앞으로도 같아야 한다는 뜻은 아니다** — HTTP 응답에 표시용 필드가 붙거나 유스케이스가 내부 값을 더 들고 다니게 되면 그때 갈라진다. 미리 합쳐두면 갈라질 수 없다.
 
@@ -1175,3 +1199,8 @@ paths:
 | [features.md](features.md) | 기능정의서 25건 — 엔드포인트가 참조하는`F-xx`             |
 | [data.md](data.md)         | 데이터 설계 ·**§4 동시성** — `409` `410`의 근거 |
 | [wireframes/](wireframes/) | 화면과 예외 상태 — 에러 문구의 출처                         |
+| [back.md](back.md)        | **백엔드 설계** — DTO 3겹과 계층 경계 (§1.3 · §6)            |
+
+---
+
+**← 앞** [data.md](data.md) — 좌석을 어떻게 지키나 · **다음 →** [operate.md](operate.md) — 돌아가는 걸 어떻게 보나

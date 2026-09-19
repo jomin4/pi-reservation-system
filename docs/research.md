@@ -1,6 +1,11 @@
 # 조사 결과
 
-프로젝트 착수 전 수행한 조사. **재조사 불필요.**
+> **이 문서가 답하는 질문 하나** — **무엇을 보고 이렇게 정했나.** 착수 전 조사. **재조사 불필요.**
+
+| | |
+|---|---|
+| 여기 있다 | 코레일 전산망 · 타사 사례 · 출처 |
+| 여기 없다 → | 주제별 상세 → [search/](search/) · 그 조사가 낳은 결정 → [adr/](adr/) |
 
 ---
 
@@ -163,3 +168,7 @@
 | AWS Virtual Waiting Room | https://docs.aws.amazon.com/solutions/latest/virtual-waiting-room-on-aws/architecture-overview.html |
 
 > ⚠️ ZDNet [Q&AI] 기사는 Grok 생성 — 교차검증 안 된 수치 포함. 인용 시 주의.
+
+---
+
+**← 앞** [workflow.md](workflow.md) — 어떻게 일하나 · **끝** — 부록은 [README.md](README.md)
