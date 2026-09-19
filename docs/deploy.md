@@ -1,10 +1,15 @@
 # 배포 설계
 
-확정일 2026-09-10
+> **이 문서가 답하는 질문 하나** — **어떻게 올리나.** push 에서 폐쇄망 호스트까지 코드가 가는 길, 그리고 되돌리는 길.
 
-> **설계 문서다.** 실제 워크플로 파일은 세팅 시점에 만든다.
->
-> **전제** — 저장소는 **public**, 호스트는 **8GB Ubuntu 단일 호스트**(ADR-0005).
+| | |
+|---|---|
+| 확정일 | 2026-09-10 |
+| 전제 | 저장소는 **public**, 호스트는 **8GB Ubuntu 단일 호스트**(ADR-0005) |
+| 실체 | 워크플로 파일은 `.github/workflows/` 에 있다. §1 의 표가 어느 것이 작성됐는지 말한다 |
+| 그림 | [deploy-host](diagrams/c4/deploy-host.svg) — 터널이 아웃바운드라 열린 포트가 없다 |
+| 여기 있다 | 워크플로 · 러너 · 네임스페이스 · 시크릿 경계 · 트랙별 CI/CD · 릴리스 · 알림 · 롤백 |
+| 여기 없다 → | 브랜치·PR 규칙 → [workflow.md](workflow.md) · 호스트 구성 → [infra.md](infra.md) |
 
 ## §0 범위
 
@@ -36,6 +41,8 @@
 > **✅ = 2026-09-10 작성됨.** CD 는 self-hosted runner · Cloudflare · EAS 가 준비된 뒤에 붙인다.
 
 > **2026-09-11 Actions 가 정상 동작한다.** 워크플로 8개 전부 실행을 확인했고, `develop` 브랜치 보호의 **필수 체크**로 걸려 있다 (`workflow.md` §7.2).
+
+> 그 전날까지는 **계정 결제 잠금으로 한 job 도 돌지 않았다.** 증상 · 원인 · 막다른 길은 [troubleshooting/tooling/2026-09-10-actions-billing-lock.md](troubleshooting/tooling/2026-09-10-actions-billing-lock.md).
 
 > **`front-cd.yml`이 없는 게 경계를 가장 명확히 드러낸다.** "front CD는 우리가 안 한다"가 **파일 부재로** 표현된다. 빈 파일을 두는 것보다 낫다.
 
@@ -549,7 +556,7 @@ with:
 | `*.r2.cloudflarestorage.com` | 백업 | 컨테이너 |
 | **`discord.com`** | **운영 경보** | **Alertmanager** |
 
-> **Actions에서 보내는 알림은 클라우드라 제약이 없다.** 하지만 `operate.md` §7의 **Alertmanager는 호스트에서 나간다** — `tinyproxy` 화이트리스트에 세 번째가 추가된다. `infra.md` §5와 `system-architecture` 다이어그램을 함께 고쳤다.
+> **Actions에서 보내는 알림은 클라우드라 제약이 없다.** 하지만 `operate.md` §7의 **Alertmanager는 호스트에서 나간다** — `tinyproxy` 화이트리스트에 세 번째가 추가된다. `infra.md` §5와 배포 그림을 함께 고쳤다.
 
 ---
 
@@ -633,4 +640,8 @@ curl -s localhost/actuator/health
 | [operate.md](operate.md) | §7 경보 — `#alert` 채널의 출처 |
 | [data.md](data.md) | §9 Flyway — 롤백 제약의 근거 |
 | [adr/0005](adr/0005-single-host-onpremise.md) | 단일 호스트 — 빌드를 클라우드에서 하는 이유 |
-| [diagrams/deployment-topology](diagrams/deployment-topology.html) | 배포 3트랙 · 터널이 아웃바운드 |
+| [diagrams/c4/deploy-host.svg](diagrams/c4/deploy-host.svg) | 단일 호스트 배포 · 터널이 아웃바운드 |
+
+---
+
+**← 앞** [infra.md](infra.md) — 어디에 올리나 · **다음 →** [workflow.md](workflow.md) — 어떻게 일하나

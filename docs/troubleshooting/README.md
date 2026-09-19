@@ -25,6 +25,7 @@
 | 2026-09-11 | [트랙 문서 한 줄만 고쳐도 그 트랙 CI 가 돈다 (스캐폴드 전이면 죽는다)](tooling/2026-09-11-ci-dies-on-unscaffolded-track.md) | 해결(예방) |
 | 2026-09-11 | [스캐폴드 PR 이 `schema.d.ts: No such file or directory` 로 죽는다](tooling/2026-09-11-generated-type-must-ship-with-contract.md) | 해결 |
 | 2026-09-14 | [`tsc --noEmit` 이 파일을 한 개도 검사하지 않고 통과한다](tooling/2026-09-14-tsc-noemit-with-project-references-checks-nothing.md) | ⚠️ **미해결** |
+| 2026-09-10 | [워크플로가 큐잉은 되는데 job 이 하나도 시작되지 않는다](tooling/2026-09-10-actions-billing-lock.md) | 해결 |
 
 ### `back`
 

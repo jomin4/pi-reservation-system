@@ -10,6 +10,7 @@
 | 프레임워크 | Spring Boot 4.1 · 모듈러 모놀리스 |
 | 빌드 | Gradle (Kotlin DSL) — `back/settings.gradle.kts` |
 | DB | PostgreSQL 17 · Flyway |
+| **영속화** | **Spring JDBC (`JdbcClient`)** — **ORM 없음** (ADR-0008) |
 | 캐시·이벤트 | Redis 7 (Stream) |
 | 테스트 | JUnit 5 · Testcontainers · AssertJ |
 | 관측 | Micrometer · SpringDoc |
@@ -19,19 +20,25 @@
 ```
 :domain              의존성 0
 :application         :domain
-:adapter-web         :application       REST · SSE
-:adapter-scheduling  :application       선점 만료 회수
-:adapter-persistence :application       JPA · 매퍼 · 락
-:adapter-cache       :application       Redis · Stream
-:adapter-payment     :application       토스페이먼츠
-:bootstrap           어댑터 5개          유일한 실행 모듈
+:adapter-web         :application                  REST · SSE        ← :domain 영구 차단
+:adapter-scheduling  :application                  선점 만료 회수
+:adapter-security    :application                  BCrypt · JWT
+:adapter-persistence :application + :domain        JdbcClient · 락
+:adapter-cache       :application + :domain        Redis · Stream
+:adapter-payment     :application + :domain        토스페이먼츠
+:bootstrap           어댑터 6개                     유일한 실행 모듈
 ```
 
 ```kotlin
+// :application/build.gradle.kts
 implementation(project(":domain"))   // ← api 가 아니라 implementation
 ```
 
 > **`api`로 두면 `:adapter-web`이 `:domain` 타입을 그대로 본다.** `implementation`이면 **HTTP 응답에 도메인 객체를 담는 순간 컴파일 에러**다. 규약이 아니라 기계가 막는다 (ADR-0001).
+
+> ⚠️ **어댑터 3개는 `:domain`을 직접 선언한다.** `implementation`은 전이 의존을 컴파일 클래스패스에서 끊으므로, 그대로 두면 **`:adapter-persistence`가 자기가 구현할 포트의 타입 이름조차 못 쓴다.** 벽이 필요한 곳은 `:adapter-web` 하나다.
+>
+> ⚠️ **그래서 `:application`의 `*Command` · `*Result`에 도메인 타입을 담을 수 없다.** `:adapter-web`이 그걸 만들고 읽는다. 좌석 주소는 3겹이 된다 — `SeatAddressPayload`(web) / `SeatKey`(app) / `SeatAddress`(domain).
 
 ## 이 트랙의 금지
 
@@ -39,6 +46,9 @@ implementation(project(":domain"))   // ← api 가 아니라 implementation
 |---|---|
 | `domain/build.gradle.kts`에 **의존성 추가** | ADR-0001 — **되돌리기 거의 불가능** |
 | **`api(project(":domain"))`** | 〃 |
+| **`adapter-web`에 `project(":domain")`** | 〃 — CI 검사 #8 |
+| **`application`에 `springframework`** | `data.md` §4.6 — CI 검사 #9 |
+| **JPA · Hibernate 의존 추가** | **ADR-0008** — ORM을 두지 않기로 했다 |
 | **`SKIP LOCKED`** | ADR-0002 — 부분 성공이 생긴다 |
 | **`ORDER BY id` 없는 `FOR UPDATE`** | ADR-0002 — 데드락 |
 | 전역 `lock_timeout` 설정 | `SET LOCAL`로만 (`data.md` §4.5) |
@@ -52,6 +62,10 @@ implementation(project(":domain"))   // ← api 가 아니라 implementation
 
 | 언제 | 어디 |
 |---|---|
+| **이 클래스를 어디에 두나** | **`back.md` §1 · §6** |
+| **6석 규칙이 어디 있나** | **`back.md` §2.2** · ADR-0009 |
+| 포트를 추가할 때 | `back.md` §3 · §4 |
+| 어댑터를 짤 때 | `back.md` §5 |
 | 좌석 락을 짤 때 | **`data.md` §4** · ADR-0002 |
 | 상태를 바꿀 때 | `data.md` §5 — 전이 · 가드 |
 | Redis를 쓸 때 | `data.md` §6 |
@@ -71,6 +85,9 @@ implementation(project(":domain"))   // ← api 가 아니라 implementation
 | `SELECT ... FOR UPDATE`에 정렬 누락 | **`ORDER BY id`** — 없으면 데드락 |
 | 만료 회수에 `version` CAS 누락 | 스케줄러는 **락 밖 판단 경로**다 |
 | `COMPLETED`를 컬럼에 저장 | **파생한다** — `depart_at < now()` (`data.md` §5.5) |
+| Repository를 **Testcontainers 없이** 짬 | ADR-0008 — **컴파일러가 SQL 오타를 안 잡는다.** 테스트가 그 자리다 |
+| 쓰기 후 **영향 행 수를 안 본다** | 락을 쥐고 있는데 0행이면 **락이 깨진 것**이다. 조용히 넘어가면 안 된다 |
+| 좌석 UPDATE를 **선점 INSERT보다 먼저** | `trip_seat.hold_id` → `seat_hold.id` **FK**. 순서는 `hold` → `seats` |
 
 ## 계약을 바꿔야 하면
 

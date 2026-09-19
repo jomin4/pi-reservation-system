@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| 상태 | 채택 · **소급 작성** |
+| 상태 | 채택 · **소급 작성** · ⚠️ **일부 보정** — 아래 모듈 의존 표는 컴파일되지 않는다. 현재 진실은 `back.md` |
 | 날짜 | 2026-09-03 |
 | 대체 | — |
-| 관련 문서 | [tech.md](../tech.md) · [backend-hexagonal](../diagrams/backend-hexagonal.html) · [backend-gradle-modules](../diagrams/backend-gradle-modules.html) |
+| 관련 문서 | [tech.md](../tech.md) |
 
 ## 맥락
 

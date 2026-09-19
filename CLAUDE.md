@@ -6,7 +6,7 @@
 
 ## 지금 무엇을 하고 있나
 
-**설계 완료 → 구현 단계.** 설계 문서 9개 · ADR 7건 · 다이어그램 5개가 `docs/`에 있다.
+**설계 완료 → 구현 단계.** 설계 문서 10개 · ADR 9건 · **C4 뷰 8개**가 `docs/`에 있다.
 
 > **진행 상황은 여기 안 적는다.** GitHub Projects 보드가 그 역할을 한다 (`workflow.md` §5).
 
@@ -25,9 +25,15 @@
 
 | 이 질문이 생기면 | 여기 |
 |---|---|
+| **처음부터 끝까지 읽으려면** | **[docs/README.md](docs/README.md)** — 10장 순서 · 부록 · 미확정 |
 | 이 기능이 범위에 있나 · `F-xx`가 뭔가 | [features.md](docs/features.md) |
 | 이 프로젝트가 뭘 하는 건가 | [overview.md](docs/overview.md) |
 | 무슨 기술을 쓰기로 했나 | [tech.md](docs/tech.md) |
+| **모듈·포트·유스케이스·어댑터** | **[back.md](docs/back.md)** |
+| 이 클래스를 어느 모듈에 두나 | [back.md](docs/back.md) §1 |
+| **6석 규칙이 어디 있나** | **[back.md](docs/back.md) §2.2** · ADR-0009 |
+| 이 조회가 도메인을 거치나 | [back.md](docs/back.md) §3.1 |
+| 포트 이름을 뭐로 | [back.md](docs/back.md) §6 |
 | 테이블·컬럼이 어떻게 생겼나 | [data.md](docs/data.md) §2~§3 |
 | **좌석 락을 어떻게 잡나** | **[data.md](docs/data.md) §4** |
 | 상태가 어떻게 바뀌나 | [data.md](docs/data.md) §5 |
@@ -49,14 +55,15 @@
 | **이 에러 전에 본 적 있나** | **[docs/troubleshooting/](docs/troubleshooting/)** |
 | 코레일은 어떻게 하나 | [docs/search/](docs/search/) · [research.md](docs/research.md) |
 | 화면이 어떻게 생겼나 | [docs/wireframes/](docs/wireframes/) |
-| 구조 그림 | [docs/diagrams/](docs/diagrams/) |
+| **구조 그림** | **[docs/diagrams/](docs/diagrams/)** — C4 모델. 진실은 `workspace.dsl` 하나 |
+| 그림을 고치려면 | `workspace.dsl` → `./scripts/diagrams.sh render` — **SVG를 손으로 고치지 않는다** |
 
 ---
 
 ## 저장소 구조 — 트랙 경계
 
 ```
-back/       Spring Boot · Gradle 멀티모듈 8개
+back/       Spring Boot · Gradle 멀티모듈 9개 (back.md §1)
 front/      React 19 + Vite
 mobile/     React Native + Expo
 infra/      compose · ansible · nginx · tinyproxy
@@ -131,12 +138,17 @@ scripts/    check-forbidden.sh 등
 | 5 | **전역 `lock_timeout`** | `infra.md` §3.2 — 선점 200ms vs 마이그레이션 3s |
 | 6 | **`409`를 `ERROR`로 로깅** | `operate.md` §1 — 경합은 정상 결과 |
 | 7 | `trip_seat` 인덱스에 **`CONCURRENTLY` 누락** | `data.md` §9.4 |
+| 8 | **`adapter-web`에 `project(":domain")`** | ADR-0001 — 2번만으로는 못 막는다 |
+| 9 | **`application`에 `springframework`** | `data.md` §4.6 |
+| 10 | **JPA · Hibernate 의존** | **ADR-0008** — ORM을 두지 않는다 |
 
 **CI가 안 잡지만 하면 안 되는 것**
 
 | 금지 | 근거 |
 |---|---|
 | 도메인 객체를 **HTTP 응답에** 담기 | `api.md` §3 |
+| `:application`의 `*Command` · `*Result`에 **도메인 타입** | 〃 — `:adapter-web`이 컴파일 불가 |
+| Repository를 **Testcontainers 없이** 짜기 | ADR-0008 — 컴파일러가 SQL 오타를 안 잡는다 |
 | `trip.available_count` **카운터 컬럼** | `data.md` §8.5 — 운행 단위 직렬화로 되돌아간다 |
 | **`latest` 이미지 태그** | `deploy.md` §3 |
 | `pull_request`에 **self-hosted runner** | `deploy.md` §2 — public 저장소 |
@@ -153,6 +165,7 @@ scripts/    check-forbidden.sh 등
 | **비회원 예매 · 비로그인 조회 · 조회 PIN** | 〃 함께 철회 |
 | **mTLS 디바이스 인증 · QR 위임 결제** | 〃 — 인증은 JWT 하나 |
 | MySQL · Flutter · Kotlin Multiplatform | PostgreSQL · TypeScript 통일 |
+| **JPA · Hibernate · Spring Data JDBC · jOOQ** | **ADR-0008** — 영속화는 Spring JDBC(`JdbcClient`). 락·CAS·`lock_timeout`을 ORM이 감춰주지 않는다 |
 | **Vercel** · DNSZi | **Cloudflare 통일** — Vite 정적 SPA라 Next.js 이점이 안 온다 |
 | Kubernetes · MSA | 자원 한계 · 과잉 |
 | **Redis Pub/Sub 팬아웃** | ADR-0004 — 보관을 못 해 SSE 재개 불가 |
@@ -165,9 +178,4 @@ scripts/    check-forbidden.sh 등
 
 ## 미확정
 
-| 항목 | 선택지 |
-|---|---|
-| 백엔드 언어 | Java 유지 vs Kotlin 전환 |
-| 공유기 구매 | **외부 연결엔 불필요**(터널). 모바일 실기기 테스트용 Wi-Fi가 유일한 이유 |
-| **부하 생성 도구** | **연기** — 폐기 아님. 검증 기준(초과 판매 0건)은 유지 |
-| **코드 리뷰 봇** | **2026-09-11 보류.** Gemini Code Assist 의 개인 무료 경로가 없어졌다(빌링 계정 필수). **리뷰할 코드가 쌓인 뒤** 다시 본다 — 실제 게이트는 CI 다 (`workflow.md` §7.2) |
+**[docs/README.md 부록 — 미확정](docs/README.md#부록--미확정)** 이 유일한 목록이다. 여기 복사하지 않는다.

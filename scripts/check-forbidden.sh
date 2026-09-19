@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# check-forbidden.sh — 금지 사항 7종을 기계로 판정한다
+# check-forbidden.sh — 금지 사항 10종을 기계로 판정한다
 #
 #   근거   docs/workflow.md §8 · CLAUDE.md "절대 금지"
 #   실행   ./scripts/check-forbidden.sh          (어느 디렉터리에서든)
@@ -179,6 +179,58 @@ if [ -n "$sqls" ]; then
   fi
 else
   miss "$R" 'back/**/V*.sql'
+fi
+
+# ── 8 ───────────────────────────────────────────────────────
+# :adapter-web 은 :domain 을 선언하지 않는다 (ADR-0001)
+#
+# 2번(api(...))만으로는 못 막는다. 어댑터 3개가 :domain 을 직접 선언하게 된
+# 뒤로는(back.md 모듈 표) "웹만 안 한다" 가 유일한 벽이다.
+R=':adapter-web 에 :domain 금지'
+F='back/adapter-web/build.gradle.kts'
+if [ -f "$F" ]; then
+  hits=$(grep -nE 'project\([[:space:]]*":domain"' "$F" | grep -vF -- "$ALLOW" || true)
+  if [ -n "$hits" ]; then
+    bad "$R" 'ADR-0001 — 이 벽이 무너지면 도메인 누수가 컴파일 에러가 아니게 된다' "$(printf '%s\n' "$hits" | sed "s|^|$F:|")"
+  else
+    ok "$R"
+  fi
+else
+  miss "$R" "$F"
+fi
+
+# ── 9 ───────────────────────────────────────────────────────
+# :application 은 Spring 을 모른다 (data.md §4.6)
+#
+# 이게 깨지면 TransactionRunner 포트가 존재할 이유가 사라진다.
+R=':application 에 Spring 금지'
+F='back/application/build.gradle.kts'
+if [ -f "$F" ]; then
+  hits=$(grep -niE 'springframework|spring-boot' "$F" | grep -vF -- "$ALLOW" || true)
+  if [ -n "$hits" ]; then
+    bad "$R" 'data.md §4.6 — @Transactional 대신 TransactionRunner 포트를 둔 전제다' "$(printf '%s\n' "$hits" | sed "s|^|$F:|")"
+  else
+    ok "$R"
+  fi
+else
+  miss "$R" "$F"
+fi
+
+# ── 10 ──────────────────────────────────────────────────────
+# ORM 금지 — 영속화는 Spring JDBC (ADR-0008)
+R='JPA · Hibernate 금지'
+gradles=$(find back -name 'build.gradle.kts' -not -path '*/build/*' 2>/dev/null | sort || true)
+if [ -n "$gradles" ]; then
+  hits=$(printf '%s\n' "$gradles" | while read -r f; do
+    grep -niE 'data-jpa|hibernate|jakarta\.persistence|querydsl' "$f" | sed "s|^|$f:|"
+  done | grep -vF -- "$ALLOW" || true)
+  if [ -n "$hits" ]; then
+    bad "$R" 'ADR-0008 — 락·CAS·lock_timeout 이 ORM 이 감춰주지 않는 영역이다' "$hits"
+  else
+    ok "$R"
+  fi
+else
+  miss "$R" 'back/**/build.gradle.kts'
 fi
 
 # ── 요약 ────────────────────────────────────────────────────

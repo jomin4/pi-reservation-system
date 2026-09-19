@@ -1,14 +1,18 @@
 # 인프라 설계
 
-Ubuntu 24.04 단일 호스트 · 확정일 2026-09-10
+> **이 문서가 답하는 질문 하나** — **어디에 올리나.** 8GB Ubuntu 한 대에 무엇이 어느 네트워크에서 돌고, 무엇이 밖으로 나가나.
 
-> **근거 ADR** — [ADR-0005 단일 호스트 전환](adr/0005-single-host-onpremise.md) · [ADR-0006 R2 백업](adr/0006-backup-to-cloudflare-r2.md)
->
-> **기준 그림** — [system-architecture](diagrams/system-architecture.html) · [deployment-topology](diagrams/deployment-topology.html)
+| | |
+|---|---|
+| 확정일 | 2026-09-10 |
+| 그림 | [02-container](diagrams/c4/02-container.svg) 컨테이너 · [deploy-host](diagrams/c4/deploy-host.svg) 배포 |
+| 근거 | [ADR-0005](adr/0005-single-host-onpremise.md) 단일 호스트 · [ADR-0006](adr/0006-backup-to-cloudflare-r2.md) R2 백업 |
+| 여기 있다 | 호스트 · **메모리 예산** · 네트워크 3분리 · 컨테이너 · Cloudflare · 아웃바운드 · 저장소 · 백업 · 보안 · 한계 |
+| 여기 없다 → | 코드가 어떻게 여기까지 오나 → [deploy.md](deploy.md) · 무엇을 재나 → [operate.md](operate.md) |
 
 ## §0 이 문서의 범위
 
-| | **이 문서 (`infra.md`)** | `deploy.md` (미작성) |
+| | **이 문서 (`infra.md`)** | [`deploy.md`](deploy.md) |
 |---|---|---|
 | 답하는 질문 | **"무엇이 어디서 도는가"** | **"코드가 어떻게 거기까지 가는가"** |
 | 다루는 것 | 호스트 · 네트워크 · 컨테이너 · 볼륨 · 백업 · 보안 | CI · 파이프라인 · 릴리스 절차 |
@@ -105,7 +109,7 @@ ports:
 |---|---|
 | 전부 | **없음** |
 
-> **`cloudflared`도 포트를 안 연다.** 아웃바운드로 나가기 때문이다(`deployment-topology` 참조). **컴포즈 전체에 `ports:` 항목이 하나도 없는 게 정상 상태**이고, 하나라도 생기면 그건 설계가 새는 것이다.
+> **`cloudflared`도 포트를 안 연다.** 아웃바운드로 나가기 때문이다(`deploy-host` 참조). **컴포즈 전체에 `ports:` 항목이 하나도 없는 게 정상 상태**이고, 하나라도 생기면 그건 설계가 새는 것이다.
 
 **DB에 붙어야 할 때**
 
@@ -434,8 +438,12 @@ docker compose exec -T postgres pg_dump -Fc -U pi pi \
 | 문서 | 내용 |
 |---|---|
 | [adr/0005](adr/0005-single-host-onpremise.md) · [adr/0006](adr/0006-backup-to-cloudflare-r2.md) | 이 문서의 근거 |
-| [tech.md](tech.md) | 기술 스택 · 메모리 예산 |
+| [tech.md](tech.md) | 기술 스택 — 한 줄씩 |
 | [operate.md](operate.md) | 관측 · 로그 · 경보 |
 | [data.md](data.md) | §6 Redis · §7.8 검증 쿼리 · §9 마이그레이션 |
 | [api.md](api.md) | §6 SSE — nginx 버퍼링 설정의 이유 |
-| `deploy.md` (미작성) | CI/CD · 배포 절차 |
+| [deploy.md](deploy.md) | CI/CD · 배포 절차 |
+
+---
+
+**← 앞** [operate.md](operate.md) — 돌아가는 걸 어떻게 보나 · **다음 →** [deploy.md](deploy.md) — 어떻게 올리나

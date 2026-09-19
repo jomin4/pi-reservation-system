@@ -1,12 +1,14 @@
 # 데이터 설계
 
-PostgreSQL 17 · 확정일 2026-09-04
+> **이 문서가 답하는 질문 하나** — **좌석을 어떻게 지키나.** 테이블 12개, 그리고 같은 좌석에 요청이 몰릴 때 정확히 1건만 성공하게 만드는 락 · CAS · 상태 전이.
 
-> **작성 범위** — **§0~§9 전체 완료.**
->
-> **2026-09-04 키오스크 철회 반영.** `device` · `print_job` 테이블 제거, 비회원 예매 관련 컬럼 제거. 테이블 13 → 11개.
->
-> **2026-09-10 `fare` 테이블 신설**(§3). 운임 출처가 없다는 구멍을 §7 시드 설계에서 발견했다. 테이블 11 → **12개**.
+| | |
+|---|---|
+| 확정일 | 2026-09-04 · `fare` 신설 2026-09-10 |
+| 그림 | [d1-hold-contention](diagrams/c4/d1-hold-contention.svg) 좌석 경합 · [d2-confirm-payment](diagrams/c4/d2-confirm-payment.svg) 확정 · [d3-sse-fanout](diagrams/c4/d3-sse-fanout.svg) SSE |
+| 근거 | **ADR-0002** 비관적 락 + CAS · ADR-0004 Stream · ADR-0008 Spring JDBC |
+| 여기 있다 | ERD · 테이블 · **§4 동시성** · §5 상태 전이 · §6 Redis · 시드 · 쿼리 계획 · 마이그레이션 |
+| 여기 없다 → | 어느 모듈이 이 SQL 을 쥐나 → [back.md](back.md) §5.1 · 에러 코드 → [api.md](api.md) §4 |
 
 ## §0 설계 원칙
 
@@ -15,7 +17,7 @@ PostgreSQL 17 · 확정일 2026-09-04
 | **좌석의 진실은 PostgreSQL** | 선점·판매 판정은 여기서만 난다. Redis 좌석맵은 조회 가속용이며 **판정 근거가 아니다** |
 | 락은 한 테이블에만 | `trip_seat` 외에는 비관적 락을 걸지 않는다 |
 | 이력은 지우지 않는다 | 취소는 삭제가 아니라 상태 전이. 좌석은 반환하되 예약 기록은 남는다 |
-| 도메인과 스키마는 분리 | 이 문서는 `:adapter-persistence`의 JPA 엔티티 형태다. `:domain`은 이걸 모른다 |
+| 도메인과 스키마는 분리 | 이 문서는 **테이블**의 형태다. `:domain`은 이걸 모르고, 사이에는 **RowMapper 한 겹**만 있다 (ADR-0008) |
 
 ## §1 확정 사항
 
@@ -396,7 +398,7 @@ CHECK (from_station_id <> to_station_id)
 | `name` · `phone` | | NOT NULL |
 | `created_at` | `timestamptz` | |
 
-> Refresh 토큰과 로그인 시도 제한은 **여기 없다.** Redis에 있다(§8 예정).
+> Refresh 토큰과 로그인 시도 제한은 **여기 없다.** Redis에 있다(§6.5 · §6.6).
 
 ## 규모 요약
 
@@ -589,15 +591,28 @@ class SpringTransactionRunner implements TransactionRunner {
 
 ```java
 // :application  — 유스케이스
-public HoldResult reserve(ReserveSeatsCommand cmd) {
+public HoldResult holdSeats(HoldSeatsCommand cmd) {
+    var tripId    = TripId.of(cmd.tripId());          // 원시 → 도메인 VO 는 여기서
+    var addresses = SeatAddress.from(cmd.seats());    // (api.md §3)
+
     return txRunner.inTransaction(() -> {
-        var seats = seatRepository.lockForUpdate(cmd.tripId(), cmd.sortedSeatIds());
-        var hold  = Hold.open(cmd.tripId(), cmd.seats(), clock.now());  // :domain 규칙
-        seatRepository.markHeld(seats, hold.id());
+        // 주소로 잠근다 — id 해석과 정렬은 어댑터 안에서 (§4.2)
+        var seats = seatRepository.lockForUpdate(tripId, addresses);
+        var hold  = Hold.open(HoldId.random(), tripId, MemberId.of(cmd.memberId()),
+                              seats, clock.instant());  // :domain 규칙
+        holdRepository.save(hold);                      // ① 선점 먼저 — FK 가 이 방향이다
+        seatRepository.saveAll(seats);                  // ② open() 이 이미 markHeld 했다
+        seatChangePublisher.publish(SeatChanged.of(tripId, hold.seats()));
         return HoldResult.of(hold);
     });
 }
 ```
+
+> ⚠️ **저장 순서가 `hold` → `seats` 다.** `trip_seat.hold_id` 가 `seat_hold.id` 를 가리키는 FK 라, 선점 행이 먼저 있어야 좌석이 참조할 값이 생긴다. 어댑터는 무상태이므로 방금 만든 id 를 들고 있을 수 없고, **`hold_id = (SELECT id FROM seat_hold WHERE public_id = ?)`** 서브쿼리로 해석한다.
+
+> ⚠️ **`Hold.open` 은 주소가 아니라 `List<Seat>` 를 받는다.** 요청에서 온 주소만으로는 "지금 잡을 수 있는 상태인가"를 판정할 수 없다. 잠그고 읽어온 실물을 넘겨야 도메인이 판정할 수 있고, 그래서 **락이 먼저이고 판정이 나중**이다.
+>
+> ⚠️ **커맨드는 `bigserial` 을 들지 않는다.** `:adapter-web` 은 DB 를 모르므로 좌석 id 를 알 길이 없다. 정렬(§4.2)은 **어댑터 안 2단계 쿼리**로 만든다 — ① 주소 → id 해석(락 없음) ② `id = ANY(정렬됨) ORDER BY id FOR UPDATE`.
 
 | 선택지 | 왜 안 골랐나 |
 |---|---|
@@ -607,7 +622,9 @@ public HoldResult reserve(ReserveSeatsCommand cmd) {
 
 > **대가는 장황함이다.** `@Transactional` 한 줄이 람다 한 겹으로 바뀐다. 대신 `:application/build.gradle.kts`에 Spring이 없다는 사실이 유지되고, **트랜잭션 경계가 코드에 명시적으로 드러난다** — 어디서 시작하고 끝나는지 보인다.
 
-`lock_timeout`도 이 어댑터 구현에서 건다 — 코어는 그런 게 있는 줄 모른다.
+`lock_timeout`은 **`SeatRepository.lockForUpdate` 구현 안**에서 건다 — 코어는 그런 게 있는 줄 모른다.
+
+> **`TransactionRunner`에 걸지 않는 이유** — 거기 걸면 **모든 트랜잭션**에 200ms가 붙는다. 회원가입도, 예약 목록 조회도. 락을 잡는 그 문장 직전이 가장 좁은 범위고, 선점 경로와 확정 경로가 자동으로 같은 정책을 쓴다. `infra.md` §3.2가 전역 설정을 금지한 것과 같은 논리다.
 
 ### 4.7 이벤트 발행 — 커밋 후
 
@@ -622,7 +639,7 @@ public HoldResult reserve(ReserveSeatsCommand cmd) {
 
 ```java
 // :application — 그냥 "발행해줘"라고만 한다
-seatEventPublisher.publish(SeatChanged.of(tripId, changedSeats));
+seatChangePublisher.publish(SeatChanged.of(tripId, changedSeats));
 ```
 
 ```java
@@ -631,8 +648,9 @@ seatEventPublisher.publish(SeatChanged.of(tripId, changedSeats));
     TransactionSynchronizationManager.registerSynchronization(
         new TransactionSynchronization() {
             @Override public void afterCommit() {
-                redis.del(seatMapKey(event.tripId()));      // 캐시 무효화
-                redis.convertAndSend(channel(event), event); // SSE 팬아웃
+                redis.del(seatMapKey(event.tripId()));   // 캐시 무효화
+                redis.xAdd(streamKey(event.tripId()),    // SSE 팬아웃 — Stream (ADR-0004)
+                           event.toFields());
             }
         });
 }
@@ -893,7 +911,7 @@ CASE WHEN r.status = 'CONFIRMED' AND t.depart_at < now()
 
 ## §6 Redis — PostgreSQL 밖의 상태
 
-> **[diagrams/redis-workloads.html](diagrams/redis-workloads.html)** — 이 절의 그림.
+> **워크로드 4개는 아래 §6.1 표가 그림을 대신한다.** Stream 팬아웃의 왕복은 [d3-sse-fanout](diagrams/c4/d3-sse-fanout.svg).
 
 ### 6.1 워크로드 4개 — 무엇이 캐시이고 무엇이 진실인가
 
@@ -1386,10 +1404,17 @@ SELECT id, status, hold_id, reservation_id, version
 ### 8.7 Q5 — 만료 회수 스캔
 
 ```sql
-SELECT id, trip_id FROM seat_hold
- WHERE status = 'HELD' AND expires_at <= now()
- LIMIT 200;
+SELECT sh.id, sh.public_id, sh.trip_id,
+       ts.id AS seat_id, ts.car_no, ts.row_no, ts.col_letter, ts.version
+  FROM seat_hold sh
+  JOIN trip_seat ts ON ts.hold_id = sh.id
+ WHERE sh.status = 'HELD' AND sh.expires_at <= now()
+   AND sh.id IN (SELECT id FROM seat_hold
+                  WHERE status = 'HELD' AND expires_at <= now()
+                  LIMIT 200);
 ```
+
+> ⚠️ **좌석 행의 `version` 을 여기서 같이 읽는다.** 회수 UPDATE 가 CAS 를 걸려면 **읽은 시점의 `version`** 이 있어야 하는데, 선점 행만 읽으면 그 값이 없다. `LIMIT` 은 **선점 단위**로 걸어야 한다 — 좌석 단위로 자르면 6석짜리 선점이 반토막 난다.
 
 | 항목 | 값 |
 |---|---|
@@ -1404,11 +1429,16 @@ SELECT id, trip_id FROM seat_hold
 **좌석 반환** — 위에서 찾은 `hold_id`로 좌석을 되돌린다.
 
 ```sql
+-- 좌석 행 단위로 건다. version 은 행마다 다르다
 UPDATE trip_seat
    SET status = 'AVAILABLE', hold_id = NULL,
        version = version + 1, updated_at = now()
- WHERE hold_id = :holdId AND version = :version AND status = 'HELD';
+ WHERE id = :seatId AND version = :version AND status = 'HELD';
 ```
+
+> ⚠️ **`WHERE hold_id = :holdId AND version = :version` 은 성립하지 않는다.** 한 선점에 좌석이 최대 6개인데 **`version` 은 행마다 따로 올라간다.** 단일 값으로 6행을 맞출 수 없다.
+>
+> **회수도 전부 아니면 전무다.** 좌석 6행 + `seat_hold` 1행을 **한 트랜잭션**에서 처리하고, **영향 행 합계가 기대치와 다르면 통째 롤백**한다. 부분 회수를 허용하면 "3석은 돌아왔는데 3석은 아직 `HELD`"인 선점이 남고, 그건 §5.2의 어떤 상태로도 설명되지 않는다.
 
 > **`INDEX (hold_id) WHERE hold_id IS NOT NULL`이 없으면 48만 행 스캔**이다. 48만 중 대부분이 `hold_id IS NULL`이라 **부분 인덱스가 정확히 맞는 자리**다 — 전체 인덱스는 거의 전부가 NULL 엔트리가 된다.
 
@@ -1667,6 +1697,10 @@ spring:
 | [operate.md](operate.md) | 관측 · 로그 — §4.9 대사 쿼리가 최종 증거 |
 | [tech.md](tech.md) | 기술 스택 |
 | [search/korail-trip-data.md](search/korail-trip-data.md) | **§7 시드의 근거** — 열차번호 규칙 · 운임표 방식 |
-| [diagrams/redis-workloads.html](diagrams/redis-workloads.html) | **§6 Redis 워크로드 4개** |
-| [diagrams/](diagrams/) | 아키텍처 다이어그램 |
+| [diagrams/](diagrams/) | **C4 모델** — `d1` 좌석 경합 · `d2` 확정 · `d3` SSE |
 | [wireframes/](wireframes/) | 웹 · 모바일 화면 |
+| [back.md](back.md) | **백엔드 설계** — 이 스키마를 읽고 쓰는 어댑터 (§5.1) |
+
+---
+
+**← 앞** [back.md](back.md) — 코드가 어떻게 나뉘나 · **다음 →** [api.md](api.md) — 클라이언트와 무엇을 약속하나
