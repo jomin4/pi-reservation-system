@@ -108,6 +108,7 @@ do_render() {
   do_validate
 
   rm -rf "$WORK"; mkdir -p "$WORK" "$OUT"
+  rm -f "$OUT"/*.svg          # DSL 에서 지운 뷰의 SVG 가 남지 않게
 
   printf '② DSL → C4-PlantUML\n'
   cli export -workspace "$(jpath "$DSL")" \
@@ -153,15 +154,33 @@ case "$CMD" in
     need_dot
     fetch_tools
     do_render
-    # diff 가 아니라 status 로 본다 — 새로 생긴 뷰(추적 안 된 SVG)도 잡아야 한다.
-    dirty=$(git status --porcelain -- docs/diagrams/c4)
-    if [ -n "$dirty" ]; then
-      printf '\n커밋된 SVG 가 workspace.dsl 과 다르다.\n' >&2
-      printf './scripts/diagrams.sh render 를 돌리고 산출물을 같이 커밋한다.\n' >&2
-      printf '%s\n' "$dirty" >&2
+    # ⚠️ 바이트 비교를 하지 않는다. structurizr-cli 가 요소를 내보내는 순서가 고정이
+    #    아니라 Graphviz 좌표가 실행마다 조금씩 달라진다 — 그림 내용은 같다.
+    #    그래서 숫자를 전부 지운 뒤 구조와 텍스트만 비교한다.
+    strip() { sed -E 's/[0-9]+(\.[0-9]+)?//g' "$@"; }
+    bad=""
+    for f in "$OUT"/*.svg; do
+      rel="docs/diagrams/c4/$(basename "$f")"
+      if ! git cat-file -e "HEAD:$rel" 2>/dev/null; then
+        bad="$bad
+  ?? $rel — 새 뷰인데 커밋이 안 됐다"; continue
+      fi
+      if ! diff -q <(git show "HEAD:$rel" | strip) <(strip "$f") >/dev/null; then
+        bad="$bad
+   M $rel — 요소나 텍스트가 다르다"
+      fi
+    done
+    for rel in $(git ls-files -- docs/diagrams/c4); do
+      [ -f "$ROOT/$rel" ] || bad="$bad
+   D $rel — DSL 에 더는 없는 뷰"
+    done
+    git checkout -q -- docs/diagrams/c4 2>/dev/null || true   # 좌표만 바뀐 산출물은 되돌린다
+    if [ -n "$bad" ]; then
+      printf '\n커밋된 SVG 가 workspace.dsl 과 다르다.%s\n' "$bad" >&2
+      printf '\n./scripts/diagrams.sh render 를 돌리고 산출물을 같이 커밋한다.\n' >&2
       exit 1
     fi
-    printf '\nDSL 과 커밋된 SVG 가 일치한다.\n'
+    printf '\nDSL 과 커밋된 SVG 가 일치한다 (좌표 제외).\n'
     ;;
   *)
     printf '사용법: %s {validate|render|check}\n' "$(basename "$0")" >&2
