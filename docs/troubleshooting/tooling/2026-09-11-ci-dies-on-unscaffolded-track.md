@@ -23,6 +23,16 @@ front=true
 
 **예측한 것** — 가드가 없었다면 `actions/setup-node` 가 `cache-dependency-path: front/pnpm-lock.yaml` 을 해석하지 못해 그 단계에서 실패한다. **재현하지 않았으므로 에러 메시지 원문은 여기 적지 않는다.** 실제로 만나면 이 문서에 원문을 채워 넣을 것.
 
+**back 에서 실제로 관측 (2026-09-19 · PR #121)** — `back/CLAUDE.md` 만 고친 PR 에서 필수 체크 `back · 빌드 · 테스트` 가 **10초 만에 실패**했다. 가드가 없었기 때문이다.
+
+```
+##[group]Run ./gradlew build --no-daemon
+/home/runner/work/_temp/cc2d6069-….sh: line 1: ./gradlew: No such file or directory
+##[error]Process completed with exit code 127.
+```
+
+**예측이 맞았다** — `back` 이 깨지는 지점은 정확히 `./gradlew build` 였고, 필수 체크라 #121 이 그 자리에서 막혔다. 가드는 #122 에서 넣었다.
+
 > ⚠️ **2026-09-11 `develop` 브랜치 보호가 켜진 뒤부터 이건 "PR 이 영영 못 머지된다" 와 같은 말이다.** 필수 체크가 `CI 통과` 다 (`workflow.md` §7.2).
 
 ## 환경
@@ -103,7 +113,7 @@ front=$(has '^front/')
 | 가드의 존재 이유를 설계 문서에 | `deploy.md` §7.1 | ✅ PR #61 |
 | 확인 방법(소요 시간)을 트랙 문서에 | `front/CLAUDE.md` | ✅ PR #61 |
 | **`mobile-ci.yml` 가드** | `.github/workflows/mobile-ci.yml` | ✅ **PR #74** |
-| **`back-ci.yml` 가드** | `.github/workflows/back-ci.yml` | 🔄 **back 세션이** |
+| **`back-ci.yml` 가드** | `.github/workflows/back-ci.yml` | ✅ **2026-09-19 · #122** — 판정은 `back/gradlew` |
 | **`infra-ci.yml` 가드** | `.github/workflows/infra-ci.yml` | 🔄 **infra 세션이** |
 
 > ⚠️ **front 세션이 다른 트랙의 CI 를 대신 고치지 않는다.** **가드의 판정 기준이 트랙마다 다르기 때문**이다 — front·mobile 은 `package.json`, back 은 `gradlew`, infra 는 compose 파일 유무. **"그 트랙에서 스캐폴드란 무엇인가" 를 아는 세션이 써야 한다.**

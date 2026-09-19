@@ -30,17 +30,36 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # ⚠️ 트랙이 스캐폴드되기 전에도 이 job 은 돈다.
+      #    _changes 는 '^back/' 로 판별하므로 back/CLAUDE.md 한 줄만
+      #    고쳐도 back=true 가 된다. gradlew 가 없으면 아래 build 에서
+      #    "./gradlew: No such file or directory" 로 죽는다.
+      #    건너뛴 단계는 성공으로 보고되므로 필수 체크로 두어도 안전하다.
+      #    (docs/troubleshooting/tooling/2026-09-11-ci-dies-on-unscaffolded-track.md)
+      - name: 스캐폴드 여부
+        id: scaffold
+        run: |
+          if [ -f back/gradlew ]; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'back/gradlew 가 없다. 아직 스캐폴드 전이므로 이후 단계를 건너뛴다.'
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-java@v4
+        if: steps.scaffold.outputs.ready == 'true'
         with:
           distribution: temurin
           java-version: 21
 
       - uses: gradle/actions/setup-gradle@v4
+        if: steps.scaffold.outputs.ready == 'true'
 
       # 여기서 Testcontainers PostgreSQL 에 Flyway 가 적용된다.
       # 마이그레이션 검증을 별도 단계로 두지 않는 이유는
       # 테스트가 이미 컨테이너를 띄우기 때문이다.
       - name: gradlew build
+        if: steps.scaffold.outputs.ready == 'true'
         working-directory: back
         run: ./gradlew build --no-daemon
 
@@ -49,6 +68,7 @@ jobs:
       #    Flyway 의 validate-on-migrate 와 같은 역할이고,
       #    어긋나면 계약을 먼저 고치는 PR 이 있어야 한다 (workflow.md §3).
       - name: 계약 ↔ 구현 대조
+        if: steps.scaffold.outputs.ready == 'true'
         working-directory: back
         run: |
           set -euo pipefail
@@ -71,7 +91,7 @@ jobs:
           fi
 
       - name: 테스트 결과 업로드
-        if: always()
+        if: always() && steps.scaffold.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: back-test-results
