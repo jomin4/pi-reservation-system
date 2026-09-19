@@ -155,9 +155,15 @@ case "$CMD" in
     fetch_tools
     do_render
     # ⚠️ 바이트 비교를 하지 않는다. structurizr-cli 가 요소를 내보내는 순서가 고정이
-    #    아니라 Graphviz 좌표가 실행마다 조금씩 달라진다 — 그림 내용은 같다.
-    #    그래서 숫자를 전부 지운 뒤 구조와 텍스트만 비교한다.
-    strip() { sed -E 's/[0-9]+(\.[0-9]+)?//g' "$@"; }
+    #    아니라, 실행마다 Graphviz 좌표가 달라지고 요소 순서도 뒤바뀐다 — 그림 내용은 같다.
+    #    그래서 「텍스트 노드의 내용」과 「도형 태그」를 숫자를 지우고 정렬한 다중집합으로
+    #    비교한다. 요소가 늘거나 줄거나 라벨이 바뀌면 잡히고, 자리만 바뀐 건 무시된다.
+    canon() {
+      sed -E 's/[0-9]+(\.[0-9]+)?//g' \
+        | grep -oE '<text[^>]*>[^<]*</text>|<(rect|path|polygon|polyline|line|ellipse)[ />]' \
+        | sed -E 's/<text[^>]*>/<text>/; s/[ />]$//' \
+        | sort
+    }
     bad=""
     for f in "$OUT"/*.svg; do
       rel="docs/diagrams/c4/$(basename "$f")"
@@ -165,7 +171,7 @@ case "$CMD" in
         bad="$bad
   ?? $rel — 새 뷰인데 커밋이 안 됐다"; continue
       fi
-      if ! diff -q <(git show "HEAD:$rel" | strip) <(strip "$f") >/dev/null; then
+      if ! diff -q <(git show "HEAD:$rel" | canon) <(canon < "$f") >/dev/null; then
         bad="$bad
    M $rel — 요소나 텍스트가 다르다"
       fi
