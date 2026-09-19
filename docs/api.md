@@ -988,10 +988,40 @@ data: {"reason":"EVENT_ID_TOO_OLD","action":"REFETCH_SNAPSHOT"}
                           끌 때는 핸들러만 뺀다
 ```
 
-| 스위치 | `VITE_API_MODE=mock \| real` |
+| 트랙 | 스위치 |
 |---|---|
+| **웹** | `VITE_API_MODE=mock \| real` |
+| **모바일** | **`EXPO_PUBLIC_API_MODE=mock \| real`** |
 
-⚠️ **React Native에서 MSW 동작은 세팅 때 확인할 것.** 안 되면 mobile만 다른 방식으로 간다.
+> **이름이 다른 건 취향이 아니다.** Vite는 `VITE_`, Expo는 **`EXPO_PUBLIC_`** 접두만 클라이언트 번들에 주입한다. 접두를 안 맞추면 **값이 `undefined`로 들어오고 조용히 `real`로 떨어진다** — 백엔드가 없는데 mock이 안 붙는다.
+
+⚠️ **React Native에서 MSW는 쓰지 못한다 — 2026-09-14 에뮬레이터 확인** (`#91`)
+
+**한 번 반대로 적었다.** #90에서 "`msw/native`로 간다"고 확정했는데 **에뮬레이터에서 뒤집혔다.**
+
+```
+Uncaught Error: Property 'MessageEvent' doesn't exist
+  at src/mocks/handlers.ts:1 → enable.ts → app/_layout.tsx
+```
+
+`msw`와 `@mswjs/interceptors`는 모듈 평가 시점에 **Hermes에 없는 Web API**를 참조한다 — `MessageEvent` · `BroadcastChannel` · `TransformStream` · `DecompressionStream` …. 하나 채우면 다음이 나온다.
+
+> ⚠️ **`jest-expo`로는 못 잡는다.** RN의 모듈 해석은 흉내 내지만 **엔진은 Node**다. `MessageEvent`가 거기엔 있다. **「Jest 초록」이 「Hermes에서 된다」를 뜻하지 않는다** — [트러블슈팅](troubleshooting/mobile/2026-09-14-msw-does-not-run-on-hermes.md).
+
+**그래서 모바일만 자체 `fetch` 인터셉터로 간다.** §7.2가 처음부터 열어둔 경로다.
+
+| | 웹 (`front/`) | **모바일 (`mobile/`)** |
+|---|---|---|
+| 가로채는 것 | **MSW** — Service Worker | **자체 `fetch` 인터셉터** 한 장 |
+| 버리는 것 | — | WebSocket 목 · 워커 · 스트림 응답 |
+| **지키는 것** | **앱이 진짜 `fetch`를 부른다 · `status`·`delay` 조작 · 끌 때 핸들러만 뺀다** | **동일** |
+| 공유하는 것 | — | **`fixtures` · `scenario` · 핸들러 로직은 그대로** |
+
+> **바뀌는 건 「누가 가로채나」뿐이다.** 앱 코드와 예외 화면을 만드는 방식은 웹과 같다 — **그게 §7.2가 지키려던 것**이고 도구 이름이 아니다.
+
+⚠️ **모바일에는 함정이 하나 더 있다 — 전역 `fetch`를 모듈 로드 시점에 붙잡으면 안 된다.** 인터셉터가 전역을 갈아끼우므로, 먼저 캡처한 참조는 **`status`도 `text()`도 `undefined`인 반쪽짜리 Response**를 준다 — [트러블슈팅](troubleshooting/mobile/2026-09-14-msw-returns-half-dead-response.md). **MSW를 버려도 이 함정은 그대로 남는다.**
+
+**스위치도 갈린다** — 웹은 주소창 `?mock=`, 모바일은 **`EXPO_PUBLIC_MOCK_SCENARIO`**. 모바일에 주소창이 없어서다.
 
 **Prism은 쓰지 않는다** — `openapi.yaml`에서 Mock 서버를 띄우는 도구지만, **프로세스가 하나 늘고** MSW가 이미 같은 일을 앱 안에서 한다.
 
@@ -1045,7 +1075,7 @@ interface SeatEventSource {
 | 2 | — | 화면 개발 — **정상 + 예외 전부** |
 | 3 | **구현** | (계속) |
 | 4 | **SpringDoc 스펙 노출 → CI diff 통과** | — |
-| 5 | — | **MSW 끄기** (`VITE_API_MODE=real`) |
+| 5 | — | **MSW 끄기** (`VITE_API_MODE` · `EXPO_PUBLIC_API_MODE` = `real`) |
 | 6 | — | 통합 확인 |
 
 > **0번이 code-first와 갈리는 지점이다.** 계약을 손으로 썼으니 **백엔드가 한 줄도 없을 때부터 타입이 존재한다.** 프론트는 처음부터 진짜 타입 위에서 개발한다.

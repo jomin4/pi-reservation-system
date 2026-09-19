@@ -1,0 +1,7 @@
+coverage/
+.vite/
+*.tsbuildinfo
+
+# 로컬 환경값. 예시는 .env.example 이 들고 있다
+.env
+.env.local

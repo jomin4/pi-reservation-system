@@ -28,7 +28,7 @@ jobs:
     if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # ⚠️ -s(strict) 를 쓰지 않는다. 설정 파일 없이 strict 로 돌리면
       #    line-length 같은 기본 규칙에 compose 가 그대로 걸린다.

@@ -14,7 +14,7 @@
 | | **이 문서 (`workflow.md`)** | [`deploy.md`](deploy.md) |
 |---|---|---|
 | 답하는 질문 | **"사람과 세션이 어떻게 협업하나"** | **"코드가 어떻게 배포되나"** |
-| 다루는 것 | worktree · 브랜치 · 커밋 · PR · 리뷰 | CI 파이프라인 · 릴리스 · 롤백 |
+| 다루는 것 | worktree · 브랜치 · 커밋 · PR · 이슈 · 보드 | CI 파이프라인 · 릴리스 · 롤백 |
 
 ---
 
@@ -28,32 +28,60 @@
 |---|---|
 | `git status` | 세션 A가 **B의 변경까지 본다** |
 | `git add -A` | **남의 작업이 섞여 커밋된다** |
-| 브랜치 | 하나만 체크아웃된다 — 4트랙이 같은 브랜치에 얹힌다 |
+| 브랜치 | 하나만 체크아웃된다 — 트랙 넷이 같은 브랜치에 얹힌다 |
 
-### 1.2 구성 — 저장소 1개 · 워킹 디렉터리 5개 (2026-09-11 세팅 완료)
+### 1.2 구성 — 머신 2대 · 워킹 디렉터리 5개 (2026-09-11 세팅 완료)
 
 ```
-Desktop/
-├─ pi-reservation-system/    ← 본체. 통합 확인 + 문서 작업
-└─ pi-worktrees/
-   ├─ back/                  feat/back-*
-   ├─ front/                 feat/front-*
-   ├─ mobile/                feat/mobile-*
-   └─ infra/                 feat/infra-*
+개발 PC (Windows)                         배포 PC (Ubuntu 24.04)
+├─ pi-reservation-system/     본체        └─ pi-reservation-system/   클론
+├─ pi-reservation-system-back/   worktree      feat/infra-*
+├─ pi-reservation-system-front/  worktree
+└─ pi-reservation-system-mobile/ worktree
 ```
 
-> **한 폴더에 묶는다.** 형제로 흩뿌리면(`../pi-back` …) 이미 폴더가 많은 작업 디렉터리에서 **본체가 파묻힌다.** 묶으면 `pi-` 접두도 필요 없다.
+> **폴더 이름이 저장소 이름으로 시작한다.** 세션이 여러 개 떠 있을 때 **창 제목·터미널 프롬프트만 보고 어느 프로젝트의 어느 트랙인지** 알 수 있어야 한다. 이름을 줄이면(`back/`) 다른 프로젝트의 폴더와 구분이 안 된다.
 
 **만들 때 — 한 번만 한다**
 
 ```bash
 git fetch origin
-for t in back front mobile infra; do
-  git worktree add --detach ../pi-worktrees/$t origin/develop
+for t in back front mobile; do
+  git worktree add --detach ../pi-reservation-system-$t origin/develop
 done
 ```
 
-### ⚠️ 1.2.1 폴더는 상주하고 브랜치만 갈아탄다
+### ⚠️ 1.2.1 `infra` 만 worktree 가 아니다 (2026-09-11)
+
+**infra 세션은 배포 PC 에서 돈다.** 그 PC 에 `git clone` 하고 거기서 Claude 를 띄운다.
+
+| 왜 | |
+|---|---|
+| **작업 대상이 그 PC 다** | `systemctl` · `docker ps` · `free -h` · `journalctl` — **호스트 상태를 보는 게 인프라 작업의 절반**이다 |
+| 원격으로 하면 | SSH 로 한 줄씩 던지게 되고 **맥락이 끊긴다.** 파일 편집도 편법이 된다 |
+| worktree 로는 안 된다 | worktree 는 **같은 디스크의 `.git` 하나를 공유**하는 구조라 다른 머신으로 못 뻗는다 |
+
+> **격리 목적은 오히려 더 확실해진다.** 머신이 물리적으로 다르니 파일이 섞일 길이 없다.
+
+| | worktree 3개 | **infra 클론** |
+|---|---|---|
+| `.git` | 본체와 공유 | **자기 것** |
+| 같은 브랜치 중복 방지 | ✅ git 이 막는다 | ❌ **못 막는다** — 아래 |
+| `develop` 따라잡기 | `git merge origin/develop` | 동일 |
+
+> ⚠️ **클론이라 "같은 브랜치를 두 곳에 못 연다" 보호가 안 걸린다.** 개발 PC 에서 `feat/infra-*` 를 만들면 배포 PC 와 충돌할 수 있다.
+> **규칙으로 막는다 — `feat/infra-*` · `chore/infra-*` 브랜치는 배포 PC 에서만 만든다.**
+
+**⚠️ 배포 PC 에 Claude 를 올릴 때**
+
+| 항목 | |
+|---|---|
+| 전제 | SSH 접속이 먼저 열려 있어야 한다 |
+| 메모리 | 작업 중 **~0.3~0.5 GB**. 서비스가 아니라 세션이라 상시 점유가 아니다 |
+| **`sudo`** | ⚠️ **사용자가 직접 친다.** Claude 가 명령을 만들어 주고 사람이 복사·붙여넣기 |
+| **root 로 실행** | ❌ **안 한다.** 폐쇄망 보안을 주제로 한 프로젝트에서 에이전트에 root 를 상시로 주는 건 자기모순이다 |
+
+### ⚠️ 1.2.2 폴더는 상주하고 브랜치만 갈아탄다
 
 | | **상주 (채택)** | 일회용 |
 |---|---|---|
@@ -64,6 +92,8 @@ done
 > **세션이 오래 살고 브랜치가 짧게 산다.** 일회용으로 하면 이슈를 닫을 때마다 세션의 `cwd` 가 없어진다.
 
 **그래서 `--detach` 로 만든다.** `origin/develop` 을 가리킨 채 브랜치가 없는 상태다. 세션 시작 프로토콜 4번이 첫 브랜치를 만든다.
+
+> ⚠️ **폴더 안은 비워 두지 않는다 — 채우는 것도 세션의 일이다.** worktree 를 만들면 저장소 전체가 체크아웃되므로 `back/CLAUDE.md` 같은 트랙 규칙이 이미 들어 있다. **프로젝트 뼈대(`build.gradle.kts` · `package.json` …)는 각 세션이 자기 첫 이슈로 만든다** — 우리가 미리 만들어 주면 그 커밋이 리뷰도 이슈도 없이 들어간다.
 
 ```bash
 # 세션이 이슈를 잡을 때
@@ -101,11 +131,34 @@ fatal: 'feat/back-seat-hold' is already used by worktree at '.../pi-worktrees/ba
 | 규칙 | 내용 |
 |---|---|
 | **자기 트랙 밖을 고치지 않는다** | `back` 세션은 `front/`를 건드리지 않는다 |
+| **`infra` 브랜치는 배포 PC 에서만** | 클론이라 git 이 중복 체크아웃을 못 막는다 (§1.2.1) |
 | **세션 간 직접 소통 없음** | **PR과 `develop`을 통해서만** |
-| 문서 변경 | **본체에서** `docs/*` 브랜치로 |
+| **문서 변경** | **자기 트랙 몫은 자기가.** 공통 문서는 본체 — §1.3.1 |
 | `develop` 따라잡기 | 작업 중 수시로 `git merge origin/develop` |
 
-> **`docs/`는 트랙에 속하지 않는다.** 설계 문서는 네 트랙 전부가 참조하므로 **한 곳(본체)에서만** 고친다. 두 세션이 같은 문서를 고치면 worktree도 못 막는다.
+#### 1.3.1 `docs/` 를 누가 고치나 (2026-09-11 완화)
+
+**처음엔 본체에서만 고치게 했다.** 근거는 "`docs/` 는 트랙에 속하지 않는다" 였다. 실제로 돌려보니 **왕복이 길고 맥락이 새는 쪽 손해가 더 컸다** — front 스택 버전을 고정할 때 `typescript` 를 `latest` 로 깔면 `typescript-eslint` peer(`<6.1.0`)에 걸려 린트가 깨진다는 걸 **그 트랙에서만 알 수 있었다.** 본체는 "5.x" 라고만 적고 넘어갔다.
+
+| 문서 | 누가 | 브랜치 |
+|---|---|---|
+| **`docs/troubleshooting/<track>/*`** | **겪은 트랙이 직접.** ⚠️ 두 트랙 이상이면 **`tooling/`** | `docs/<track>-*` |
+| `tech.md` · `deploy.md` · `operate.md` 의 **자기 트랙 절** | 그 트랙 | 〃 |
+| **`.github/workflows/<track>-ci.yml`** | 그 트랙 | `ci/<track>-*` |
+| **`docs/api/openapi.yaml` · `api.md`** | ⚠️ **누가 열어도 §3 순서를 지킨다** | `docs/api-*` |
+| `features.md` · `workflow.md` · `docs/adr/` · **4트랙 공통 절** | **본체** | `docs/*` |
+
+> **제한의 축이 바뀌었다.** "어느 worktree 냐" 가 아니라 **"무엇에 걸리느냐"** 다.
+>
+> **계약은 본체 제한을 풀어도 안전해지지 않는다.** 세 트랙에 동시에 걸리므로 막아야 할 것은 **어디서 고쳤나가 아니라 순서**다 — front 가 계약을 단독으로 바꾸면 back 은 모른 채로 `develop` 을 받는다. **§3 이 그 장치이고, 그건 그대로 둔다.**
+
+**남는 위험** — 두 트랙이 **같은 문서의 같은 절**을 동시에 고치면 worktree 는 못 막는다.
+
+| | |
+|---|---|
+| 줄이는 장치 | **절 단위로 소유를 나눴다.** 트랙 절은 겹치지 않는다 |
+| 그래도 부딪히면 | `develop` 머지에서 드러난다. **조용히 덮이지는 않는다** |
+| ⚠️ 트러블슈팅 `README.md` 색인 | **한 줄짜리 표라 가장 자주 부딪힌다.** 항상 **표 끝에 추가**한다 |
 
 ---
 
@@ -216,9 +269,9 @@ features.md  F-04
   ┌────▼─────────┐
   │ In Progress  │
   └────┬─────────┘
-       │  PR 열기 (본문에 Closes #12) → Gemini 자동 리뷰
+       │  PR 열기 (본문에 Closes #12)
   ┌────▼─────────┐
-  │  In Review   │  ← Gemini + CI 대기
+  │  In Review   │  ← CI 대기
   └────┬─────────┘
        │  develop 머지 → 이슈 자동 종료
   ┌────▼────┐
@@ -230,7 +283,7 @@ features.md  F-04
 
 ### 5.3 라벨 — 3축 네임스페이스
 
-`<축>:<값>`. 목록이 축별로 묶여 보인다. 전체 목록은 **부록 D**.
+`<축>:<값>`. 목록이 축별로 묶여 보인다. 전체 목록은 **부록 C**.
 
 | 축 | 값 | 출처 |
 |---|---|---|
@@ -274,7 +327,7 @@ features.md  F-04
 
 ### 5.6 템플릿 3종
 
-`.github/ISSUE_TEMPLATE/` — 원본은 **부록 E**.
+`.github/ISSUE_TEMPLATE/` — 원본은 **부록 D**.
 
 | 파일 | 덮는 범위 | 고유 필드 |
 |---|---|---|
@@ -295,7 +348,7 @@ features.md  F-04
 |---|---|---|
 | **Todo** | 정의됐고 아직 안 잡음 | worktree + 브랜치 생성 |
 | **In Progress** | 세션이 작업 중 | PR 열기 |
-| **In Review** | **Gemini + CI 대기** | `develop` 머지 |
+| **In Review** | **CI 대기** | `develop` 머지 |
 | **Done** | 머지됨 | — |
 
 **전이 자동화**
@@ -424,7 +477,7 @@ Projects 내장 `Priority` **필드**로 그룹핑하는 뷰인데, 우리는 �
 
 ### 6.1 템플릿
 
-`.github/PULL_REQUEST_TEMPLATE.md` — 부록 B.
+`.github/PULL_REQUEST_TEMPLATE.md` — 부록 A.
 
 | 칸 | 왜 있나 |
 |---|---|
@@ -439,13 +492,14 @@ Projects 내장 `Priority` **필드**로 그룹핑하는 뷰인데, 우리는 �
 
 ### 6.2 초안 PR
 
-| 상태 | Gemini 리뷰 |
+| 상태 | CI |
 |---|---|
-| Draft | ❌ 자동 리뷰 안 함 (`include_drafts: false`) |
-| Ready | ✅ 자동 |
-| 수동 | `/gemini review` 언제든 |
+| Draft | ✅ **돈다** — `on: pull_request` 가 초안도 포함한다 |
+| Ready | ✅ |
 
-> **Claude가 작업 중인 초안까지 리뷰받으면 소음이다.** 준비되면 Ready로 바꾸거나 `/gemini review`로 직접 부른다.
+> **초안에서도 CI를 돌리는 게 맞다.** 자동 리뷰 봇이 없어 초안에 붙는 소음이 없고, **일찍 빨개지는 편이 낫다.**
+
+> ⚠️ **머지는 Ready여야 한다** — GitHub이 Draft PR의 머지를 막는다.
 
 ---
 
@@ -467,14 +521,14 @@ Projects 내장 `Priority` **필드**로 그룹핑하는 뷰인데, 우리는 �
 
 **대가** — 로그가 길어진다. `--first-parent`가 그 대가를 상쇄한다.
 
-### 7.2 브랜치 보호
+### 7.2 브랜치 보호 (2026-09-11 `develop` 적용)
 
 | 항목 | 설정 |
 |---|---|
 | 직접 push | **금지** (`main` · `develop`) |
 | **필수 체크** | **CI 통과** (§8) |
 | 사람 승인 | **필수로 걸지 않는다** |
-| Gemini 리뷰 | **차단 조건 아님** — 참고 의견 |
+| **코드 리뷰 봇** | **없다** (2026-09-11) — 붙여도 차단 조건이 아니다 |
 
 > **1인 프로젝트에서 승인을 필수로 걸면 무의미한 클릭이 늘 뿐이다.** 자기 PR을 자기가 승인하는 건 형식이다.
 >
@@ -494,14 +548,16 @@ Projects 내장 `Priority` **필드**로 그룹핑하는 뷰인데, 우리는 �
 
 ### 8.1 ⚠️ 검사 로직을 `.github/workflows` 밖에 둔다
 
-> **Gemini Code Assist는 `.github/workflows` 파일을 리뷰 대상에서 제외한다** (안전하지 않은 구성 유입 방지).
-
 ```
-scripts/check-forbidden.sh      ← 봇이 리뷰한다 · 로컬에서도 돌린다
-.github/workflows/ci.yml        ← 호출만. 봇 제외 대상
+scripts/check-forbidden.sh          ← 검사 로직
+.github/workflows/forbidden.yml     ← 호출만
 ```
 
-> **검사 로직이 워크플로 안에 있으면 그 로직이 잘못돼도 봇이 못 잡는다.** 셸 스크립트로 빼두면 **리뷰도 받고 로컬에서도 돌아간다.**
+| 이유 | |
+|---|---|
+| **로컬에서 돈다** | PR을 올리기 전에 `./scripts/check-forbidden.sh` 한 번이면 끝난다. CI 를 기다릴 일이 없다 |
+| **검사 로직 자체를 검증할 수 있다** | 픽스처로 "잡아야 할 걸 잡는지"를 돌려볼 수 있다 (부록 B.5) |
+| 나중에 봇을 붙이면 | 코드 리뷰 봇은 흔히 **`.github/workflows`를 리뷰 대상에서 제외**한다(안전하지 않은 구성 유입 방지). 밖에 있으면 그때 리뷰를 받는다 |
 
 ### 8.2 검사 목록
 
@@ -518,92 +574,17 @@ scripts/check-forbidden.sh      ← 봇이 리뷰한다 · 로컬에서도 돌�
 | **9** | **`application`에 `springframework`** | `data.md` §4.6 |
 | **10** | **JPA · Hibernate 의존** | **ADR-0008** |
 
-**구현은 [`scripts/check-forbidden.sh`](../scripts/check-forbidden.sh)** — 세부는 부록 C.
+**구현은 [`scripts/check-forbidden.sh`](../scripts/check-forbidden.sh)** — 세부는 부록 B.
 
-> **이 10개가 우리가 문서에 박아둔 금지 사항 중 기계로 판정 가능한 전부다.** 나머지(설계 의도 위반·가독성)는 봇의 몫이다.
->
+> **이 10개가 우리가 문서에 박아둔 금지 사항 중 기계로 판정 가능한 전부다.**
+
 > **8·9·10은 2026-09-15 추가다.** 8은 어댑터 3개가 `:domain`을 직접 선언하게 되면서 **"웹만 안 한다"가 유일한 벽**이 됐기 때문이고, 9·10은 그때까지 규율로만 남아 있던 것이다.
->
-> **기계로 막을 수 있는 걸 봇에게 맡기지 않는다.** 봇은 놓칠 수 있지만 **CI는 못 지나간다.**
+
+> ⚠️ **나머지(설계 의도 위반 · 가독성)를 지금은 아무도 안 본다.** 코드 리뷰 봇이 없고(§7.2) 1인 프로젝트라 사람 리뷰도 없다. **그래서 기계로 판정 가능한 것을 최대한 여기로 끌어온다** — 규칙이 하나 늘 때마다 "이건 grep 으로 판정되나"를 먼저 묻는다.
 
 ---
 
-## §9 코드 리뷰 — Gemini Code Assist
-
-### 9.1 설치
-
-| 항목 | 내용 |
-|---|---|
-| 형태 | **Enterprise 버전 (미리보기)** · `gemini-code-assist[bot]` |
-| 경로 | **Google Cloud 콘솔** → Gemini Code Assist 에이전트 및 도구 → Code Assist 소스 코드 관리 |
-| 연결 | **Developer Connect** — 항상 `us-east1` |
-| ⚠️ 전제 | **유효한 결제 계정 연결 필수.** 없으면 봇이 응답하지 않는다 |
-| 비용 | 미리보기 중 과금 없음 |
-| 할당량 | PR 100개 이상/일 |
-
-> ⚠️ **"GitHub App만 설치하면 끝"이 아니다.** 공식 문제 해결 항목이 **"응답이 없으면 결제 계정부터 확인하라"**로 시작한다.
-
-### 9.2 설정 파일 2개
-
-| 파일 | 성격 |
-|---|---|
-| `.gemini/config.yaml` | **정해진 스키마** — 부록 A |
-| `.gemini/styleguide.md` | **스키마 없음.** 자연어. 표준 프롬프트를 확장 |
-
-**커스텀 스타일가이드 위반은 심각도 임계값에 안 걸러진다** — 공식 문서가 "일반적으로 기준을 충족하거나 초과한다"고 명시한다.
-
-### 9.3 `styleguide.md`는 `CLAUDE.md`와 다른 문서다
-
-| | `CLAUDE.md` | **`.gemini/styleguide.md`** |
-|---|---|---|
-| 독자 | **Claude — 코드를 *쓸* 때** | **Gemini — *잡을* 때** |
-| 내용 | 결정 사항 전체 | **위반을 잡아낼 규칙만** |
-| 길이 | 길다 | **짧게** |
-
-> **참조로 떼우지 않는다.** "자세한 건 `docs/adr/`를 보라"고 쓰면 **봇이 안 읽을 수 있다.** 규칙을 자족적으로 적는다.
-
-### 9.4 호출
-
-| 명령 | 동작 |
-|---|---|
-| `/gemini review` | 코드 리뷰 |
-| `/gemini summary` | 변경 요약 |
-| `/gemini <질문>` | PR 맥락 질의 |
-| `/gemini help` | 명령 목록 |
-
----
-
-## 부록 A — `.gemini/config.yaml`
-
-```yaml
-have_fun: false
-
-code_review:
-  disable: false
-  comment_severity_threshold: MEDIUM
-  max_review_comments: -1
-  pull_request_opened:
-    help: false
-    summary: true          # 4트랙 병렬 — 어느 트랙 무엇인지 요약이 통합에 도움
-    code_review: true
-    include_drafts: false  # 작업 중 초안은 소음
-
-ignore_patterns:
-  - "docs/diagrams/**"     # archify 생성 HTML — 각 700KB
-  - "docs/wireframes/**"   # 생성 HTML
-  - "**/*.lock"
-  - "**/build/**"
-  - "**/node_modules/**"
-```
-
-| 선택 | 근거 |
-|---|---|
-| `summary: true` | 4트랙이 섞이니 요약이 통합 판단에 쓰인다 |
-| `include_drafts: false` | 초안 리뷰는 소음 · 필요하면 `/gemini review` |
-| `MEDIUM` | 커스텀 규칙 위반은 어차피 임계 이상. 소음이 많으면 `HIGH`로 |
-| `ignore_patterns` | **700KB 생성 HTML에 리뷰를 낭비하지 않는다** |
-
-## 부록 B — `.github/PULL_REQUEST_TEMPLATE.md`
+## 부록 A — `.github/PULL_REQUEST_TEMPLATE.md`
 
 ```markdown
 ## 트랙
@@ -627,12 +608,12 @@ ignore_patterns:
 - [ ] 설계 문서와 어긋나면 문서도 함께 고쳤다
 ```
 
-## 부록 C — `scripts/check-forbidden.sh`
+## 부록 B — `scripts/check-forbidden.sh`
 
 > **초안이 아니라 동작하는 스크립트다** (2026-09-10 작성 · 자기검증 통과).
 > **본문을 여기 복사하지 않는다** — 두 곳이 어긋난다. [파일이 진실이다](../scripts/check-forbidden.sh).
 
-### C.1 실행
+### B.1 실행
 
 ```bash
 ./scripts/check-forbidden.sh      # 어느 디렉터리에서든 (스크립트가 루트를 찾는다)
@@ -645,7 +626,7 @@ ignore_patterns:
 
 출력은 `OK` · `FAIL` · **`SKIP`** 세 가지다. `SKIP` 은 **대상 코드가 아직 없다**는 뜻이며, 트랙이 시작되면 저절로 켜진다.
 
-### C.2 ⚠️ 초안에서 고친 것 — 넷 다 CI 를 못 쓰게 만들 문제였다
+### B.2 ⚠️ 초안에서 고친 것 — 넷 다 CI 를 못 쓰게 만들 문제였다
 
 | # | 초안의 문제 | 왜 치명적인가 | 고침 |
 |---|---|---|---|
@@ -656,7 +637,7 @@ ignore_patterns:
 
 > **1·2 는 첫 PR 부터 CI 를 빨갛게 만든다.** 그 상태로 브랜치 보호를 켰다면 **아무 PR 도 못 머지한다.**
 
-### C.3 ⚠️ 7번은 `grep` 으로 판정할 수 없다
+### B.3 ⚠️ 7번은 `grep` 으로 판정할 수 없다
 
 ```sql
 CREATE INDEX idx_trip_seat_hold
@@ -667,7 +648,7 @@ CREATE INDEX idx_trip_seat_hold
 
 > **`awk` 로 세미콜론까지 이어 붙여 문장 단위로 판정한다.** 초안대로 뒀으면 **7번은 사실상 항상 통과**했을 것이다.
 
-### C.4 예외 마커
+### B.4 예외 마커
 
 ```sql
 SET lock_timeout = '3s';  -- check-forbidden:allow 트랜잭션 밖 마이그레이션
@@ -679,7 +660,7 @@ SET lock_timeout = '3s';  -- check-forbidden:allow 트랜잭션 밖 마이그레
 | **의무** | **왜인지 함께 적는다.** 마커만 있는 줄은 리뷰에서 막는다 |
 | ⚠️ 신호 | **마커가 늘어나면 규칙이 틀린 것이다** — 문서를 고치는 PR 을 먼저 |
 
-### C.5 자기검증
+### B.5 자기검증
 
 **실제로 잡는지, 그리고 정상 코드를 잘못 잡지 않는지**를 픽스처로 확인했다.
 
@@ -693,7 +674,7 @@ SET lock_timeout = '3s';  -- check-forbidden:allow 트랜잭션 밖 마이그레
 
 ---
 
-## 부록 D — 라벨 목록
+## 부록 C — 라벨 목록
 
 `gh label create` 로 일괄 생성한다. 색은 축별로 묶는다.
 
@@ -716,7 +697,7 @@ SET lock_timeout = '3s';  -- check-forbidden:allow 트랜잭션 밖 마이그레
 | `status:needs-decision` | `#6B7280` | 사용자 판단 대기 |
 | **`status:needs-adr`** | `#6B7280` | **구현 전 ADR을 써야 한다** |
 
-## 부록 E — 이슈 템플릿
+## 부록 D — 이슈 템플릿
 
 `.github/ISSUE_TEMPLATE/`
 

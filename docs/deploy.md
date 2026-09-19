@@ -26,7 +26,7 @@
 |---|---|---|---|---|
 | **`_changes.yml`** | — | `workflow_call` | GitHub-hosted | ✅ |
 | **`forbidden.yml`** | 전체 | `pull_request` · `push` | GitHub-hosted | ✅ |
-| **`docs-ci.yml`** | docs | `pull_request` · `push` | GitHub-hosted | ✅ |
+| **`contract-ci.yml`** | 계약 | `pull_request` · `push` | GitHub-hosted | ✅ |
 | `back-ci.yml` | back | `pull_request` · `push` | GitHub-hosted | ✅ |
 | **`back-cd.yml`** | back | `push` develop · 태그 | **혼합** (§6) | ⬜ |
 | `front-ci.yml` | front | `pull_request` · `push` | GitHub-hosted | ✅ |
@@ -40,7 +40,9 @@
 
 > **✅ = 2026-09-10 작성됨.** CD 는 self-hosted runner · Cloudflare · EAS 가 준비된 뒤에 붙인다.
 
-> 2026-09-10 ~ 09-17 사이 **계정 결제 잠금으로 Actions 가 한 job 도 돌지 않았다.** 지금은 풀렸다. 증상 · 원인 · 해제 경로는 [troubleshooting/2026-09-10-actions-billing-lock.md](troubleshooting/2026-09-10-actions-billing-lock.md).
+> **2026-09-11 Actions 가 정상 동작한다.** 워크플로 8개 전부 실행을 확인했고, `develop` 브랜치 보호의 **필수 체크**로 걸려 있다 (`workflow.md` §7.2).
+
+> 그 전날까지는 **계정 결제 잠금으로 한 job 도 돌지 않았다.** 증상 · 원인 · 막다른 길은 [troubleshooting/tooling/2026-09-10-actions-billing-lock.md](troubleshooting/tooling/2026-09-10-actions-billing-lock.md).
 
 > **`front-cd.yml`이 없는 게 경계를 가장 명확히 드러낸다.** "front CD는 우리가 안 한다"가 **파일 부재로** 표현된다. 빈 파일을 두는 것보다 낫다.
 
@@ -73,7 +75,7 @@ jobs:
 
 > **`contract` 가 따로 있는 이유** — `docs/api/**` 만 바뀐 PR 에서도 **front · mobile CI 가 돌아야 한다.** 계약이 바뀌었는데 생성 타입을 재생성 안 한 걸 잡는 게 그 CI 의 일이기 때문이다(§7.2).
 
-### 1.2 `docs-ci.yml` — 지도에 없던 파일
+### 1.2 `contract-ci.yml` — 지도에 없던 파일
 
 `api.md` 부록 A.4 가 **"스펙 문법·스타일은 `docs/api-*` PR CI 에서"** 라고 정해뒀는데 §1 지도에 그 파일이 없었다. **계약이 실재하는 파일이 된 이상 검사할 곳이 필요하다.**
 
@@ -83,6 +85,10 @@ jobs:
 | **타입 생성 가능 여부** | `openapi-typescript` 로 실제로 뽑아 본다 |
 
 > **lint 를 통과해도 타입 생성이 깨질 수 있다.** 계약이 타입으로 안 뽑히면 front · mobile 이 착수를 못 하므로, **뽑히는지까지가 계약의 통과 조건이다.**
+
+> ⚠️ **`back-ci` 로 합치지 않는다.** 계약 선행 PR(`workflow.md` §3)은 **`docs/api/**` 만 바꾸므로** `back` 게이트에 안 걸린다 — 합치면 **계약이 검사 없이 머지된다.** 계약은 백엔드 것이 아니라 **세 트랙의 경계**다.
+>
+> **이름이 `docs-ci` 가 아닌 이유도 같다.** 이 워크플로는 `docs/` 를 검사하지 않는다 — `data.md` 가 바뀌어도 안 돈다. 지키는 대상이 문서가 아니라 **계약**이다.
 
 ---
 
@@ -144,7 +150,7 @@ jobs:
 | `GITHUB_TOKEN` | 자동 발급 | ghcr push |
 | **`EXPO_TOKEN`** | **GitHub Secrets** | mobile CD |
 | `DISCORD_WEBHOOK_CI` `_CD` `_RELEASE` | **GitHub Secrets** | `_notify.yml` |
-| DB 비밀번호 · 토스 키 · R2 키 | **호스트** `/srv/pi/secrets/.env` | 컨테이너 |
+| DB 비밀번호 · 토스 키 · R2 키 | **호스트** `/home/resv/secrets/.env` | 컨테이너 |
 | 터널 토큰 | **호스트** | `cloudflared` |
 | **`age` 개인키** | ⚠️ **어느 쪽에도 두지 않는다** | 복구 시 수동 |
 | `DISCORD_WEBHOOK_ALERT` | **호스트** | Alertmanager |
@@ -164,16 +170,30 @@ jobs:
 | | **systemd 서비스** (채택) | 컨테이너 |
 |---|---|---|
 | docker 조작 | 호스트에서 직접 | ⚠️ **`/var/run/docker.sock` 마운트 필요** |
-| 위험 | `docker` 그룹 권한만 | **socket = 사실상 root** |
+| 위험 | ⚠️ **아래 5.1.1 참조** | **socket = 사실상 root** |
 | 부팅 자동 | `systemctl enable` | compose `restart` |
 
 > ⚠️ **컨테이너로 돌리면 docker socket을 마운트해야 `compose up`을 할 수 있다.** 그건 **그 컨테이너에 호스트 root를 주는 것과 같다** — 폐쇄망을 주제로 한 프로젝트에서 자기 발등을 찍는 구성이다.
 
 ```
 서비스: actions.runner.<owner>-pi-reservation-system.pi-host.service
-사용자: 전용 계정 (docker 그룹)
-작업 디렉터리: /srv/pi/runner
+사용자: resv
+작업 디렉터리: /home/resv/runner
 ```
+
+### ⚠️ 5.1.1 `resv` 는 sudo 를 갖는다 — 감수한 선택이다
+
+**계정을 나눈 목적은 "이 PC 를 프로젝트마다 나눠 쓴다" 였지 권한 최소화가 아니다** (2026-09-11).
+
+| 사실 | |
+|---|---|
+| `resv` 에 **sudo 부여** | 개인 PC 이고 관리자가 한 명이다. 호스트 작업마다 `ubuntu` 로 갈아타는 비용이 이득보다 크다 |
+| ⚠️ **그래서 계정 격리는 이름뿐이다** | sudo 가 있으면 다른 프로젝트 폴더도 `/etc` 도 전부 볼 수 있다 |
+| `docker` 그룹도 마찬가지 | `docker run -v /:/host` 한 줄이면 호스트 루트를 잡는다 — **`docker` 그룹 = 사실상 root** |
+
+> **문서가 이걸 장점으로 적고 있으면 안 된다.** 원래 이 표는 "`docker` 그룹 권한만" 을 systemd 방식의 이점으로 들었는데, sudo 를 준 이상 **그 비교는 무의미하다.** systemd 를 고른 진짜 이유는 **컨테이너로 돌리면 `docker.sock` 을 마운트해야 한다**는 쪽이고, 그건 그대로 유효하다.
+
+> **진짜 격리가 필요해지면** rootless Docker 로 간다 — 계정마다 자기 데몬을 띄우는 구성이다. 지금은 채택하지 않는다.
 
 ### 5.2 라벨
 
@@ -273,6 +293,10 @@ IMAGE_TAG=sha-abc1234 docker compose up -d --no-deps app
 | **타입 체크** | ❌ | ✅ **`tsc --noEmit`** |
 | 린트 · 유닛 테스트 | ❌ | ✅ |
 | **생성 타입 최신성** | ❌ | ✅ |
+| **번들에 목이 없는지** | ❌ | ✅ **`check:bundle`** (§7.5) |
+| **SPA 폴백 (`_redirects`)** | ❌ | ✅ 〃 (§7.4) |
+
+> ⚠️ **트랙이 스캐폴드되기 전에도 이 job 은 돈다.** `_changes` 는 `^front/` 로 판별하므로 **`front/CLAUDE.md` 한 줄만 고쳐도 `front=true`** 가 된다. `front/package.json` 이 없으면 `setup-node` 의 캐시 경로부터 깨지므로, 워크플로가 **스캐폴드 여부를 먼저 보고 이후 단계를 건너뛴다.**
 
 > ⚠️ **`vite build`는 타입 체크를 하지 않는다.** Pages 빌드가 통과해도 **타입 에러가 프로덕션에 나갈 수 있다** — `tsc --noEmit`이 front CI의 존재 이유다.
 
@@ -282,19 +306,72 @@ IMAGE_TAG=sha-abc1234 docker compose up -d --no-deps app
 
 ```bash
 npx openapi-typescript ../docs/api/openapi.yaml -o /tmp/api.d.ts
-diff /tmp/api.d.ts src/api/types.d.ts    # 다르면 실패
+diff /tmp/api.d.ts src/api/schema.d.ts    # 다르면 실패
 ```
 
 > **계약이 바뀌었는데 타입을 재생성 안 했으면 CI가 잡는다.** 문서에 규칙을 적는 것보다 확실하다. mobile CI도 같은 검사를 돈다.
+
+> ⚠️ **경로는 `src/api/schema.d.ts` 하나다.** 워크플로가 `diff` 로 이 경로를 직접 때리므로 **문서와 다르면 CI 가 매번 실패한다.** (2026-09-11 `types.d.ts` 오기를 바로잡았다)
 
 ### 7.3 Pages 설정
 
 | 항목 | 값 |
 |---|---|
 | 루트 디렉터리 | **`front/`** |
-| 빌드 명령 | `npm run build` |
+| 빌드 명령 | **`pnpm run build`** — ⚠️ `npm` 이 아니다. `pnpm-lock.yaml` 프로젝트다 |
 | 출력 | `dist` |
+| Node | **24.21.0** — `front/.nvmrc` · 대시보드 `NODE_VERSION` **둘 다** |
 | 프리뷰 | 브랜치·PR별 URL — ⚠️ **Cloudflare Access로 보호** |
+
+**환경변수 — Production · Preview 둘 다**
+
+| 이름 | 값 | |
+|---|---|---|
+| `VITE_API_MODE` | `mock` | 백엔드가 서면 `real` |
+| `VITE_API_BASE_URL` | `/api/v1` | 〃 `https://api.jomin4.cloud/api/v1` |
+
+> ⚠️ **Preview 에도 넣는다.** 안 넣으면 PR 프리뷰만 조용히 다르게 빌드돼 **「프리뷰에선 되는데 프로덕션에선 안 된다」**가 된다.
+
+> **`real` 로 넘어가는 순간 오리진이 갈린다** — 웹은 `jomin4.cloud`, API 는 `api.jomin4.cloud` (`infra.md` §4.2). **CORS 가 계약에 아직 없다** (#114).
+
+### 7.4 ⚠️ SPA 폴백 — 없으면 딥링크가 전부 404
+
+라우터가 `BrowserRouter` 라 **`/trips/101/seats` 는 파일이 아니다.** `dist` 에는 `index.html` 하나뿐이고 그 경로는 JS 가 읽는 문자열이다.
+
+| 이동 방법 | 서버에 묻나 | 폴백 없으면 |
+|---|---|---|
+| 링크 클릭 | ❌ 라우터가 주소만 바꾼다 | ✅ 정상 |
+| **새로고침 · 북마크 · 공유 링크** | ✅ **그 경로를 직접 요청한다** | ❌ **404** |
+
+```
+# front/public/_redirects
+/*    /index.html   200
+```
+
+> ⚠️ **`301`/`302` 가 아니라 `200` 이다.** 리다이렉트면 주소창이 `/index.html` 로 바뀌어 **라우터가 읽을 URL 자체가 사라진다** — 404 는 안 나지만 **항상 홈**이 뜬다.
+
+> ⚠️ **`vite dev` 는 폴백을 기본으로 해준다.** 그래서 **배포해야 드러난다** — 개발 내내 멀쩡하다.
+
+**이 프로젝트에서 유독 치명적이다.** `src/routes/paths.ts` 가 새로고침에서 살아남으려고 **일부러** `holdId` 를 URL 에 뒀다(선점 TTL 10분). 폴백이 없으면 그 의도가 정확히 뒤집힌다 — 결제 직전 `F5` 한 번에 좌석을 잃는다.
+
+`check:bundle`(CI 6단계)이 `dist/_redirects` 존재와 `200` 규칙을 함께 본다.
+
+### 7.5 ⚠️ 번들에 목이 실려 나가지 않는지
+
+**`VITE_API_MODE` 검사는 런타임 가드라 트리셰이킹을 못 한다.** `src/mocks/enable.ts` 가
+`handlers` 를 정적으로 `import` 하던 동안 **가짜 예약번호 `48207315` · 시나리오 이름
+`seat-conflict` 가 프로덕션 엔트리 청크에 들어 있었다** (2026-09-15, #108).
+
+```bash
+pnpm run check:bundle    # vite build → dist 엔트리 청크에서 목 문자열 grep
+```
+
+> **이 단계가 `vite build` 를 CI 안에서 처음 돌린다.** 그전까지 빌드가 깨지는 것은
+> **Cloudflare Pages 가 배포 시점에 처음 알았다** — §7.1 의 표가 「빌드는 Pages 몫」
+> 이라고만 적혀 있어 생긴 빈틈이다.
+
+> ⚠️ **엔트리 청크만 본다.** 목이 동적 `import` 뒤 별도 청크로 존재하는 것은 정상이다
+> (`VITE_API_MODE=mock` 일 때만 받아진다). 문제는 **동기적으로 실려 나가는 것**이다.
 
 ---
 

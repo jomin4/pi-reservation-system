@@ -13,3 +13,33 @@ gradlew         text eol=lf
 docs/diagrams/*.html    linguist-generated=true -diff
 docs/wireframes/*.html  linguist-generated=true -diff
 *.lock                  -diff
+
+# ⚠️ front — prettier 의 기본값은 endOfLine: lf 다. Windows 에서
+#    CRLF 로 체크아웃되면 format:check 가 전부 빨개진다.
+#    docs/ 의 생성 HTML 을 건드리지 않으려고 트랙 범위로 못 박는다.
+front/**/*.ts     text eol=lf
+front/**/*.tsx    text eol=lf
+front/**/*.js     text eol=lf
+front/**/*.mjs    text eol=lf
+front/**/*.json   text eol=lf
+front/**/*.css    text eol=lf
+front/**/*.html   text eol=lf
+front/.env.example      text eol=lf
+front/.gitignore        text eol=lf
+front/.prettierignore   text eol=lf
+
+# ⚠️ mobile — front 와 같은 이유. 여기에 더해 한 가지가 더 걸린다.
+#
+#    mobile CI 의 마지막 단계가 openapi-typescript 로 생성한 파일과
+#    커밋된 src/api/schema.d.ts 를 diff 한다. 생성기는 LF 로 쓰는데
+#    작업 사본이 CRLF 면 "계약이 바뀌었는데 타입이 낡았다" 로 잘못 읽힌다 —
+#    내용은 한 글자도 다르지 않은데도.
+mobile/**/*.ts     text eol=lf
+mobile/**/*.tsx    text eol=lf
+mobile/**/*.js     text eol=lf
+mobile/**/*.mjs    text eol=lf
+mobile/**/*.json   text eol=lf
+mobile/**/*.css    text eol=lf
+mobile/.env.example      text eol=lf
+mobile/.gitignore        text eol=lf
+mobile/.prettierignore   text eol=lf

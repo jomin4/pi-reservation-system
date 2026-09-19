@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| 상태 | 해결 (2026-09-17) |
+| 상태 | 해결 (2026-09-11) |
 | 트랙 | tooling |
 | 관련 | `docs/deploy.md` §1 · `docs/workflow.md` §8 |
 
@@ -21,7 +21,7 @@ The job was not started because your account is locked due to a billing issue.
 | 항목 | 값 |
 |---|---|
 | 저장소 | public — Actions 분은 **무료** |
-| 재현 | 항상. 2026-09-10 ~ 09-17 |
+| 재현 | 항상. 2026-09-10 ~ 09-11 |
 
 ## 원인
 
